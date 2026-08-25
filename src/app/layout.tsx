@@ -1,4 +1,4 @@
-import type { Metadata } from "next"; import { Inter, Lora } from "next/font/google"; import "./globals.css";
+import type { Metadata } from "next"; import { Inter, Lora } from "next/font/google"; import { siteConfig } from "@/config/site"; import "./globals.css";
 const inter=Inter({variable:"--font-inter",subsets:["latin"]}); const lora=Lora({variable:"--font-lora",subsets:["latin"]});
-export const metadata:Metadata={title:{default:"StayHaven — Discover, Book, Explore",template:"%s | StayHaven"},description:"Discover hotels, resorts, villas and unique stays across India with StayHaven."};
+export const metadata:Metadata={metadataBase:new URL(`https://${siteConfig.domain}`),title:{default:"Guwahati Homestay | Hotels, Homestays, Resorts & Villas in Guwahati",template:`%s | ${siteConfig.name}`},description:siteConfig.description,keywords:["Guwahati hotels","Guwahati homestays","resorts in Guwahati","villas in Guwahati","accommodation in Guwahati"],openGraph:{title:siteConfig.name,description:siteConfig.description,url:`https://${siteConfig.domain}`,siteName:siteConfig.name,type:"website"}};
 export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en" className={`${inter.variable} ${lora.variable}`}><body>{children}</body></html>}
