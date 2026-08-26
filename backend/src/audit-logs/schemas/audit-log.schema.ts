@@ -1,7 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { Role } from '../../common/enums/role.enum';
-@Schema({ timestamps: { createdAt: true, updatedAt: false } })
+@Schema({
+  collection: 'gw_audit_logs',
+  timestamps: { createdAt: true, updatedAt: false },
+})
 export class AuditLog {
   @Prop({ type: Types.ObjectId, index: true }) actorId: Types.ObjectId;
   @Prop({ type: String, enum: Role }) actorRole: Role;

@@ -3,6 +3,7 @@ import { HydratedDocument } from 'mongoose';
 import { AdminStatus } from '../../common/enums/status.enum';
 import { Role } from '../../common/enums/role.enum';
 @Schema({
+  collection: 'gw_admins',
   timestamps: true,
   toJSON: {
     transform: (_d, r) => {

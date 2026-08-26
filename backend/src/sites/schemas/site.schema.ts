@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { SiteStatus } from '../../common/enums/status.enum';
-@Schema({ timestamps: true })
+@Schema({ collection: 'gw_sites', timestamps: true })
 export class Site {
   @Prop({ required: true, trim: true }) name: string;
   @Prop({ required: true, unique: true, lowercase: true, index: true })

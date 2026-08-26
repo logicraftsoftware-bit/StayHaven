@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { PropertyStatus } from '../../common/enums/status.enum';
-@Schema({ timestamps: true })
+@Schema({ collection: 'gw_properties', timestamps: true })
 export class Property {
   @Prop({ type: Types.ObjectId, required: true, index: true })
   ownerId: Types.ObjectId;

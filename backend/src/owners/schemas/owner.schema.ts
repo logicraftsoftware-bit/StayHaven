@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { Role } from '../../common/enums/role.enum';
 import { OwnerStatus } from '../../common/enums/status.enum';
-@Schema({ timestamps: true })
+@Schema({ collection: 'gw_owners', timestamps: true })
 export class Owner {
   @Prop({ required: true }) name: string;
   @Prop({ required: true, unique: true, lowercase: true, index: true })

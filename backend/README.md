@@ -14,6 +14,8 @@ npm run start:dev
 
 Configure `.env` with an Atlas connection string whose database user has access to `guwahati_homestay`. Set a long random `JWT_SECRET`, strong `SUPER_ADMIN_PASSWORD`, and comma-separated trusted origins in `FRONTEND_URL`. Never commit `.env`.
 
+All application collections use the `gw_` prefix: `gw_admins`, `gw_audit_logs`, `gw_owners`, `gw_properties`, and `gw_sites`. Existing unprefixed collections are not migrated automatically.
+
 Swagger: `http://localhost:5000/api/docs`
 
 Health: `GET http://localhost:5000/api/health`
