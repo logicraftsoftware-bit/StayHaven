@@ -1,10 +1,17 @@
 import 'dotenv/config';
+import { setServers } from 'node:dns';
 import mongoose from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { AdminSchema } from '../admins/schemas/admin.schema';
 import { Role } from '../common/enums/role.enum';
 import { AdminStatus } from '../common/enums/status.enum';
 async function seed() {
+  const dnsServers = (process.env.DNS_SERVERS || '')
+    .split(',')
+    .map((server) => server.trim())
+    .filter(Boolean);
+  if (dnsServers.length) setServers(dnsServers);
+
   const uri = process.env.MONGODB_URI,
     name = process.env.SUPER_ADMIN_NAME,
     email = process.env.SUPER_ADMIN_EMAIL,
