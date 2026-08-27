@@ -67,7 +67,12 @@ export default async function handler(
 ): Promise<void> {
   serverPromise ??= createServer();
   const server = await serverPromise;
-  server(request, response);
+  await new Promise<void>((resolve, reject) => {
+    response.once('finish', resolve);
+    response.once('close', resolve);
+    response.once('error', reject);
+    server(request, response);
+  });
 }
 
 async function bootstrap(): Promise<void> {
