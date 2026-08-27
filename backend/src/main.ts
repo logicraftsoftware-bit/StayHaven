@@ -43,6 +43,7 @@ function configureApplication(app: INestApplication): void {
     'api/docs',
     app,
     SwaggerModule.createDocument(app, swagger),
+    { ui: false, raw: ['json'] },
   );
 }
 

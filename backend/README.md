@@ -65,6 +65,6 @@ Build with `npm ci && npm run build`, set production environment variables outsi
 
 This phase intentionally excludes customer, booking, payment, owner registration/dashboard, and admin UI implementation.
 
-For Vercel deployments, keep the project Root Directory set to `backend`. The
-checked-in `vercel.json` includes Swagger UI's static assets in the NestJS
-function bundle.
+For Vercel deployments, keep the project Root Directory set to `backend`.
+Swagger's OpenAPI document is generated at `/api/docs-json`; its UI at
+`/api/docs` uses pinned CDN assets so it also works in a serverless bundle.

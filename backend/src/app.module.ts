@@ -10,6 +10,7 @@ import { PropertiesModule } from './properties/properties.module';
 import { OwnersModule } from './owners/owners.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { HealthController } from './health.controller';
+import { DocsController } from './docs.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
@@ -28,6 +29,6 @@ import { HealthController } from './health.controller';
     PropertiesModule,
     OwnersModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, DocsController],
 })
 export class AppModule {}
