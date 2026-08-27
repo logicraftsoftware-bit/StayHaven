@@ -48,7 +48,7 @@ function configureApplication(app: INestApplication): void {
 }
 
 async function createApplication(): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule);
   configureApplication(app);
   return app;
 }
