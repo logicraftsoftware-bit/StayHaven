@@ -42,7 +42,7 @@ type Property = { _id: string; name: string; slug: string; propertyType: string;
 async function api<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...options.headers },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -64,7 +64,7 @@ function Login({ onLogin }: { onLogin: (token: string, admin: Admin) => void }) 
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(""); setLoading(true);
     try {
-      const result = await api<ApiResponse<{ accessToken: string; admin: Admin }>>("/api/v1/admin/auth/login", "", { method: "POST", headers: { Authorization: "" }, body: JSON.stringify({ email, password }) });
+      const result = await api<ApiResponse<{ accessToken: string; admin: Admin }>>("/api/v1/admin/auth/login", "", { method: "POST", body: JSON.stringify({ email, password }) });
       sessionStorage.setItem(TOKEN_KEY, result.data.accessToken);
       onLogin(result.data.accessToken, result.data.admin);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to sign in"); }

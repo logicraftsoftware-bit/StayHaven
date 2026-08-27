@@ -5,8 +5,10 @@ export default () => ({
     secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
-  frontendUrls: (process.env.FRONTEND_URL || '')
-    .split(',')
+  frontendUrls: [
+    'https://stay-haven-red.vercel.app',
+    ...(process.env.FRONTEND_URL || '').split(','),
+  ]
     .map((x) => x.trim())
     .filter(Boolean),
 });
