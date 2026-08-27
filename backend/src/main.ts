@@ -13,13 +13,20 @@ function configureApplication(app: INestApplication): void {
   app.setGlobalPrefix('api/v1', { exclude: ['api/health', 'api/docs'] });
   app.use(helmet());
 
-  const origins = config.get<string[]>('frontendUrls') || [];
+  const origins = new Set(config.get<string[]>('frontendUrls') || []);
+  const vercelHosts = [
+    process.env.VERCEL_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  ];
+  for (const host of vercelHosts) {
+    if (host) origins.add(`https://${host}`);
+  }
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,
     ) =>
-      !origin || origins.includes(origin)
+      !origin || origins.has(origin)
         ? callback(null, true)
         : callback(new Error('Origin not allowed'), false),
     credentials: true,
