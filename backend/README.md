@@ -1,74 +1,136 @@
-# Guwahati Homestay Super Admin API
+# Guwahati Homestay API
 
-NestJS 11 REST API for one Super Admin controlling multiple location-specific marketplace sites. Requires Node.js 20+ and MongoDB Atlas.
+NestJS 11 API foundation for a multi-site hotel marketplace. Production runs as a persistent Node.js process on a VPS behind PM2 and Nginx, with MongoDB Atlas as the shared database.
 
-## Setup
+This phase contains Super Admin, sites, owners, properties, audit logs, authentication, health checks, and Swagger. It intentionally does not implement bookings, payments, customer accounts, the owner app, or domain resolution.
 
-```bash
-cd backend
+## Configuration model
+
+Environment variables are validated before NestJS starts. External variables map to internal `ConfigService` paths:
+
+| Environment variable | Internal path |
+| --- | --- |
+| `NODE_ENV` | `nodeEnv` |
+| `PORT` | `port` |
+| `MONGODB_URI` | `mongodbUri` |
+| `JWT_SECRET` | `jwt.secret` |
+| `JWT_EXPIRES_IN` | `jwt.expiresIn` |
+| `FRONTEND_URLS` | `frontendUrls` |
+
+`MONGODB_URI` and `JWT_SECRET` are required. `JWT_SECRET` must contain at least 32 characters. `FRONTEND_URL` remains accepted as a backwards-compatible fallback, but new environments should use comma-separated `FRONTEND_URLS`.
+
+## Local setup
+
+Use Node.js 20 or newer.
+
+```powershell
+cd "D:\sourav\Client Work\hotel\stay_haven\backend"
 npm install
-copy .env.example .env
+Copy-Item .env.example .env
+```
+
+Replace every placeholder in `.env` with real local credentials. Never commit `.env`.
+
+```dotenv
+NODE_ENV=development
+PORT=5000
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=a-random-secret-with-at-least-32-characters
+JWT_EXPIRES_IN=7d
+FRONTEND_URLS=http://localhost:3000
+```
+
+Create the first administrator once:
+
+```powershell
 npm run seed:admin
+```
+
+If the local network refuses MongoDB SRV DNS queries, set `DNS_SERVERS=8.8.8.8,1.1.1.1`. The seed command and API will then resolve Atlas through those DNS servers. Leave it empty on a VPS with working system DNS.
+
+## Verification commands
+
+Development server:
+
+```powershell
 npm run start:dev
 ```
 
-Configure `.env` with an Atlas connection string whose database user has access to `guwahati_homestay`. Set a long random `JWT_SECRET`, strong `SUPER_ADMIN_PASSWORD`, and comma-separated trusted origins in `FRONTEND_URL`. Never commit `.env`.
+Expected final startup lines include:
 
-If `npm run seed:admin` fails locally with a DNS `ECONNREFUSED` error while the
-deployed health check is connected, set `DNS_SERVERS=8.8.8.8,1.1.1.1` in the
-local `.env` and rerun the seed. This option affects only the seed process.
-
-All application collections use the `gw_` prefix: `gw_admins`, `gw_audit_logs`, `gw_owners`, `gw_properties`, and `gw_sites`. Existing unprefixed collections are not migrated automatically.
-
-Swagger: `http://localhost:5000/api/docs`
-
-Health: `GET http://localhost:5000/api/health`
-
-Login:
-
-```http
-POST /api/v1/admin/auth/login
-Content-Type: application/json
-
-{"email":"admin@guwahatihomestay.com","password":"your-password"}
+```text
+Nest application successfully started
+API listening on http://0.0.0.0:5000 (development)
 ```
 
-Copy the returned access token into Swagger's Bearer authorization or send `Authorization: Bearer <token>`. All `/api/v1/admin/*` management endpoints require a valid `SUPER_ADMIN` token.
+In another terminal:
 
-## Commands
+```powershell
+Invoke-RestMethod http://localhost:5000/api/health
+```
+
+Expected fields include:
+
+```json
+{
+  "success": true,
+  "status": "ok",
+  "service": "guwahati-homestay-api",
+  "environment": "development",
+  "database": "connected",
+  "uptimeSeconds": 1,
+  "timestamp": "<ISO timestamp>"
+}
+```
+
+Swagger UI: `http://localhost:5000/api/docs`
+
+OpenAPI JSON: `http://localhost:5000/api/docs-json`
+
+Production build and process:
+
+```powershell
+npm run build
+$env:NODE_ENV="production"
+npm run start:prod
+```
+
+Expected production startup line:
+
+```text
+API listening on http://0.0.0.0:5000 (production)
+```
+
+Quality checks:
+
+```powershell
+npm run format
+npm run lint
+npm run test -- --runInBand
+npm run test:e2e -- --runInBand
+```
+
+## VPS process model
+
+Install, build, and verify on the VPS:
 
 ```bash
-npm run start:dev
+cd /var/www/guwahati-homestay/backend
+npm ci
 npm run build
-npm run start:prod
-npm run seed:admin
-npm run lint
-npm run test
-npm run test:e2e
+NODE_ENV=production npm run start:prod
 ```
 
-## API surface
+After direct verification, run `dist/main.js` under PM2 and reverse-proxy the configured port through Nginx. Store production variables in a protected VPS environment file or PM2 configuration outside Git. Allow the VPS address in MongoDB Atlas Network Access and never expose MongoDB directly.
 
-- `POST /api/v1/admin/auth/login`
-- `GET|PATCH /api/v1/admin/me`
-- `PATCH /api/v1/admin/me/password`
-- `GET /api/v1/admin/dashboard`
-- `POST|GET /api/v1/admin/sites`
-- `GET|PATCH /api/v1/admin/sites/:id`
-- `PATCH /api/v1/admin/sites/:id/status`
-- `GET /api/v1/admin/properties`
-- `GET /api/v1/admin/properties/:id`
-- `PATCH /api/v1/admin/properties/:id/{approve|reject|request-changes|suspend}`
-- `GET /api/v1/admin/owners`
-- `GET /api/v1/admin/owners/:id`
-- `PATCH /api/v1/admin/owners/:id/status`
+## API endpoints
 
-## Deployment preparation
+- Health: `GET /api/health`
+- Swagger: `GET /api/docs`
+- Admin login: `POST /api/v1/admin/auth/login`
+- Admin profile/dashboard: `/api/v1/admin/me`, `/api/v1/admin/dashboard`
+- Sites: `/api/v1/admin/sites`
+- Owners: `/api/v1/admin/owners`
+- Properties: `/api/v1/admin/properties`
 
-Build with `npm ci && npm run build`, set production environment variables outside the repository, run `npm run start:prod` under a process manager, and reverse-proxy port `5000` through Nginx with HTTPS. Restrict Atlas network access to the VPS and set `FRONTEND_URL` to trusted public domains. Do not expose MongoDB directly.
-
-This phase intentionally excludes customer, booking, payment, owner registration/dashboard, and admin UI implementation.
-
-For Vercel deployments, keep the project Root Directory set to `backend`.
-Swagger's OpenAPI document is generated at `/api/docs-json`; its UI at
-`/api/docs` uses pinned CDN assets so it also works in a serverless bundle.
+All management routes require a valid `SUPER_ADMIN` Bearer token. Collections retain the `gw_` prefix, including `gw_admins`, `gw_audit_logs`, `gw_owners`, `gw_properties`, and `gw_sites`.

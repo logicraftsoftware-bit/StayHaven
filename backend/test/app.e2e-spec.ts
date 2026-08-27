@@ -23,7 +23,19 @@ describe('Health API (e2e)', () => {
     await request(app.getHttpServer())
       .get('/api/health')
       .expect(200)
-      .expect({ success: true, status: 'ok', database: 'connected' });
+      .expect((response) => {
+        const body = response.body as Record<string, unknown>;
+        expect(body).toEqual(
+          expect.objectContaining({
+            success: true,
+            status: 'ok',
+            service: 'guwahati-homestay-api',
+            database: 'connected',
+          }),
+        );
+        expect(typeof body.uptimeSeconds).toBe('number');
+        expect(typeof body.timestamp).toBe('string');
+      });
   });
 
   afterAll(() => app.close());

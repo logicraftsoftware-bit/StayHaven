@@ -9,6 +9,14 @@ export class HealthController {
   @Get() check() {
     if (Number(this.connection.readyState) !== 1)
       throw new ServiceUnavailableException('Database unavailable');
-    return { success: true, status: 'ok', database: 'connected' };
+    return {
+      success: true,
+      status: 'ok',
+      service: 'guwahati-homestay-api',
+      environment: process.env.NODE_ENV || 'development',
+      database: 'connected',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+    };
   }
 }
