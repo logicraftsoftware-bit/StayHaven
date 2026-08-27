@@ -64,3 +64,7 @@ npm run test:e2e
 Build with `npm ci && npm run build`, set production environment variables outside the repository, run `npm run start:prod` under a process manager, and reverse-proxy port `5000` through Nginx with HTTPS. Restrict Atlas network access to the VPS and set `FRONTEND_URL` to trusted public domains. Do not expose MongoDB directly.
 
 This phase intentionally excludes customer, booking, payment, owner registration/dashboard, and admin UI implementation.
+
+For Vercel deployments, keep the project Root Directory set to `backend`. The
+checked-in `vercel.json` includes Swagger UI's static assets in the NestJS
+function bundle.
