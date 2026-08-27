@@ -75,6 +75,8 @@ async function bootstrap(): Promise<void> {
   await app.listen(config.get<number>('port') || 5000, '0.0.0.0');
 }
 
-if (!process.env.VERCEL) {
+// Start a network listener only when this file is executed directly. Vercel
+// imports the module and invokes the exported handler instead.
+if (require.main === module) {
   void bootstrap();
 }
