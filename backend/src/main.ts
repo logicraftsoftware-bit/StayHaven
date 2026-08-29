@@ -3,11 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { static as serveStatic } from 'express';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 function configureApplication(app: INestApplication): void {
   const config = app.get(ConfigService);
+
+  app.use(
+    '/api/uploads',
+    serveStatic(config.getOrThrow<string>('uploadDir'), {
+      fallthrough: false,
+      immutable: true,
+      maxAge: '7d',
+    }),
+  );
 
   app.setGlobalPrefix('api/v1', { exclude: ['api/health', 'api/docs'] });
   const origins = new Set(config.get<string[]>('frontendUrls') || []);

@@ -16,6 +16,7 @@ Environment variables are validated before NestJS starts. External variables map
 | `JWT_SECRET` | `jwt.secret` |
 | `JWT_EXPIRES_IN` | `jwt.expiresIn` |
 | `FRONTEND_URLS` | `frontendUrls` |
+| `UPLOAD_DIR` | `uploadDir` |
 
 `MONGODB_URI` and `JWT_SECRET` are required. `JWT_SECRET` must contain at least 32 characters. `FRONTEND_URL` remains accepted as a backwards-compatible fallback, but new environments should use comma-separated `FRONTEND_URLS`.
 
@@ -38,6 +39,7 @@ MONGODB_URI=mongodb+srv://...
 JWT_SECRET=a-random-secret-with-at-least-32-characters
 JWT_EXPIRES_IN=7d
 FRONTEND_URLS=http://localhost:3000
+UPLOAD_DIR=./uploads
 ```
 
 Create the first administrator once:
@@ -132,8 +134,12 @@ After direct verification, run `dist/main.js` under PM2 and reverse-proxy the co
 - Sites: `/api/v1/admin/sites`
 - Owners: `/api/v1/admin/owners`
 - Properties: `/api/v1/admin/properties`
+- Site image upload: `POST /api/v1/admin/media/images`
+- Public uploaded images: `GET /api/uploads/*`
 
 All management routes require a valid `SUPER_ADMIN` Bearer token. Collections retain the `gw_` prefix, including `gw_admins`, `gw_audit_logs`, `gw_owners`, `gw_properties`, and `gw_sites`.
+
+Logo and favicon uploads accept verified PNG, JPG, WEBP, GIF, or ICO files up to 5 MB. In production, `UPLOAD_DIR` must point to persistent storage outside the Git checkout; the deployment workflow uses `/var/www/guwahati-homestay-data/uploads`.
 
 ## Multi-site frontend foundation
 

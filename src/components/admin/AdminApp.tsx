@@ -22,11 +22,12 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Upload,
   Users,
   X,
 } from "lucide-react";
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
-import { apiRequest as api } from "@/lib/api-client";
+import { apiRequest as api, publicApiBase } from "@/lib/api-client";
 
 const TOKEN_KEY = "gh_super_admin_token";
 
@@ -444,6 +445,7 @@ function SitesView({ token }: { token: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<"logo" | "favicon" | "">("");
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -498,6 +500,35 @@ function SitesView({ token }: { token: string }) {
       await load();
     } catch (e) {
       setError((e as Error).message);
+    }
+  }
+  async function uploadSiteImage(
+    field: "logo" | "favicon",
+    file?: File,
+  ) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be 5 MB or smaller.");
+      return;
+    }
+    setError("");
+    setUploading(field);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await api<ApiResponse<{ url: string }>>(
+        "/api/v1/admin/media/images",
+        token,
+        { method: "POST", body: data },
+      );
+      setForm((old) => ({ ...old, [field]: response.data.url }));
+      setMessage(
+        `${field === "logo" ? "Logo" : "Favicon"} uploaded. Save the site to apply it.`,
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUploading("");
     }
   }
   function edit(site: Site) {
@@ -645,7 +676,48 @@ function SitesView({ token }: { token: string }) {
               information.
             </p>
             <form className="admin-form-grid" onSubmit={create}>
-              {Object.entries(form).map(([key, value]) => (
+              {Object.entries(form).map(([key, value]) =>
+                key === "logo" || key === "favicon" ? (
+                  <label className="site-image-field" key={key}>
+                    {key === "logo" ? "Logo" : "Favicon"}
+                    <span className="site-image-upload">
+                      <span className={`site-image-preview ${key}`}>
+                        {/* Uploaded public media is served by the site's API host. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`${value.startsWith("/") ? publicApiBase : ""}${value}`}
+                          alt={`${key} preview`}
+                        />
+                      </span>
+                      <span className="site-image-upload-copy">
+                        <strong>
+                          {uploading === key
+                            ? "Uploading image…"
+                            : `Upload ${key}`}
+                        </strong>
+                        <small>PNG, JPG, WEBP, GIF or ICO · maximum 5 MB</small>
+                        <small className="site-image-path">{value}</small>
+                      </span>
+                      <span className="admin-secondary compact site-image-button">
+                        {uploading === key ? (
+                          <LoaderCircle className="spin" />
+                        ) : (
+                          <Upload />
+                        )}
+                        Choose file
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
+                        disabled={Boolean(uploading)}
+                        onChange={(event) => {
+                          void uploadSiteImage(key, event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+                    </span>
+                  </label>
+                ) : (
                 <label key={key}>
                   {key === "slug"
                     ? "URL slug"
@@ -668,7 +740,8 @@ function SitesView({ token }: { token: string }) {
                     placeholder={key === "domain" ? "example.com" : undefined}
                   />
                 </label>
-              ))}
+                ),
+              )}
               <div className="modal-actions">
                 <button
                   type="button"
@@ -677,7 +750,10 @@ function SitesView({ token }: { token: string }) {
                 >
                   Cancel
                 </button>
-                <button className="admin-primary compact">
+                <button
+                  className="admin-primary compact"
+                  disabled={Boolean(uploading)}
+                >
                   {editingId ? <Check /> : <Plus />}
                   {editingId ? "Save changes" : "Create site"}
                 </button>

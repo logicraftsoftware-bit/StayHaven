@@ -3,9 +3,15 @@ const configuredBase = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLI
 export const publicApiBase = configuredBase.replace(/\/$/, "");
 
 export async function apiRequest<T>(path: string, token = "", options: RequestInit = {}): Promise<T> {
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
   const response = await fetch(`${publicApiBase}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+    headers: {
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {

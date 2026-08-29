@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 export default () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '5000', 10),
@@ -14,4 +16,5 @@ export default () => ({
     .split(',')
     .map((x) => x.trim())
     .filter(Boolean),
+  uploadDir: resolve(process.env.UPLOAD_DIR || './uploads'),
 });

@@ -77,6 +77,9 @@ jobs:
           npm ci
           npm run build
 
+          export UPLOAD_DIR=/var/www/guwahati-homestay-data/uploads
+          mkdir -p "$UPLOAD_DIR"
+
           pm2 restart guwahati-backend --update-env
           PORT=3001 pm2 restart guwahati-frontend --update-env
           pm2 save

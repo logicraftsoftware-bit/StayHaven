@@ -12,6 +12,7 @@ import { PropertiesModule } from './properties/properties.module';
 import { OwnersModule } from './owners/owners.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { HealthController } from './health.controller';
+import { MediaModule } from './media/media.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -37,6 +38,7 @@ import { HealthController } from './health.controller';
     SitesModule,
     PropertiesModule,
     OwnersModule,
+    MediaModule,
   ],
   controllers: [HealthController],
 })
