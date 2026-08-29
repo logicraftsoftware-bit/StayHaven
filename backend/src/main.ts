@@ -71,5 +71,5 @@ void bootstrap().catch((error: unknown) => {
     'Application failed to start',
     error instanceof Error ? error.stack : String(error),
   );
-  process.exitCode = 1;
+  process.exit(1);
 });
