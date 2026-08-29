@@ -81,8 +81,35 @@ jobs:
           PORT=3001 pm2 restart guwahati-frontend --update-env
           pm2 save
 
-          curl --fail --silent --show-error \
-            http://127.0.0.1:5001/api/health
-          curl --fail --silent --show-error --head \
-            http://127.0.0.1:3001/
+          backend_ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:5001/api/health; then
+              backend_ready=true
+              break
+            fi
+            echo "Waiting for backend readiness ($attempt/30)..."
+            sleep 2
+          done
+          [ "$backend_ready" = true ] || {
+            echo "Backend did not become ready on port 5001." >&2
+            pm2 logs guwahati-backend --lines 100 --nostream
+            exit 1
+          }
+
+          frontend_ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --head \
+              http://127.0.0.1:3001/; then
+              frontend_ready=true
+              break
+            fi
+            echo "Waiting for frontend readiness ($attempt/30)..."
+            sleep 2
+          done
+          [ "$frontend_ready" = true ] || {
+            echo "Frontend did not become ready on port 3001." >&2
+            pm2 logs guwahati-frontend --lines 100 --nostream
+            exit 1
+          }
           DEPLOY
