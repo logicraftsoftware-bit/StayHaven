@@ -14,7 +14,13 @@ import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
-import { CreateSiteDto, SiteStatusDto, UpdateSiteDto } from './dto/site.dto';
+import {
+  CreateSiteDomainDto,
+  CreateSiteDto,
+  SiteStatusDto,
+  UpdateSiteDomainDto,
+  UpdateSiteDto,
+} from './dto/site.dto';
 import { SitesService } from './sites.service';
 @ApiTags('Sites')
 @ApiBearerAuth()
@@ -57,6 +63,35 @@ export class SitesController {
     return {
       success: true,
       data: await this.service.status(id, d, r.user.sub),
+    };
+  }
+  @Get(':id/domains') async domains(@Param('id', MongoIdPipe) id: string) {
+    return { success: true, data: await this.service.listDomains(id) };
+  }
+  @Post(':id/domains') async addDomain(
+    @Param('id', MongoIdPipe) id: string,
+    @Body() dto: CreateSiteDomainDto,
+    @Req() request: { user: { sub: string } },
+  ) {
+    return {
+      success: true,
+      data: await this.service.addDomain(id, dto, request.user.sub),
+    };
+  }
+  @Patch(':id/domains/:domainId') async updateDomain(
+    @Param('id', MongoIdPipe) id: string,
+    @Param('domainId', MongoIdPipe) domainId: string,
+    @Body() dto: UpdateSiteDomainDto,
+    @Req() request: { user: { sub: string } },
+  ) {
+    return {
+      success: true,
+      data: await this.service.updateDomain(
+        id,
+        domainId,
+        dto,
+        request.user.sub,
+      ),
     };
   }
 }

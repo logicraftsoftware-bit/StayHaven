@@ -19,9 +19,12 @@ export class Site {
   @Prop({ required: true }) city: string;
   @Prop({ required: true }) state: string;
   @Prop({ default: 'India' }) country: string;
+  @Prop({ default: 'Asia/Kolkata' }) timezone: string;
+  @Prop({ default: 'INR' }) currency: string;
   @Prop({ type: String, enum: SiteStatus, default: SiteStatus.ACTIVE })
   status: SiteStatus;
-  @Prop({ type: Object, default: {} }) theme: Record<string, string>;
+  @Prop({ type: Object, default: {} }) theme: Record<string, unknown>;
+  @Prop({ type: Object, default: {} }) pageConfig: Record<string, unknown>;
   @Prop({ type: Object, default: {} }) seo: Record<string, unknown>;
   @Prop({ type: Object, default: {} }) contact: Record<string, unknown>;
   @Prop({ type: Object, default: {} }) social: Record<string, unknown>;

@@ -4,6 +4,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsBoolean,
   Matches,
   MinLength,
 } from 'class-validator';
@@ -17,6 +18,8 @@ export class CreateSiteDto {
   @IsString() city: string;
   @IsString() state: string;
   @IsString() country: string;
+  @IsOptional() @IsString() timezone?: string;
+  @IsOptional() @IsString() currency?: string;
   @IsOptional() @IsString() logo?: string;
   @IsOptional() @IsString() favicon?: string;
   @IsOptional() @IsString() tagline?: string;
@@ -24,7 +27,8 @@ export class CreateSiteDto {
   @IsOptional() @IsString() heroTitle?: string;
   @IsOptional() @IsString() heroSubtitle?: string;
   @IsOptional() @IsString() ogImage?: string;
-  @IsOptional() @IsObject() theme?: Record<string, string>;
+  @IsOptional() @IsObject() theme?: Record<string, unknown>;
+  @IsOptional() @IsObject() pageConfig?: Record<string, unknown>;
   @IsOptional() @IsObject() seo?: Record<string, unknown>;
   @IsOptional() @IsObject() contact?: Record<string, unknown>;
   @IsOptional() @IsObject() social?: Record<string, unknown>;
@@ -32,4 +36,18 @@ export class CreateSiteDto {
 export class UpdateSiteDto extends PartialType(CreateSiteDto) {}
 export class SiteStatusDto {
   @IsEnum(SiteStatus) status: SiteStatus;
+}
+
+export class CreateSiteDomainDto {
+  @IsString() domain: string;
+  @IsOptional() @IsBoolean() isPrimary?: boolean;
+  @IsOptional() @IsString() verificationMethod?: string;
+}
+
+export class UpdateSiteDomainDto {
+  @IsOptional() @IsBoolean() isPrimary?: boolean;
+  @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsBoolean() verified?: boolean;
+  @IsOptional() @IsString() verificationStatus?: string;
+  @IsOptional() @IsString() sslStatus?: string;
 }

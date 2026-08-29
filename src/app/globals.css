@@ -1078,6 +1078,14 @@ button {
 .site-image-preview.favicon {
   width: 68px;
 }
+
+.site-domain-health { display: grid; gap: .3rem; margin: .8rem 0; color: #667085; font-size: .75rem; }
+.site-domain-health-row { display: grid; gap: .45rem; }
+.site-domain-health-row > div { display: flex; flex-wrap: wrap; gap: .4rem; }
+.site-domain-health-row button { border: 1px solid #cad4df; border-radius: 999px; background: #fff; color: #26384c; cursor: pointer; font: inherit; font-size: .72rem; padding: .3rem .55rem; }
+.admin-form-wide { grid-column: 1 / -1; }
+.admin-form-wide textarea { width: 100%; resize: vertical; border: 1px solid #d0d5dd; border-radius: 12px; padding: .85rem; font: inherit; }
+.admin-secondary.danger { color: #a20b19; border-color: #f2b8be; }
 .site-image-preview img {
   display: block;
   max-width: 100%;

@@ -90,8 +90,21 @@ describe('Backend security and workflow contracts', () => {
       exists: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue(site),
     };
+    const domains = {
+      exists: jest.fn().mockResolvedValue(null),
+      bulkWrite: jest.fn().mockResolvedValue(undefined),
+      updateMany: jest.fn().mockResolvedValue(undefined),
+      findOneAndUpdate: jest.fn().mockResolvedValue(undefined),
+      find: jest
+        .fn()
+        .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+    };
     const audit = { record: jest.fn() };
-    await new SitesService(model as never, audit as never).create(
+    await new SitesService(
+      model as never,
+      domains as never,
+      audit as never,
+    ).create(
       {
         name: 'Guwahati',
         slug: 'guwahati',
@@ -112,8 +125,9 @@ describe('Backend security and workflow contracts', () => {
       exists: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockRejectedValue({ code: 11000 }),
     };
+    const domains = { exists: jest.fn().mockResolvedValue(null) };
     await expect(
-      new SitesService(model as never, {} as never).create(
+      new SitesService(model as never, domains as never, {} as never).create(
         {} as never,
         new Types.ObjectId().toString(),
       ),

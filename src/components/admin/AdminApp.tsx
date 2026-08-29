@@ -41,7 +41,8 @@ type Status =
   | "CHANGES_REQUIRED"
   | "DRAFT"
   | "active"
-  | "inactive";
+  | "inactive"
+  | "archived";
 type ApiResponse<T> = {
   success: boolean;
   message?: string;
@@ -76,6 +77,8 @@ type Site = {
   city: string;
   state: string;
   country: string;
+  timezone?: string;
+  currency?: string;
   logo?: string;
   favicon?: string;
   tagline?: string;
@@ -84,6 +87,7 @@ type Site = {
   heroSubtitle?: string;
   ogImage?: string;
   theme?: Record<string, string>;
+  pageConfig?: Record<string, unknown>;
   seo?: {
     title?: string;
     description?: string;
@@ -97,7 +101,16 @@ type Site = {
   };
   contact?: Record<string, string>;
   social?: Record<string, string>;
-  status: "active" | "inactive";
+  domainRecords?: Array<{
+    _id: string;
+    normalizedDomain: string;
+    isPrimary: boolean;
+    verified: boolean;
+    verificationStatus: string;
+    sslStatus: string;
+    active: boolean;
+  }>;
+  status: "active" | "inactive" | "archived";
   createdAt: string;
 };
 type Owner = {
@@ -427,15 +440,29 @@ const blankSite = {
   city: "",
   state: "",
   country: "India",
+  timezone: "Asia/Kolkata",
+  currency: "INR",
   logo: "/logo.png",
   favicon: "/favicon.ico",
   primaryColor: "#8b0d18",
   secondaryColor: "#111315",
+  fontFamily: "",
+  headerStyle: "default",
+  heroStyle: "default",
+  cardStyle: "default",
+  buttonStyle: "default",
+  footerStyle: "default",
+  layoutStyle: "default",
   seoTitle: "",
   seoDescription: "",
   canonicalUrl: "",
   email: "",
   phone: "",
+  address: "",
+  facebook: "",
+  instagram: "",
+  youtube: "",
+  pageConfig: "{}",
 };
 function SitesView({ token }: { token: string }) {
   const [sites, setSites] = useState<Site[]>([]);
@@ -464,15 +491,33 @@ function SitesView({ token }: { token: string }) {
   async function create(event: FormEvent) {
     event.preventDefault();
     setError("");
+    let parsedPageConfig: Record<string, unknown>;
+    try {
+      parsedPageConfig = JSON.parse(form.pageConfig || "{}");
+    } catch {
+      setError("Homepage section configuration must be valid JSON.");
+      return;
+    }
     const {
       aliases,
       primaryColor,
       secondaryColor,
+      fontFamily,
+      headerStyle,
+      heroStyle,
+      cardStyle,
+      buttonStyle,
+      footerStyle,
+      layoutStyle,
       seoTitle,
       seoDescription,
       canonicalUrl,
       email,
       phone,
+      address,
+      facebook,
+      instagram,
+      youtube,
       ...base
     } = form;
     const body = {
@@ -481,9 +526,21 @@ function SitesView({ token }: { token: string }) {
         .split(",")
         .map((x) => x.trim())
         .filter(Boolean),
-      theme: { primaryColor, secondaryColor },
+      theme: {
+        primaryColor,
+        secondaryColor,
+        fontFamily,
+        headerStyle,
+        heroStyle,
+        cardStyle,
+        buttonStyle,
+        footerStyle,
+        layoutStyle,
+      },
       seo: { title: seoTitle, description: seoDescription, canonicalUrl },
-      contact: { email, phone },
+      contact: { email, phone, address },
+      social: { facebook, instagram, youtube },
+      pageConfig: parsedPageConfig,
     };
     try {
       await api(
@@ -542,15 +599,29 @@ function SitesView({ token }: { token: string }) {
       city: site.city,
       state: site.state,
       country: site.country,
+      timezone: site.timezone || "Asia/Kolkata",
+      currency: site.currency || "INR",
       logo: site.logo || "",
       favicon: site.favicon || "",
       primaryColor: site.theme?.primaryColor || blankSite.primaryColor,
       secondaryColor: site.theme?.secondaryColor || blankSite.secondaryColor,
+      fontFamily: site.theme?.fontFamily || "",
+      headerStyle: site.theme?.headerStyle || "default",
+      heroStyle: site.theme?.heroStyle || "default",
+      cardStyle: site.theme?.cardStyle || "default",
+      buttonStyle: site.theme?.buttonStyle || "default",
+      footerStyle: site.theme?.footerStyle || "default",
+      layoutStyle: site.theme?.layoutStyle || "default",
       seoTitle: site.seo?.title || "",
       seoDescription: site.seo?.description || "",
       canonicalUrl: site.seo?.canonicalUrl || "",
       email: site.contact?.email || "",
       phone: site.contact?.phone || "",
+      address: site.contact?.address || "",
+      facebook: site.social?.facebook || "",
+      instagram: site.social?.instagram || "",
+      youtube: site.social?.youtube || "",
+      pageConfig: JSON.stringify(site.pageConfig || {}, null, 2),
     });
     setShow(true);
   }
@@ -563,6 +634,37 @@ function SitesView({ token }: { token: string }) {
           status: site.status === "active" ? "inactive" : "active",
         }),
       });
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  async function archive(site: Site) {
+    if (!window.confirm(`Archive ${site.name}? It will stop resolving publicly.`)) return;
+    setError("");
+    try {
+      await api(`/api/v1/admin/sites/${site._id}/status`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "archived" }),
+      });
+      setMessage(`${site.name} archived safely. Its records were retained.`);
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  async function updateDomain(
+    site: Site,
+    domainId: string,
+    updates: Record<string, boolean | string>,
+  ) {
+    setError("");
+    try {
+      await api(`/api/v1/admin/sites/${site._id}/domains/${domainId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      });
+      setMessage("Domain status updated.");
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -637,6 +739,49 @@ function SitesView({ token }: { token: string }) {
                   Created {new Date(site.createdAt).toLocaleDateString()}
                 </span>
               </div>
+              <div className="site-domain-health">
+                {(site.domainRecords || []).map((domain) => (
+                  <div className="site-domain-health-row" key={domain._id}>
+                    <span>
+                    {domain.isPrimary ? "Primary" : "Alias"}: {domain.normalizedDomain}
+                      {` · ${domain.verificationStatus} · SSL ${domain.sslStatus}`}
+                    </span>
+                    <div>
+                      {!domain.verified && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateDomain(site, domain._id, {
+                              verified: true,
+                              verificationStatus: "verified",
+                            })
+                          }
+                        >
+                          Mark verified
+                        </button>
+                      )}
+                      {domain.sslStatus !== "active" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateDomain(site, domain._id, { sslStatus: "active" })
+                          }
+                        >
+                          Mark SSL active
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateDomain(site, domain._id, { active: !domain.active })
+                        }
+                      >
+                        {domain.active ? "Disable" : "Enable"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="site-card-actions">
                 <button
                   className="admin-secondary full"
@@ -644,12 +789,19 @@ function SitesView({ token }: { token: string }) {
                 >
                   Edit configuration
                 </button>
-                <button
-                  className="admin-secondary full"
-                  onClick={() => toggle(site)}
-                >
-                  {site.status === "active" ? "Set inactive" : "Activate site"}
-                </button>
+                {site.status !== "archived" && (
+                  <button
+                    className="admin-secondary full"
+                    onClick={() => toggle(site)}
+                  >
+                    {site.status === "active" ? "Set inactive" : "Activate site"}
+                  </button>
+                )}
+                {site.status !== "archived" && (
+                  <button className="admin-secondary full danger" onClick={() => archive(site)}>
+                    Archive site
+                  </button>
+                )}
               </div>
             </article>
           ))}
@@ -716,6 +868,17 @@ function SitesView({ token }: { token: string }) {
                         }}
                       />
                     </span>
+                  </label>
+                ) : key === "pageConfig" ? (
+                  <label className="admin-form-wide" key={key}>
+                    Homepage section configuration (JSON)
+                    <textarea
+                      rows={6}
+                      value={value}
+                      onChange={(e) =>
+                        setForm((old) => ({ ...old, [key]: e.target.value }))
+                      }
+                    />
                   </label>
                 ) : (
                 <label key={key}>

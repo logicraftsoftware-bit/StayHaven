@@ -1,0 +1,39 @@
+import { Controller, Get, Param, Req } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { SitesService } from '../sites/sites.service';
+import { requestHostname } from '../sites/utils/request-hostname';
+import { PropertiesService } from './properties.service';
+
+@ApiTags('Public properties')
+@Controller('properties')
+export class PublicPropertiesController {
+  constructor(
+    private readonly properties: PropertiesService,
+    private readonly sites: SitesService,
+  ) {}
+
+  @Get()
+  async list(@Req() request: Request) {
+    const site = await this.sites.resolveActiveByDomain(
+      requestHostname(request),
+    );
+    return {
+      success: true,
+      siteId: String(site._id),
+      data: await this.properties.listPublic(String(site._id)),
+    };
+  }
+
+  @Get(':slug')
+  async get(@Param('slug') slug: string, @Req() request: Request) {
+    const site = await this.sites.resolveActiveByDomain(
+      requestHostname(request),
+    );
+    return {
+      success: true,
+      siteId: String(site._id),
+      data: await this.properties.getPublicBySlug(String(site._id), slug),
+    };
+  }
+}

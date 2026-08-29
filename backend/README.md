@@ -2,7 +2,7 @@
 
 NestJS 11 API foundation for a multi-site hotel marketplace. Production runs as a persistent Node.js process on a VPS behind PM2 and Nginx, with MongoDB Atlas as the shared database.
 
-This phase contains Super Admin, sites, owners, properties, audit logs, authentication, health checks, and Swagger. It intentionally does not implement bookings, payments, customer accounts, the owner app, or domain resolution.
+The production foundation contains Super Admin, sites, domains, owners, properties, audit logs, authentication, health checks, Swagger, and hostname-based public site resolution. Bookings, payments, customer accounts, and the owner mobile app remain later phases.
 
 ## Configuration model
 
@@ -190,3 +190,59 @@ curl -H "Host: shillong.localhost" http://127.0.0.1:5001/api/v1/sites/current
 ```
 
 The production Nginx configuration must continue forwarding the original `Host` header. Requests from `www.guwahatihomestay.com` and the root hostname resolve to the same normalized Guwahati site.
+
+## Phase 2 production domain management
+
+Domains are registered in the dedicated `gw_site_domains` collection while the legacy `domain` and `domains` fields in `gw_sites` remain synchronized for backward compatibility. Each domain record stores its normalized hostname, owning `siteId`, primary/alias state, verification status, SSL status, active state, and timestamps. A unique normalized-domain index prevents one hostname from being assigned to two sites.
+
+Run the safe, idempotent migration after deploying the Phase 2 code:
+
+```bash
+cd /var/www/guwahati-homestay/backend
+npm run migrate:site-domains
+```
+
+The command creates or updates registry records from existing sites. It never deletes a site or domain, and it stops if a hostname is already owned by another site.
+
+For local multi-site testing, create the Shillong test site without overwriting any existing record:
+
+```bash
+npm run seed:site
+```
+
+Optional `SEED_SITE_NAME`, `SEED_SITE_SLUG`, `SEED_SITE_DOMAIN`, `SEED_SITE_CITY`, `SEED_SITE_STATE`, `SEED_SITE_COUNTRY`, `SEED_SITE_LOGO`, `SEED_SITE_FAVICON`, and `SEED_SITE_PRIMARY_COLOR` environment variables customize that seed.
+
+### Domain onboarding workflow
+
+1. Create the site in `/super-admin`, or edit an existing site.
+2. Add the primary hostname and any aliases. The backend normalizes protocols, casing, paths, ports, trailing slashes, and `www` consistently.
+3. Point the domain's DNS A records to the VPS. Preserve MX/TXT email records.
+4. Add the hostname to the shared Nginx `server_name`; keep forwarding `Host`, `X-Forwarded-Host`, and `X-Forwarded-Proto` from the trusted local reverse proxy.
+5. Verify DNS, issue the TLS certificate with Certbot, and confirm HTTPS.
+6. In Super Admin, mark the domain verified and SSL active only after those external checks succeed. Domain state is operational metadata; the application does not modify DNS or issue certificates automatically.
+7. Test the public site endpoint, scoped property endpoint, frontend, SEO metadata, and inactive-site behavior.
+
+Phase 2 management endpoints (Super Admin token required):
+
+- `GET /api/v1/admin/sites/:siteId/domains`
+- `POST /api/v1/admin/sites/:siteId/domains`
+- `PATCH /api/v1/admin/sites/:siteId/domains/:domainId`
+
+Public hostname-scoped endpoints:
+
+- `GET /api/v1/sites/current`
+- `GET /api/v1/properties`
+- `GET /api/v1/properties/:slug`
+
+Public properties are always filtered by the resolved active `siteId` and approved status. The hostname selects public marketplace context only; it never grants owner or administrator authorization. Owner accounts remain global, while each property independently stores its `ownerId` and selected `siteId`.
+
+### Phase 2 verification
+
+```bash
+curl -H "Host: guwahatihomestay.com" http://127.0.0.1:5001/api/v1/sites/current
+curl -H "Host: www.guwahatihomestay.com" http://127.0.0.1:5001/api/v1/sites/current
+curl -H "Host: shillong.localhost" http://127.0.0.1:5001/api/v1/sites/current
+curl -H "Host: shillong.localhost" http://127.0.0.1:5001/api/v1/properties
+```
+
+Open `guwahati.localhost:3001` and `shillong.localhost:3001` after adding the local host mappings. Confirm that branding, theme variables, contact details, page configuration, favicon, and SEO differ by site. Change only Shillong in Super Admin and confirm Guwahati is unaffected. Finally, set the test site inactive and verify its public endpoints return not found. Do not use the production Guwahati record for destructive testing.

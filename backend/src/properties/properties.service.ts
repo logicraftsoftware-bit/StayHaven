@@ -102,4 +102,32 @@ export class PropertiesService {
   count(status?: PropertyStatus) {
     return this.model.countDocuments(status ? { status } : {});
   }
+
+  listPublic(siteId: string) {
+    return this.model
+      .find({
+        siteId: new Types.ObjectId(siteId),
+        status: PropertyStatus.APPROVED,
+      })
+      .select(
+        'name slug propertyType description address city state country location status',
+      )
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  async getPublicBySlug(siteId: string, slug: string) {
+    const property = await this.model
+      .findOne({
+        siteId: new Types.ObjectId(siteId),
+        slug,
+        status: PropertyStatus.APPROVED,
+      })
+      .select(
+        'name slug propertyType description address city state country location status',
+      )
+      .lean();
+    if (!property) throw new NotFoundException('Property not found');
+    return property;
+  }
 }

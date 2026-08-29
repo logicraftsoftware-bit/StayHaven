@@ -19,4 +19,5 @@ export enum PropertyStatus {
 export enum SiteStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
+  ARCHIVED = 'archived',
 }

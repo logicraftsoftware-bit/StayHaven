@@ -5,6 +5,13 @@ export type SiteTheme = {
   secondaryColor?: string;
   dark?: string;
   light?: string;
+  fontFamily?: string;
+  headerStyle?: string;
+  heroStyle?: string;
+  cardStyle?: string;
+  buttonStyle?: string;
+  footerStyle?: string;
+  layoutStyle?: string;
 };
 
 export type SiteConfig = {
@@ -17,6 +24,8 @@ export type SiteConfig = {
   city: string;
   state: string;
   country: string;
+  timezone?: string;
+  currency?: string;
   location?: { city?: string; state?: string; country?: string };
   logo?: string;
   favicon?: string;
@@ -39,5 +48,6 @@ export type SiteConfig = {
   };
   contact?: { email?: string; phone?: string; address?: string };
   social?: Record<string, string>;
-  status?: "active" | "inactive";
+  pageConfig?: Record<string, unknown>;
+  status?: "active" | "inactive" | "archived";
 };
