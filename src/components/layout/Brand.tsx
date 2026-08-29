@@ -1,9 +1,11 @@
-import Image from "next/image";
+"use client";
 import Link from "next/link";
-import { siteConfig } from "@/config/site";
+import { useSite } from "@/components/site/SiteProvider";
 
 export function Brand({ light = false }: { light?: boolean }) {
-  return <Link href="/" className={`brand-logo ${light ? "brand-logo-light" : ""}`} aria-label={`${siteConfig.name} home`}>
-    <Image src={siteConfig.logo} alt={siteConfig.name} width={1600} height={533} priority className="h-auto w-full object-contain" />
+  const site = useSite();
+  return <Link href="/" className={`brand-logo ${light ? "brand-logo-light" : ""}`} aria-label={`${site.name} home`}>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src={site.logo || "/logo.png"} alt={site.name} className="h-auto w-full object-contain" />
   </Link>;
 }

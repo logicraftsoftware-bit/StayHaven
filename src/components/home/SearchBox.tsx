@@ -2,6 +2,7 @@
 import { BedDouble, CalendarDays, ChevronDown, MapPin, Minus, Plus, Search, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useSite } from "@/components/site/SiteProvider";
 
 type Panel = "destination" | "type" | "dates" | "guests" | null;
 const suggestions = ["Guwahati", "Shillong", "Kaziranga", "Sohra", "Tawang", "Majuli", "Tezpur", "Jorhat"];
@@ -14,13 +15,14 @@ function Month({name,days,offset,onPick,selected}:{name:string;days:number[];off
 }
 
 export function SearchBox(){
+  const site=useSite();
   const router=useRouter(); const wrap=useRef<HTMLFormElement>(null);
-  const [panel,setPanel]=useState<Panel>(null); const [destination,setDestination]=useState("Guwahati");
+  const [panel,setPanel]=useState<Panel>(null); const [destination,setDestination]=useState(site.city);
   const [propertyType,setPropertyType]=useState("Hotels");
   const [checkInDay,setCheckInDay]=useState(24); const [checkOutDay,setCheckOutDay]=useState(27);
   const [adults,setAdults]=useState(2); const [children,setChildren]=useState(0); const [rooms,setRooms]=useState(1);
   useEffect(()=>{const close=(event:MouseEvent)=>{if(!wrap.current?.contains(event.target as Node))setPanel(null)};document.addEventListener("mousedown",close);return()=>document.removeEventListener("mousedown",close)},[]);
-  const submit=(event:React.FormEvent)=>{event.preventDefault();const q=new URLSearchParams({destination:destination||"Guwahati",type:propertyType.toLowerCase().replace(" houses","house").replace(/s$/, ""),checkIn:`2026-08-${String(checkInDay).padStart(2,"0")}`,checkOut:`2026-08-${String(checkOutDay).padStart(2,"0")}`,adults:String(adults),children:String(children),rooms:String(rooms)});router.push(`/hotels?${q}`)};
+  const submit=(event:React.FormEvent)=>{event.preventDefault();const q=new URLSearchParams({destination:destination||site.city,type:propertyType.toLowerCase().replace(" houses","house").replace(/s$/, ""),checkIn:`2026-08-${String(checkInDay).padStart(2,"0")}`,checkOut:`2026-08-${String(checkOutDay).padStart(2,"0")}`,adults:String(adults),children:String(children),rooms:String(rooms)});router.push(`/hotels?${q}`)};
   const chooseDate=(day:number)=>{if(panel!=="dates")return;if(day<=checkInDay){setCheckInDay(day);setCheckOutDay(Math.max(day+1,checkOutDay))}else{setCheckOutDay(day)}};
   return <form ref={wrap} onSubmit={submit} className="search-panel">
     <button type="button" className={`search-field ${panel==="destination"?"active":""}`} onClick={()=>setPanel(panel==="destination"?null:"destination")}><span>Where are you going?</span><div><MapPin/><strong>{destination||"City, hotel or landmark"}</strong><ChevronDown/></div></button>

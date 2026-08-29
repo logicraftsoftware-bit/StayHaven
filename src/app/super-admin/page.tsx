@@ -4,7 +4,7 @@ import "./super-admin.css";
 
 export const metadata: Metadata = {
   title: "Super Admin",
-  description: "Guwahati Homestay administration portal",
+  description: "StayHaven multi-site administration portal",
   robots: { index: false, follow: false },
 };
 

@@ -86,7 +86,10 @@ describe('Backend security and workflow contracts', () => {
 
   it('creates a site and records an audit event', async () => {
     const site = { _id: new Types.ObjectId() };
-    const model = { create: jest.fn().mockResolvedValue(site) };
+    const model = {
+      exists: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue(site),
+    };
     const audit = { record: jest.fn() };
     await new SitesService(model as never, audit as never).create(
       {
@@ -105,7 +108,10 @@ describe('Backend security and workflow contracts', () => {
   });
 
   it('rejects a duplicate site slug or domain', async () => {
-    const model = { create: jest.fn().mockRejectedValue({ code: 11000 }) };
+    const model = {
+      exists: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockRejectedValue({ code: 11000 }),
+    };
     await expect(
       new SitesService(model as never, {} as never).create(
         {} as never,

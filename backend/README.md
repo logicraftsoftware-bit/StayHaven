@@ -134,3 +134,53 @@ After direct verification, run `dist/main.js` under PM2 and reverse-proxy the co
 - Properties: `/api/v1/admin/properties`
 
 All management routes require a valid `SUPER_ADMIN` Bearer token. Collections retain the `gw_` prefix, including `gw_admins`, `gw_audit_logs`, `gw_owners`, `gw_properties`, and `gw_sites`.
+
+## Multi-site frontend foundation
+
+StayHaven uses one Next.js frontend, one NestJS API, and one MongoDB database for every marketplace domain. The incoming hostname is normalized and resolved against the active records in `gw_sites`; no domain requires a separate application deployment.
+
+Public site endpoints:
+
+- List active public sites: `GET /api/v1/sites`
+- Resolve the current public site from the request hostname: `GET /api/v1/sites/current`
+
+The public response includes only branding, theme, SEO, contact, social, and location configuration. Site management remains restricted to Super Admin routes.
+
+Each property stores its global `ownerId` and selected `siteId`. Owners keep one platform-wide account and may manage properties across multiple sites. The hostname site is only the default when creating a property; owners may select another active marketplace.
+
+### Configure Guwahati and a local Shillong test site
+
+In `/super-admin`, edit the Guwahati site and configure both production hostnames:
+
+```text
+guwahatihomestay.com
+www.guwahatihomestay.com
+```
+
+Create an active test site with values similar to:
+
+```text
+Name: Shillong Homestay
+Slug: shillong
+Primary domain: shillong.localhost
+Primary color: #235347
+SEO title: Shillong Homestay | Book Homestays in Shillong
+```
+
+On Windows, add these entries to `C:\Windows\System32\drivers\etc\hosts` from an Administrator editor:
+
+```text
+127.0.0.1 guwahati.localhost
+127.0.0.1 shillong.localhost
+```
+
+For local development, configure the Guwahati record with `guwahati.localhost` as an additional alias, start both applications, and open the two hostnames using the frontend port. Normal `localhost` development continues to use the safe fallback site configuration.
+
+API resolver checks can also be performed without changing the hosts file:
+
+```bash
+curl -H "Host: guwahatihomestay.com" http://127.0.0.1:5001/api/v1/sites/current
+curl -H "Host: shillong.localhost" http://127.0.0.1:5001/api/v1/sites/current
+```
+
+The production Nginx configuration must continue forwarding the original `Host` header. Requests from `www.guwahatihomestay.com` and the root hostname resolve to the same normalized Guwahati site.

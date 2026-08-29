@@ -30,7 +30,7 @@ export default async function Booking({
             Your selected stay was {h.name}.
           </p>
           <Link href="/" className="btn-primary mt-7">
-            Back to Guwahati Homestay
+            Back to StayHaven
           </Link>
         </div>
       </Shell>

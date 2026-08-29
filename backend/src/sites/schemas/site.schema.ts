@@ -8,14 +8,23 @@ export class Site {
   slug: string;
   @Prop({ required: true, unique: true, lowercase: true, index: true })
   domain: string;
+  @Prop({ type: [String], default: [], index: true }) domains: string[];
   @Prop() logo?: string;
   @Prop() favicon?: string;
+  @Prop() tagline?: string;
+  @Prop() description?: string;
+  @Prop() heroTitle?: string;
+  @Prop() heroSubtitle?: string;
+  @Prop() ogImage?: string;
   @Prop({ required: true }) city: string;
   @Prop({ required: true }) state: string;
   @Prop({ default: 'India' }) country: string;
   @Prop({ type: String, enum: SiteStatus, default: SiteStatus.ACTIVE })
   status: SiteStatus;
   @Prop({ type: Object, default: {} }) theme: Record<string, string>;
+  @Prop({ type: Object, default: {} }) seo: Record<string, unknown>;
+  @Prop({ type: Object, default: {} }) contact: Record<string, unknown>;
+  @Prop({ type: Object, default: {} }) social: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

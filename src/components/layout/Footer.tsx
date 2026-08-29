@@ -1,7 +1,18 @@
-import Link from "next/link"; import { Camera, MessageCircle, Play, Send } from "lucide-react"; import { Brand } from "./Brand";
+"use client";
+
+import Link from "next/link";
+import { Camera, MessageCircle, Play, Send } from "lucide-react";
+import { useSite } from "@/components/site/SiteProvider";
+import { Brand } from "./Brand";
+
 const cols = [
-  ["Company",[["About Us","#"],["Contact Us","#"],["Careers","#"],["Blog","#"]]],
-  ["Support",[["Help Center","#"],["Terms & Conditions","#"],["Privacy Policy","#"],["Cancellation Policy","#"],["FAQs","#"]]],
-  ["Property Owners",[["List Your Property","/list-your-property"],["Owner Login","/list-your-property"],["Owner Registration","/list-your-property"],["Partner Information","/list-your-property"]]],
+  ["Company", [["About Us", "#"], ["Contact Us", "#"], ["Careers", "#"], ["Blog", "#"]]],
+  ["Support", [["Help Center", "#"], ["Terms & Conditions", "#"], ["Privacy Policy", "#"], ["Cancellation Policy", "#"], ["FAQs", "#"]]],
+  ["Property Owners", [["List Your Property", "/list-your-property"], ["Owner Login", "/list-your-property"], ["Owner Registration", "/list-your-property"], ["Partner Information", "/list-your-property"]]],
 ] as const;
-export function Footer(){return <footer className="mt-16 bg-charcoal pb-20 pt-14 text-slate-300 lg:pb-8"><div className="container grid gap-10 md:grid-cols-2 lg:grid-cols-5"><div><Brand light/><p className="mt-5 max-w-xs text-sm leading-6">Your trusted local guide to comfortable stays in Guwahati and Northeast India.</p><div className="mt-5 flex gap-3">{[MessageCircle,Camera,Send,Play].map((I,i)=><I key={i} className="size-4"/>)}</div></div>{cols.map(([title,links])=><div key={title}><h3 className="mb-4 font-bold text-white">{title}</h3><ul className="space-y-2 text-sm">{links.map(([label,href])=><li key={label}><Link href={href} className="hover:text-white">{label}</Link></li>)}</ul></div>)}<div><h3 className="font-bold text-white">Subscribe to our newsletter</h3><p className="mt-2 text-sm">Get local stay deals & updates</p><form className="mt-4 flex"><input aria-label="Email" type="email" placeholder="Enter your email" className="min-w-0 flex-1 rounded-l-lg bg-white px-3 text-sm text-slate-900"/><button className="rounded-r-lg bg-maroon px-3 py-3 text-sm font-bold text-white">Subscribe</button></form><div className="mt-5 flex flex-wrap gap-2">{["Hotels in Guwahati","Homestays in Guwahati","Resorts in Guwahati","Villas in Guwahati"].map(x=><Link key={x} href={`/hotels?destination=Guwahati`} className="text-xs hover:text-white">{x}</Link>)}</div></div></div><div className="container mt-10 border-t border-white/10 pt-6 text-xs">© {new Date().getFullYear()} Guwahati Homestay. All rights reserved. Prototype pricing and availability.</div></footer>}
+
+export function Footer() {
+  const site = useSite();
+  const searches = ["Hotels", "Homestays", "Resorts", "Villas"];
+  return <footer className="mt-16 bg-charcoal pb-20 pt-14 text-slate-300 lg:pb-8"><div className="container grid gap-10 md:grid-cols-2 lg:grid-cols-5"><div><Brand light/><p className="mt-5 max-w-xs text-sm leading-6">{site.description}</p><div className="mt-5 flex gap-3">{[MessageCircle,Camera,Send,Play].map((Icon,index)=><Icon key={index} className="size-4"/>)}</div></div>{cols.map(([title,links])=><div key={title}><h3 className="mb-4 font-bold text-white">{title}</h3><ul className="space-y-2 text-sm">{links.map(([label,href])=><li key={label}><Link href={href} className="hover:text-white">{label}</Link></li>)}</ul></div>)}<div><h3 className="font-bold text-white">Subscribe to our newsletter</h3><p className="mt-2 text-sm">Get local stay deals & updates</p><form className="mt-4 flex"><input aria-label="Email" type="email" placeholder="Enter your email" className="min-w-0 flex-1 rounded-l-lg bg-white px-3 text-sm text-slate-900"/><button className="rounded-r-lg bg-maroon px-3 py-3 text-sm font-bold text-white">Subscribe</button></form><div className="mt-5 flex flex-wrap gap-2">{searches.map(type=><Link key={type} href={`/hotels?destination=${encodeURIComponent(site.city)}`} className="text-xs hover:text-white">{type} in {site.city}</Link>)}</div></div></div><div className="container mt-10 border-t border-white/10 pt-6 text-xs">© {new Date().getFullYear()} {site.name}. All rights reserved.</div></footer>;
+}
