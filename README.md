@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Phase 3 — Multi-site theme engine
+
+One shared Next.js application resolves each marketplace theme from its Site configuration. Phase 3 supports theme presets; dynamic header, hero, property-card and footer variants; site colors, typography, radii, spacing and container width; image/video hero slides; safe legacy fallbacks; and a live preview in the Super Admin site wizard. Values remain isolated by resolved hostname and configuration changes do not require a frontend code deployment.
+
+The site editor uses six modal steps: Basic information, Domain & location, Branding, Theme, Hero banners, and SEO & contact. Completed steps are green, the current step is amber, and future steps are gray.
+
 ## Getting Started
 
 First, run the development server:

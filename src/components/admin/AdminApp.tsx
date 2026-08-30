@@ -26,7 +26,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useState, type CSSProperties } from "react";
 import { apiRequest as api, publicApiBase } from "@/lib/api-client";
 import type { SiteHeroSlide } from "@/types/site";
 
@@ -448,6 +448,12 @@ const blankSite = {
   primaryColor: "#8b0d18",
   secondaryColor: "#111315",
   fontFamily: "",
+  headingFontFamily: "",
+  bodyFontFamily: "",
+  borderRadius: "18px",
+  buttonRadius: "11px",
+  spacingScale: "1",
+  containerWidth: "1360px",
   headerStyle: "default",
   heroStyle: "default",
   cardStyle: "default",
@@ -494,6 +500,8 @@ const siteFormSteps = [
       "primaryColor",
       "secondaryColor",
       "fontFamily",
+      "headingFontFamily",
+      "bodyFontFamily",
     ],
   },
   {
@@ -506,6 +514,10 @@ const siteFormSteps = [
       "buttonStyle",
       "footerStyle",
       "layoutStyle",
+      "borderRadius",
+      "buttonRadius",
+      "spacingScale",
+      "containerWidth",
     ],
   },
   {
@@ -576,6 +588,12 @@ function SitesView({ token }: { token: string }) {
       primaryColor,
       secondaryColor,
       fontFamily,
+      headingFontFamily,
+      bodyFontFamily,
+      borderRadius,
+      buttonRadius,
+      spacingScale,
+      containerWidth,
       headerStyle,
       heroStyle,
       cardStyle,
@@ -603,6 +621,12 @@ function SitesView({ token }: { token: string }) {
         primaryColor,
         secondaryColor,
         fontFamily,
+        headingFontFamily,
+        bodyFontFamily,
+        borderRadius,
+        buttonRadius,
+        spacingScale,
+        containerWidth,
         headerStyle,
         heroStyle,
         cardStyle,
@@ -715,6 +739,12 @@ function SitesView({ token }: { token: string }) {
       primaryColor: site.theme?.primaryColor || blankSite.primaryColor,
       secondaryColor: site.theme?.secondaryColor || blankSite.secondaryColor,
       fontFamily: site.theme?.fontFamily || "",
+      headingFontFamily: site.theme?.headingFontFamily || site.theme?.fontFamily || "",
+      bodyFontFamily: site.theme?.bodyFontFamily || site.theme?.fontFamily || "",
+      borderRadius: site.theme?.borderRadius || "18px",
+      buttonRadius: site.theme?.buttonRadius || "11px",
+      spacingScale: site.theme?.spacingScale || "1",
+      containerWidth: site.theme?.containerWidth || "1360px",
       headerStyle: site.theme?.headerStyle || "default",
       heroStyle: site.theme?.heroStyle || "default",
       cardStyle: site.theme?.cardStyle || "default",
@@ -957,7 +987,7 @@ function SitesView({ token }: { token: string }) {
                 </button>
               ))}
             </nav>
-            <div className="site-wizard-section-heading">
+            <div className="site-wizard-scroll"><div className="site-wizard-section-heading">
               <div>
                 <span>STEP {siteFormStep + 1} OF {siteFormSteps.length}</span>
                 <h3>{siteFormSteps[siteFormStep].title}</h3>
@@ -1059,6 +1089,9 @@ function SitesView({ token }: { token: string }) {
                 </label>
                 ),
               )}
+              {siteFormStep === 3 && <div className="theme-live-preview" style={{ "--preview-primary": form.primaryColor, "--preview-secondary": form.secondaryColor, "--preview-radius": form.borderRadius, "--preview-button-radius": form.buttonRadius, fontFamily: form.bodyFontFamily || form.fontFamily || "Inter" } as CSSProperties}>
+                <span className="admin-kicker">LIVE PREVIEW</span><div className={`theme-preview-header theme-preview-header-${form.headerStyle}`}><strong>{form.name || "Marketplace name"}</strong><span>Home&nbsp;&nbsp; Hotels&nbsp;&nbsp; Contact</span><button>Login</button></div><div className="theme-preview-body"><div><small>{form.heroStyle} hero</small><h4>Discover your perfect stay</h4><p>Your site colors, typography, spacing and component styles update here.</p><button>Explore stays</button></div><article className={`theme-preview-card theme-preview-card-${form.cardStyle}`}><div/><strong>Featured property</strong><span>Beautiful stays near you</span></article></div><div className={`theme-preview-footer theme-preview-footer-${form.footerStyle}`}>{form.name || "Marketplace"} · Footer preview</div>
+              </div>}
               <div className="modal-actions site-wizard-actions">
                 <button
                   type="button"
@@ -1094,6 +1127,7 @@ function SitesView({ token }: { token: string }) {
                 )}
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

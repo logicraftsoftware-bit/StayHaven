@@ -3,14 +3,17 @@ import Link from "next/link";
 import { Heart, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Brand } from "./Brand";
+import { useSite } from "@/components/site/SiteProvider";
 
 const links = ["Home", "Hotels", "Villas", "Resorts", "Homestays"];
 const hrefFor = (label:string) => label === "Home" ? "/" : `/hotels?type=${label.toLowerCase().replace(/s$/, "")}`;
 
 export function Header() {
+  const site = useSite();
+  const variant = site.theme.headerStyle || "default";
   const [open,setOpen]=useState(false);
   useEffect(()=>{document.body.style.overflow=open?"hidden":"";return()=>{document.body.style.overflow=""}},[open]);
-  return <><header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="container flex h-18 items-center justify-between">
+  return <><header className={`site-header site-header-${variant} sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur`}><div className="container site-header-inner flex h-18 items-center justify-between">
     <button className="icon-btn lg:hidden" onClick={()=>setOpen(true)} aria-label="Open menu"><Menu/></button><Brand/>
     <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation">{links.map(x=><Link key={x} className="nav-link" href={hrefFor(x)}>{x}</Link>)}</nav>
     <div className="flex items-center gap-2"><Link href="/wishlist" className="icon-btn" aria-label="Wishlist"><Heart/></Link><Link href="/list-your-property" className="owner-btn hidden lg:inline-flex">List Your Property</Link><Link href="/login" className="btn-primary hidden sm:inline-flex">Login</Link></div>

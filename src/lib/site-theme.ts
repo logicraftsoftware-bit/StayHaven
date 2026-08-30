@@ -16,6 +16,7 @@ const choices = {
 };
 
 const validColor = (value: unknown, fallback: string) => typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+const safeToken = (value: unknown, fallback: string, pattern: RegExp) => typeof value === "string" && pattern.test(value.trim()) ? value.trim() : fallback;
 
 export function resolveSiteTheme(input?: SiteTheme): SiteTheme {
   const preset = choices.preset.has(input?.preset as SiteThemePreset) ? input!.preset! : "default";
@@ -23,6 +24,12 @@ export function resolveSiteTheme(input?: SiteTheme): SiteTheme {
   return { ...base, ...input, preset,
     primaryColor: validColor(input?.primaryColor ?? input?.primary, base.primaryColor),
     secondaryColor: validColor(input?.secondaryColor ?? input?.secondary, base.secondaryColor),
+    headingFontFamily: safeToken(input?.headingFontFamily ?? input?.fontFamily, base.fontFamily, /^[\w\s,'-]{1,80}$/),
+    bodyFontFamily: safeToken(input?.bodyFontFamily ?? input?.fontFamily, base.fontFamily, /^[\w\s,'-]{1,80}$/),
+    borderRadius: safeToken(input?.borderRadius, "18px", /^\d+(\.\d+)?(px|rem)$/),
+    buttonRadius: safeToken(input?.buttonRadius, "11px", /^\d+(\.\d+)?(px|rem|%)$/),
+    spacingScale: safeToken(input?.spacingScale, "1", /^(0\.[5-9]|1(\.\d)?|2)$/),
+    containerWidth: safeToken(input?.containerWidth, "1360px", /^\d{3,4}px$/),
     headerStyle: choices.headerStyle.has(input?.headerStyle as SiteHeaderStyle) ? input!.headerStyle : base.headerStyle,
     heroStyle: choices.heroStyle.has(input?.heroStyle as SiteHeroStyle) ? input!.heroStyle : base.heroStyle,
     cardStyle: choices.cardStyle.has(input?.cardStyle as SiteCardStyle) ? input!.cardStyle : base.cardStyle,

@@ -13,6 +13,12 @@ export type SiteTheme = {
   dark?: string;
   light?: string;
   fontFamily?: string;
+  headingFontFamily?: string;
+  bodyFontFamily?: string;
+  borderRadius?: string;
+  buttonRadius?: string;
+  spacingScale?: string;
+  containerWidth?: string;
   headerStyle?: SiteHeaderStyle;
   heroStyle?: SiteHeroStyle;
   cardStyle?: SiteCardStyle;
