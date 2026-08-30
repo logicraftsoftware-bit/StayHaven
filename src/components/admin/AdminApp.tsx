@@ -987,7 +987,7 @@ function SitesView({ token }: { token: string }) {
                 </button>
               ))}
             </nav>
-            <div className="site-wizard-scroll"><div className="site-wizard-section-heading">
+            <div className="site-wizard-scroll" key={siteFormStep}><div className="site-wizard-section-heading">
               <div>
                 <span>STEP {siteFormStep + 1} OF {siteFormSteps.length}</span>
                 <h3>{siteFormSteps[siteFormStep].title}</h3>
@@ -1064,13 +1064,20 @@ function SitesView({ token }: { token: string }) {
                     </section>)}
                     <details><summary>Advanced homepage JSON</summary><textarea rows={6} value={value} onChange={(e)=>setForm((old)=>({...old,[key]:e.target.value}))}/></details>
                   </div>
+                ) : ["headerStyle", "heroStyle", "cardStyle", "footerStyle"].includes(key) ? (
+                <label key={key}>
+                  {key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())}
+                  <select value={value} onChange={(event) => setForm((old) => ({ ...old, [key]: event.target.value }))}>
+                    {(key === "headerStyle" ? ["default", "centered", "transparent", "overlay"] : key === "heroStyle" ? ["default", "full-image", "video", "split-screen", "mountain", "minimal"] : key === "cardStyle" ? ["default", "rounded", "minimal", "image-overlay", "compact"] : ["default", "minimal", "multi-column", "dark"]).map((option) => <option value={option} key={option}>{option.replaceAll("-", " ")}</option>)}
+                  </select>
+                </label>
                 ) : (
                 <label key={key}>
                   {key === "slug"
                     ? "URL slug"
                     : key === "aliases"
                       ? "Domain aliases (comma separated)"
-                      : key[0].toUpperCase() + key.slice(1)}
+                      : key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())}
                   <input
                     value={value}
                     onChange={(e) =>
