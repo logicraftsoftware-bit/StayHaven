@@ -112,3 +112,29 @@ describe('PageConfigsService', () => {
       service().defaults('home').sections,
     ));
 });
+
+describe('PageConfigsService site isolation', () => {
+  it('uses the resolved site id as the page cache and lookup boundary', async () => {
+    const sites = {
+      resolveActiveByDomain: jest.fn((host: string) =>
+        Promise.resolve({
+          _id: host.startsWith('guwahati') ? 'site-g' : 'site-s',
+        }),
+      ),
+    };
+    const instance = new PageConfigsService(
+      {} as never,
+      sites as never,
+      {} as never,
+    );
+    const lookup = jest
+      .spyOn(instance, 'getPublishedBySite')
+      .mockImplementation((siteId, page) => Promise.resolve({ siteId, page }));
+
+    await instance.getPublishedByHostname('guwahati.localhost', 'home');
+    await instance.getPublishedByHostname('shillong.localhost', 'home');
+
+    expect(lookup).toHaveBeenNthCalledWith(1, 'site-g', 'home');
+    expect(lookup).toHaveBeenNthCalledWith(2, 'site-s', 'home');
+  });
+});

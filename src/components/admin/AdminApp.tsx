@@ -26,13 +26,27 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FormEvent, ReactNode, useCallback, useEffect, useState, type CSSProperties } from "react";
+import {
+  FormEvent,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+} from "react";
 import { apiRequest as api, publicApiBase } from "@/lib/api-client";
-import type { SiteHeroSlide } from "@/types/site";
+import { PageRenderer } from "@/components/page-builder/PageRenderer";
+import { SiteProvider as PublicSiteProvider } from "@/components/site/SiteProvider";
+import type {
+  PublishedPageConfig,
+  SiteConfig,
+  SiteHeroSlide,
+} from "@/types/site";
 
 const TOKEN_KEY = "gh_super_admin_token";
 
-type View = "dashboard" | "sites" | "pages" | "owners" | "properties" | "profile";
+type View =
+  "dashboard" | "sites" | "pages" | "owners" | "properties" | "profile";
 type Status =
   | "ACTIVE"
   | "SUSPENDED"
@@ -641,7 +655,8 @@ function SitesView({ token }: { token: string }) {
       pageConfig: {
         ...parsedPageConfig,
         hero: {
-          ...((parsedPageConfig.hero as Record<string, unknown> | undefined) || {}),
+          ...((parsedPageConfig.hero as Record<string, unknown> | undefined) ||
+            {}),
           slides: heroSlides,
         },
       },
@@ -682,7 +697,17 @@ function SitesView({ token }: { token: string }) {
         token,
         { method: "POST", body: data },
       );
-      setHeroSlides((old) => old.map((slide, slideIndex) => slideIndex === index ? { ...slide, mediaType: video ? "video" : "image", mediaUrl: response.data.url } : slide));
+      setHeroSlides((old) =>
+        old.map((slide, slideIndex) =>
+          slideIndex === index
+            ? {
+                ...slide,
+                mediaType: video ? "video" : "image",
+                mediaUrl: response.data.url,
+              }
+            : slide,
+        ),
+      );
       setMessage("Hero media uploaded. Save the site to publish it.");
     } catch (e) {
       setError((e as Error).message);
@@ -691,12 +716,24 @@ function SitesView({ token }: { token: string }) {
     }
   }
   function addHeroSlide() {
-    setHeroSlides((old) => [...old, { id: `hero-${Date.now()}`, mediaType: "image", mediaUrl: "", eyebrow: "", heading: "", highlightedText: "", description: "", altText: "", enabled: true, overlayOpacity: .58, durationSeconds: 6 }]);
+    setHeroSlides((old) => [
+      ...old,
+      {
+        id: `hero-${Date.now()}`,
+        mediaType: "image",
+        mediaUrl: "",
+        eyebrow: "",
+        heading: "",
+        highlightedText: "",
+        description: "",
+        altText: "",
+        enabled: true,
+        overlayOpacity: 0.58,
+        durationSeconds: 6,
+      },
+    ]);
   }
-  async function uploadSiteImage(
-    field: "logo" | "favicon",
-    file?: File,
-  ) {
+  async function uploadSiteImage(field: "logo" | "favicon", file?: File) {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       setError("Image must be 5 MB or smaller.");
@@ -740,8 +777,10 @@ function SitesView({ token }: { token: string }) {
       primaryColor: site.theme?.primaryColor || blankSite.primaryColor,
       secondaryColor: site.theme?.secondaryColor || blankSite.secondaryColor,
       fontFamily: site.theme?.fontFamily || "",
-      headingFontFamily: site.theme?.headingFontFamily || site.theme?.fontFamily || "",
-      bodyFontFamily: site.theme?.bodyFontFamily || site.theme?.fontFamily || "",
+      headingFontFamily:
+        site.theme?.headingFontFamily || site.theme?.fontFamily || "",
+      bodyFontFamily:
+        site.theme?.bodyFontFamily || site.theme?.fontFamily || "",
       borderRadius: site.theme?.borderRadius || "18px",
       buttonRadius: site.theme?.buttonRadius || "11px",
       spacingScale: site.theme?.spacingScale || "1",
@@ -763,8 +802,11 @@ function SitesView({ token }: { token: string }) {
       youtube: site.social?.youtube || "",
       pageConfig: JSON.stringify(site.pageConfig || {}, null, 2),
     });
-    const pageConfig = site.pageConfig as { hero?: { slides?: SiteHeroSlide[] } } | undefined;
-    setHeroSlides(Array.isArray(pageConfig?.hero?.slides) ? pageConfig.hero.slides : []);
+    const pageConfig = site.pageConfig as
+      { hero?: { slides?: SiteHeroSlide[] } } | undefined;
+    setHeroSlides(
+      Array.isArray(pageConfig?.hero?.slides) ? pageConfig.hero.slides : [],
+    );
     setSiteFormStep(0);
     setShow(true);
   }
@@ -783,7 +825,10 @@ function SitesView({ token }: { token: string }) {
     }
   }
   async function archive(site: Site) {
-    if (!window.confirm(`Archive ${site.name}? It will stop resolving publicly.`)) return;
+    if (
+      !window.confirm(`Archive ${site.name}? It will stop resolving publicly.`)
+    )
+      return;
     setError("");
     try {
       await api(`/api/v1/admin/sites/${site._id}/status`, token, {
@@ -815,24 +860,843 @@ function SitesView({ token }: { token: string }) {
   }
   return (
     <>
-      {!show && <>
+      {!show && (
+        <>
+          <PageHeader
+            eyebrow="MARKETPLACE NETWORK"
+            title="Sites"
+            text="Create and control every location-specific StayHaven marketplace from one shared platform."
+            action={
+              <button
+                className="admin-primary compact"
+                onClick={() => {
+                  setEditingId("");
+                  setForm(blankSite);
+                  setHeroSlides([]);
+                  setSiteFormStep(0);
+                  setShow(true);
+                }}
+              >
+                <Plus /> Add site
+              </button>
+            }
+          />
+          {message && (
+            <div className="admin-alert success">
+              <Check />
+              {message}
+            </div>
+          )}
+          {error && (
+            <div className="admin-alert error">
+              <CircleAlert />
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <div className="admin-loading">
+              <LoaderCircle className="spin" /> Loading sites…
+            </div>
+          ) : sites.length === 0 ? (
+            <Empty
+              icon={<Globe2 />}
+              title="No sites yet"
+              text="Create your first marketplace site to get started."
+            />
+          ) : (
+            <div className="site-grid">
+              {sites.map((site) => (
+                <article className="site-card" key={site._id}>
+                  <div className="site-card-top">
+                    <i>
+                      <Globe2 />
+                    </i>
+                    <StatusBadge value={site.status} />
+                  </div>
+                  <h2>{site.name}</h2>
+                  <p>
+                    {site.city}, {site.state}, {site.country}
+                  </p>
+                  <a
+                    href={`https://${site.domain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {site.domain}
+                    <ExternalLink />
+                  </a>
+                  <div className="site-meta">
+                    <span>/{site.slug}</span>
+                    <span>
+                      Created {new Date(site.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="site-domain-health">
+                    {(site.domainRecords || []).map((domain) => (
+                      <div className="site-domain-health-row" key={domain._id}>
+                        <span>
+                          {domain.isPrimary ? "Primary" : "Alias"}:{" "}
+                          {domain.normalizedDomain}
+                          {` · ${domain.verificationStatus} · SSL ${domain.sslStatus}`}
+                        </span>
+                        <div>
+                          {!domain.verified && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDomain(site, domain._id, {
+                                  verified: true,
+                                  verificationStatus: "verified",
+                                })
+                              }
+                            >
+                              Mark verified
+                            </button>
+                          )}
+                          {domain.sslStatus !== "active" && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDomain(site, domain._id, {
+                                  sslStatus: "active",
+                                })
+                              }
+                            >
+                              Mark SSL active
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateDomain(site, domain._id, {
+                                active: !domain.active,
+                              })
+                            }
+                          >
+                            {domain.active ? "Disable" : "Enable"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="site-card-actions">
+                    <button
+                      className="admin-secondary full"
+                      onClick={() => edit(site)}
+                    >
+                      Edit configuration
+                    </button>
+                    {site.status !== "archived" && (
+                      <button
+                        className="admin-secondary full"
+                        onClick={() => toggle(site)}
+                      >
+                        {site.status === "active"
+                          ? "Set inactive"
+                          : "Activate site"}
+                      </button>
+                    )}
+                    {site.status !== "archived" && (
+                      <button
+                        className="admin-secondary full danger"
+                        onClick={() => archive(site)}
+                      >
+                        Archive site
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {show && (
+        <div className="site-editor-page">
+          <div className="site-editor-panel">
+            <div className="site-wizard-heading">
+              <span className="admin-kicker">
+                {editingId ? "SITE CONFIGURATION" : "NEW MARKETPLACE"}
+              </span>
+              <div className="site-editor-title-row">
+                <h2>{editingId ? "Edit site" : "Add a site"}</h2>
+                <button
+                  className="admin-secondary"
+                  type="button"
+                  onClick={() => setShow(false)}
+                >
+                  <X /> Back to sites
+                </button>
+              </div>
+              <p>
+                Configure domains, location, branding, SEO and public contact
+                information.
+              </p>
+            </div>
+            <nav
+              className="site-wizard-steps"
+              aria-label="Site configuration steps"
+            >
+              {siteFormSteps.map((step, index) => (
+                <button
+                  type="button"
+                  className={`${index === siteFormStep ? "active" : ""} ${index < siteFormStep ? "complete" : ""}`}
+                  key={step.title}
+                  onClick={() => setSiteFormStep(index)}
+                  aria-current={index === siteFormStep ? "step" : undefined}
+                >
+                  <span>{index < siteFormStep ? <Check /> : index + 1}</span>
+                  <strong>{step.title}</strong>
+                </button>
+              ))}
+            </nav>
+            <div className="site-wizard-scroll" key={siteFormStep}>
+              <div className="site-wizard-section-heading">
+                <div>
+                  <span>
+                    STEP {siteFormStep + 1} OF {siteFormSteps.length}
+                  </span>
+                  <h3>{siteFormSteps[siteFormStep].title}</h3>
+                  <p>{siteFormSteps[siteFormStep].description}</p>
+                </div>
+              </div>
+              <form
+                className="admin-form-grid site-wizard-form"
+                onSubmit={create}
+              >
+                {Object.entries(form)
+                  .filter(([key]) =>
+                    siteFormSteps[siteFormStep].fields.some(
+                      (field) => field === key,
+                    ),
+                  )
+                  .map(([key, value]) =>
+                    key === "logo" || key === "favicon" ? (
+                      <label className="site-image-field" key={key}>
+                        {key === "logo" ? "Logo" : "Favicon"}
+                        <span className="site-image-upload">
+                          <span className={`site-image-preview ${key}`}>
+                            {/* Uploaded public media is served by the site's API host. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`${value.startsWith("/") ? publicApiBase : ""}${value}`}
+                              alt={`${key} preview`}
+                            />
+                          </span>
+                          <span className="site-image-upload-copy">
+                            <strong>
+                              {uploading === key
+                                ? "Uploading image…"
+                                : `Upload ${key}`}
+                            </strong>
+                            <small>
+                              PNG, JPG, WEBP, GIF or ICO · maximum 5 MB
+                            </small>
+                            <small className="site-image-path">{value}</small>
+                          </span>
+                          <span className="admin-secondary compact site-image-button">
+                            {uploading === key ? (
+                              <LoaderCircle className="spin" />
+                            ) : (
+                              <Upload />
+                            )}
+                            Choose file
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
+                            disabled={Boolean(uploading)}
+                            onChange={(event) => {
+                              void uploadSiteImage(
+                                key,
+                                event.target.files?.[0],
+                              );
+                              event.target.value = "";
+                            }}
+                          />
+                        </span>
+                      </label>
+                    ) : key === "pageConfig" ? (
+                      <div className="admin-form-wide hero-editor" key={key}>
+                        <div className="hero-editor-title">
+                          <span>
+                            <strong>Hero banners</strong>
+                            <small>
+                              Add multiple images or videos with independent
+                              text.
+                            </small>
+                          </span>
+                          <button
+                            type="button"
+                            className="admin-secondary compact"
+                            onClick={addHeroSlide}
+                          >
+                            <Plus />
+                            Add banner
+                          </button>
+                        </div>
+                        {heroSlides.length === 0 && (
+                          <p className="hero-editor-empty">
+                            No custom banners yet. The current site hero remains
+                            as the fallback.
+                          </p>
+                        )}
+                        {heroSlides.map((slide, index) => (
+                          <section
+                            className="hero-slide-editor"
+                            key={slide.id || index}
+                          >
+                            <div className="hero-slide-preview">
+                              {slide.mediaUrl ? (
+                                slide.mediaType === "video" ? (
+                                  <video
+                                    src={`${slide.mediaUrl.startsWith("/") ? publicApiBase : ""}${slide.mediaUrl}`}
+                                    muted
+                                    controls
+                                  />
+                                ) : (
+                                  <>
+                                    {/* Hero media may be uploaded dynamically from the API. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={`${slide.mediaUrl.startsWith("/") ? publicApiBase : ""}${slide.mediaUrl}`}
+                                      alt="Banner preview"
+                                    />
+                                  </>
+                                )
+                              ) : (
+                                <Upload />
+                              )}
+                              <label className="admin-secondary compact">
+                                {uploadingHero === index ? (
+                                  <LoaderCircle className="spin" />
+                                ) : (
+                                  <Upload />
+                                )}
+                                Upload image/video
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm"
+                                  hidden
+                                  disabled={uploadingHero !== null}
+                                  onChange={(event) => {
+                                    void uploadHeroMedia(
+                                      index,
+                                      event.target.files?.[0],
+                                    );
+                                    event.target.value = "";
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className="hero-slide-fields">
+                              <label>
+                                Heading
+                                <input
+                                  value={slide.heading}
+                                  required
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? { ...item, heading: e.target.value }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Highlighted text
+                                <input
+                                  value={slide.highlightedText || ""}
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              highlightedText: e.target.value,
+                                            }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label className="wide">
+                                Description
+                                <textarea
+                                  rows={3}
+                                  value={slide.description || ""}
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              description: e.target.value,
+                                            }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Eyebrow text
+                                <input
+                                  value={slide.eyebrow || ""}
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? { ...item, eyebrow: e.target.value }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Alt text
+                                <input
+                                  value={slide.altText || ""}
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? { ...item, altText: e.target.value }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Duration (seconds)
+                                <input
+                                  type="number"
+                                  min="3"
+                                  max="30"
+                                  value={slide.durationSeconds || 6}
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              durationSeconds: Number(
+                                                e.target.value,
+                                              ),
+                                            }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Overlay opacity
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="0.9"
+                                  step="0.05"
+                                  value={slide.overlayOpacity ?? 0.58}
+                                  onChange={(e) =>
+                                    setHeroSlides((old) =>
+                                      old.map((item, i) =>
+                                        i === index
+                                          ? {
+                                              ...item,
+                                              overlayOpacity: Number(
+                                                e.target.value,
+                                              ),
+                                            }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                            </div>
+                            <button
+                              type="button"
+                              className="modal-close"
+                              aria-label="Remove banner"
+                              onClick={() =>
+                                setHeroSlides((old) =>
+                                  old.filter((_, i) => i !== index),
+                                )
+                              }
+                            >
+                              <X />
+                            </button>
+                          </section>
+                        ))}
+                        <details>
+                          <summary>Advanced homepage JSON</summary>
+                          <textarea
+                            rows={6}
+                            value={value}
+                            onChange={(e) =>
+                              setForm((old) => ({
+                                ...old,
+                                [key]: e.target.value,
+                              }))
+                            }
+                          />
+                        </details>
+                      </div>
+                    ) : [
+                        "headerStyle",
+                        "heroStyle",
+                        "cardStyle",
+                        "footerStyle",
+                      ].includes(key) ? (
+                      <label key={key}>
+                        {key
+                          .replace(/([A-Z])/g, " $1")
+                          .replace(/^./, (letter) => letter.toUpperCase())}
+                        <select
+                          value={value}
+                          onChange={(event) =>
+                            setForm((old) => ({
+                              ...old,
+                              [key]: event.target.value,
+                            }))
+                          }
+                        >
+                          {(key === "headerStyle"
+                            ? ["default", "centered", "transparent", "overlay"]
+                            : key === "heroStyle"
+                              ? [
+                                  "default",
+                                  "full-image",
+                                  "video",
+                                  "split-screen",
+                                  "mountain",
+                                  "minimal",
+                                ]
+                              : key === "cardStyle"
+                                ? [
+                                    "default",
+                                    "rounded",
+                                    "minimal",
+                                    "image-overlay",
+                                    "compact",
+                                  ]
+                                : ["default", "minimal", "multi-column", "dark"]
+                          ).map((option) => (
+                            <option value={option} key={option}>
+                              {option.replaceAll("-", " ")}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <label key={key}>
+                        {key === "slug"
+                          ? "URL slug"
+                          : key === "aliases"
+                            ? "Domain aliases (comma separated)"
+                            : key
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (letter) =>
+                                  letter.toUpperCase(),
+                                )}
+                        <input
+                          value={value}
+                          onChange={(e) =>
+                            setForm((old) => ({
+                              ...old,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          required={[
+                            "name",
+                            "slug",
+                            "domain",
+                            "city",
+                            "state",
+                            "country",
+                          ].includes(key)}
+                          placeholder={
+                            key === "domain" ? "example.com" : undefined
+                          }
+                        />
+                      </label>
+                    ),
+                  )}
+                {siteFormStep === 3 && (
+                  <div
+                    className="theme-live-preview"
+                    style={
+                      {
+                        "--preview-primary": form.primaryColor,
+                        "--preview-secondary": form.secondaryColor,
+                        "--preview-radius": form.borderRadius,
+                        "--preview-button-radius": form.buttonRadius,
+                        fontFamily:
+                          form.bodyFontFamily || form.fontFamily || "Inter",
+                      } as CSSProperties
+                    }
+                  >
+                    <span className="admin-kicker">LIVE PREVIEW</span>
+                    <div
+                      className={`theme-preview-header theme-preview-header-${form.headerStyle}`}
+                    >
+                      <strong>{form.name || "Marketplace name"}</strong>
+                      <span>Home&nbsp;&nbsp; Hotels&nbsp;&nbsp; Contact</span>
+                      <button>Login</button>
+                    </div>
+                    <div className="theme-preview-body">
+                      <div>
+                        <small>{form.heroStyle} hero</small>
+                        <h4>Discover your perfect stay</h4>
+                        <p>
+                          Your site colors, typography, spacing and component
+                          styles update here.
+                        </p>
+                        <button>Explore stays</button>
+                      </div>
+                      <article
+                        className={`theme-preview-card theme-preview-card-${form.cardStyle}`}
+                      >
+                        <div />
+                        <strong>Featured property</strong>
+                        <span>Beautiful stays near you</span>
+                      </article>
+                    </div>
+                    <div
+                      className={`theme-preview-footer theme-preview-footer-${form.footerStyle}`}
+                    >
+                      {form.name || "Marketplace"} · Footer preview
+                    </div>
+                  </div>
+                )}
+                <div className="modal-actions site-wizard-actions">
+                  <button
+                    type="button"
+                    className="admin-secondary"
+                    onClick={() => {
+                      if (siteFormStep === 0) setShow(false);
+                      else setSiteFormStep((step) => step - 1);
+                    }}
+                  >
+                    {siteFormStep === 0 ? "Cancel" : "Previous"}
+                  </button>
+                  {siteFormStep < siteFormSteps.length - 1 ? (
+                    <button
+                      type="button"
+                      className="admin-primary compact"
+                      onClick={(event) => {
+                        const currentForm = event.currentTarget.form;
+                        if (currentForm?.reportValidity()) {
+                          setSiteFormStep((step) => step + 1);
+                        }
+                      }}
+                    >
+                      Save & Next <ChevronRight />
+                    </button>
+                  ) : (
+                    <button
+                      className="admin-primary compact"
+                      disabled={Boolean(uploading) || uploadingHero !== null}
+                    >
+                      {editingId ? <Check /> : <Plus />}
+                      {editingId ? "Save changes" : "Create site"}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+type BuilderSection = {
+  id: string;
+  type: string;
+  enabled: boolean;
+  order: number;
+  config: Record<string, unknown>;
+};
+type BuilderPage = {
+  siteId: string;
+  pageSlug: string;
+  enabled: boolean;
+  preset: string;
+  draft: { seo: Record<string, unknown>; sections: BuilderSection[] };
+  published: { seo: Record<string, unknown>; sections: BuilderSection[] };
+  publishedAt?: string;
+};
+const builderPages = [
+  "home",
+  "hotels",
+  "villas",
+  "resorts",
+  "homestays",
+  "search",
+  "about",
+  "contact",
+  "list-your-property",
+  "account",
+  "owner-dashboard",
+];
+const builderTypes = [
+  "hero",
+  "search",
+  "featured-properties",
+  "popular-hotels",
+  "popular-villas",
+  "popular-resorts",
+  "popular-homestays",
+  "property-categories",
+  "destinations",
+  "why-choose-us",
+  "promotional-banner",
+  "testimonials",
+  "gallery",
+  "faq",
+  "cta",
+];
+function PagesView({ token }: { token: string }) {
+  const [sites, setSites] = useState<Site[]>([]),
+    [siteId, setSiteId] = useState(""),
+    [pageSlug, setPageSlug] = useState("home"),
+    [page, setPage] = useState<BuilderPage | null>(null),
+    [selected, setSelected] = useState(""),
+    [message, setMessage] = useState(""),
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true);
+  useEffect(() => {
+    void api<ApiResponse<Site[]>>("/api/v1/admin/sites", token)
+      .then((r) => {
+        setSites(r.data);
+        setSiteId(
+          (old) =>
+            old ||
+            r.data.find((s) => s.status === "active")?._id ||
+            r.data[0]?._id ||
+            "",
+        );
+      })
+      .catch((e) => setError((e as Error).message));
+  }, [token]);
+  useEffect(() => {
+    if (!siteId) return;
+    setLoading(true);
+    void api<ApiResponse<BuilderPage>>(
+      `/api/v1/admin/sites/${siteId}/pages/${pageSlug}`,
+      token,
+    )
+      .then((r) => {
+        setPage(r.data);
+        setSelected(r.data.draft.sections[0]?.id || "");
+        setError("");
+      })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(false));
+  }, [siteId, pageSlug, token]);
+  const sections = page?.draft.sections || [];
+  const updateSections = (next: BuilderSection[]) =>
+    setPage((old) =>
+      old
+        ? {
+            ...old,
+            draft: {
+              ...old.draft,
+              sections: next.map((s, order) => ({ ...s, order })),
+            },
+          }
+        : old,
+    );
+  const move = (index: number, amount: number) => {
+    const next = [...sections],
+      target = index + amount;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    updateSections(next);
+  };
+  const save = async () => {
+    if (!page) return;
+    try {
+      const r = await api<ApiResponse<BuilderPage>>(
+        `/api/v1/admin/sites/${siteId}/pages/${pageSlug}`,
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            enabled: page.enabled,
+            preset: page.preset,
+            seo: page.draft.seo,
+            sections,
+          }),
+        },
+      );
+      setPage(r.data);
+      setMessage("Draft saved.");
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  const publish = async () => {
+    try {
+      const r = await api<ApiResponse<BuilderPage>>(
+        `/api/v1/admin/sites/${siteId}/pages/${pageSlug}/publish`,
+        token,
+        { method: "POST" },
+      );
+      setPage(r.data);
+      setMessage("Page published successfully.");
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  const current = sections.find((s) => s.id === selected);
+  const selectedSite = sites.find((s) => s._id === siteId);
+  const previewSite = selectedSite
+    ? ({
+        ...selectedSite,
+        domains: selectedSite.domains || [selectedSite.domain],
+        theme: selectedSite.theme || {},
+      } as SiteConfig)
+    : null;
+  const previewPage: PublishedPageConfig = {
+    pageSlug,
+    enabled: page?.enabled ?? true,
+    preset: page?.preset || "DEFAULT_HOME",
+    published: {
+      seo: (page?.draft.seo || {}) as PublishedPageConfig["published"]["seo"],
+      sections: sections as PublishedPageConfig["published"]["sections"],
+    },
+  };
+  return (
+    <>
       <PageHeader
-        eyebrow="MARKETPLACE NETWORK"
-        title="Sites"
-        text="Create and control every location-specific StayHaven marketplace from one shared platform."
+        eyebrow="PAGE CONFIGURATION"
+        title="Page builder"
+        text="Control what each marketplace page shows using approved shared sections."
         action={
-          <button
-            className="admin-primary compact"
-            onClick={() => {
-              setEditingId("");
-              setForm(blankSite);
-              setHeroSlides([]);
-              setSiteFormStep(0);
-              setShow(true);
-            }}
-          >
-            <Plus /> Add site
-          </button>
+          <>
+            <button className="admin-secondary" onClick={() => void save()}>
+              Save draft
+            </button>
+            <button
+              className="admin-primary compact"
+              onClick={() => void publish()}
+            >
+              <Check />
+              Publish
+            </button>
+          </>
         }
       />
       {message && (
@@ -847,311 +1711,296 @@ function SitesView({ token }: { token: string }) {
           {error}
         </div>
       )}
+      <div className="page-builder-toolbar">
+        <label>
+          Site
+          <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
+            {sites.map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Page
+          <select
+            value={pageSlug}
+            onChange={(e) => setPageSlug(e.target.value)}
+          >
+            {builderPages.map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </label>
+        <span>
+          {page?.publishedAt
+            ? `Published ${new Date(page.publishedAt).toLocaleString()}`
+            : "Using safe defaults"}
+        </span>
+      </div>
       {loading ? (
         <div className="admin-loading">
-          <LoaderCircle className="spin" /> Loading sites…
+          <LoaderCircle className="spin" />
+          Loading page configuration…
         </div>
-      ) : sites.length === 0 ? (
-        <Empty
-          icon={<Globe2 />}
-          title="No sites yet"
-          text="Create your first marketplace site to get started."
-        />
       ) : (
-        <div className="site-grid">
-          {sites.map((site) => (
-            <article className="site-card" key={site._id}>
-              <div className="site-card-top">
-                <i>
-                  <Globe2 />
-                </i>
-                <StatusBadge value={site.status} />
-              </div>
-              <h2>{site.name}</h2>
-              <p>
-                {site.city}, {site.state}, {site.country}
-              </p>
-              <a
-                href={`https://${site.domain}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {site.domain}
-                <ExternalLink />
-              </a>
-              <div className="site-meta">
-                <span>/{site.slug}</span>
-                <span>
-                  Created {new Date(site.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <div className="site-domain-health">
-                {(site.domainRecords || []).map((domain) => (
-                  <div className="site-domain-health-row" key={domain._id}>
-                    <span>
-                    {domain.isPrimary ? "Primary" : "Alias"}: {domain.normalizedDomain}
-                      {` · ${domain.verificationStatus} · SSL ${domain.sslStatus}`}
-                    </span>
-                    <div>
-                      {!domain.verified && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateDomain(site, domain._id, {
-                              verified: true,
-                              verificationStatus: "verified",
-                            })
-                          }
-                        >
-                          Mark verified
-                        </button>
-                      )}
-                      {domain.sslStatus !== "active" && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateDomain(site, domain._id, { sslStatus: "active" })
-                          }
-                        >
-                          Mark SSL active
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateDomain(site, domain._id, { active: !domain.active })
-                        }
-                      >
-                        {domain.active ? "Disable" : "Enable"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="site-card-actions">
-                <button
-                  className="admin-secondary full"
-                  onClick={() => edit(site)}
-                >
-                  Edit configuration
-                </button>
-                {site.status !== "archived" && (
-                  <button
-                    className="admin-secondary full"
-                    onClick={() => toggle(site)}
-                  >
-                    {site.status === "active" ? "Set inactive" : "Activate site"}
-                  </button>
-                )}
-                {site.status !== "archived" && (
-                  <button className="admin-secondary full danger" onClick={() => archive(site)}>
-                    Archive site
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-      </>}
-      {show && (
-        <div className="site-editor-page">
-          <div
-            className="site-editor-panel"
-          >
-            <div className="site-wizard-heading">
-              <span className="admin-kicker">
-                {editingId ? "SITE CONFIGURATION" : "NEW MARKETPLACE"}
-              </span>
-              <div className="site-editor-title-row"><h2>{editingId ? "Edit site" : "Add a site"}</h2><button className="admin-secondary" type="button" onClick={() => setShow(false)}><X /> Back to sites</button></div>
-              <p>
-                Configure domains, location, branding, SEO and public contact
-                information.
-              </p>
-            </div>
-            <nav className="site-wizard-steps" aria-label="Site configuration steps">
-              {siteFormSteps.map((step, index) => (
-                <button
-                  type="button"
-                  className={`${index === siteFormStep ? "active" : ""} ${index < siteFormStep ? "complete" : ""}`}
-                  key={step.title}
-                  onClick={() => setSiteFormStep(index)}
-                  aria-current={index === siteFormStep ? "step" : undefined}
-                >
-                  <span>{index < siteFormStep ? <Check /> : index + 1}</span>
-                  <strong>{step.title}</strong>
-                </button>
-              ))}
-            </nav>
-            <div className="site-wizard-scroll" key={siteFormStep}><div className="site-wizard-section-heading">
-              <div>
-                <span>STEP {siteFormStep + 1} OF {siteFormSteps.length}</span>
-                <h3>{siteFormSteps[siteFormStep].title}</h3>
-                <p>{siteFormSteps[siteFormStep].description}</p>
-              </div>
-            </div>
-            <form className="admin-form-grid site-wizard-form" onSubmit={create}>
-              {Object.entries(form)
-                .filter(([key]) => siteFormSteps[siteFormStep].fields.some((field) => field === key))
-                .map(([key, value]) =>
-                key === "logo" || key === "favicon" ? (
-                  <label className="site-image-field" key={key}>
-                    {key === "logo" ? "Logo" : "Favicon"}
-                    <span className="site-image-upload">
-                      <span className={`site-image-preview ${key}`}>
-                        {/* Uploaded public media is served by the site's API host. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`${value.startsWith("/") ? publicApiBase : ""}${value}`}
-                          alt={`${key} preview`}
-                        />
-                      </span>
-                      <span className="site-image-upload-copy">
-                        <strong>
-                          {uploading === key
-                            ? "Uploading image…"
-                            : `Upload ${key}`}
-                        </strong>
-                        <small>PNG, JPG, WEBP, GIF or ICO · maximum 5 MB</small>
-                        <small className="site-image-path">{value}</small>
-                      </span>
-                      <span className="admin-secondary compact site-image-button">
-                        {uploading === key ? (
-                          <LoaderCircle className="spin" />
-                        ) : (
-                          <Upload />
-                        )}
-                        Choose file
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,.ico"
-                        disabled={Boolean(uploading)}
-                        onChange={(event) => {
-                          void uploadSiteImage(key, event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </span>
-                  </label>
-                ) : key === "pageConfig" ? (
-                  <div className="admin-form-wide hero-editor" key={key}>
-                    <div className="hero-editor-title"><span><strong>Hero banners</strong><small>Add multiple images or videos with independent text.</small></span><button type="button" className="admin-secondary compact" onClick={addHeroSlide}><Plus/>Add banner</button></div>
-                    {heroSlides.length === 0 && <p className="hero-editor-empty">No custom banners yet. The current site hero remains as the fallback.</p>}
-                    {heroSlides.map((slide,index)=><section className="hero-slide-editor" key={slide.id || index}>
-                      <div className="hero-slide-preview">
-                        {slide.mediaUrl ? slide.mediaType === "video" ? <video src={`${slide.mediaUrl.startsWith("/") ? publicApiBase : ""}${slide.mediaUrl}`} muted controls/> : <>
-                          {/* Hero media may be uploaded dynamically from the API. */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={`${slide.mediaUrl.startsWith("/") ? publicApiBase : ""}${slide.mediaUrl}`} alt="Banner preview"/>
-                        </> : <Upload/>}
-                        <label className="admin-secondary compact">{uploadingHero===index?<LoaderCircle className="spin"/>:<Upload/>}Upload image/video<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" hidden disabled={uploadingHero!==null} onChange={(event)=>{void uploadHeroMedia(index,event.target.files?.[0]);event.target.value="";}}/></label>
-                      </div>
-                      <div className="hero-slide-fields">
-                        <label>Heading<input value={slide.heading} required onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,heading:e.target.value}:item))}/></label>
-                        <label>Highlighted text<input value={slide.highlightedText || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,highlightedText:e.target.value}:item))}/></label>
-                        <label className="wide">Description<textarea rows={3} value={slide.description || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,description:e.target.value}:item))}/></label>
-                        <label>Eyebrow text<input value={slide.eyebrow || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,eyebrow:e.target.value}:item))}/></label>
-                        <label>Alt text<input value={slide.altText || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,altText:e.target.value}:item))}/></label>
-                        <label>Duration (seconds)<input type="number" min="3" max="30" value={slide.durationSeconds || 6} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,durationSeconds:Number(e.target.value)}:item))}/></label>
-                        <label>Overlay opacity<input type="number" min="0" max="0.9" step="0.05" value={slide.overlayOpacity ?? .58} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,overlayOpacity:Number(e.target.value)}:item))}/></label>
-                      </div>
-                      <button type="button" className="modal-close" aria-label="Remove banner" onClick={()=>setHeroSlides((old)=>old.filter((_,i)=>i!==index))}><X/></button>
-                    </section>)}
-                    <details><summary>Advanced homepage JSON</summary><textarea rows={6} value={value} onChange={(e)=>setForm((old)=>({...old,[key]:e.target.value}))}/></details>
-                  </div>
-                ) : ["headerStyle", "heroStyle", "cardStyle", "footerStyle"].includes(key) ? (
-                <label key={key}>
-                  {key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())}
-                  <select value={value} onChange={(event) => setForm((old) => ({ ...old, [key]: event.target.value }))}>
-                    {(key === "headerStyle" ? ["default", "centered", "transparent", "overlay"] : key === "heroStyle" ? ["default", "full-image", "video", "split-screen", "mountain", "minimal"] : key === "cardStyle" ? ["default", "rounded", "minimal", "image-overlay", "compact"] : ["default", "minimal", "multi-column", "dark"]).map((option) => <option value={option} key={option}>{option.replaceAll("-", " ")}</option>)}
-                  </select>
-                </label>
-                ) : (
-                <label key={key}>
-                  {key === "slug"
-                    ? "URL slug"
-                    : key === "aliases"
-                      ? "Domain aliases (comma separated)"
-                      : key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())}
-                  <input
-                    value={value}
-                    onChange={(e) =>
-                      setForm((old) => ({ ...old, [key]: e.target.value }))
-                    }
-                    required={[
-                      "name",
-                      "slug",
-                      "domain",
-                      "city",
-                      "state",
-                      "country",
-                    ].includes(key)}
-                    placeholder={key === "domain" ? "example.com" : undefined}
-                  />
-                </label>
-                ),
-              )}
-              {siteFormStep === 3 && <div className="theme-live-preview" style={{ "--preview-primary": form.primaryColor, "--preview-secondary": form.secondaryColor, "--preview-radius": form.borderRadius, "--preview-button-radius": form.buttonRadius, fontFamily: form.bodyFontFamily || form.fontFamily || "Inter" } as CSSProperties}>
-                <span className="admin-kicker">LIVE PREVIEW</span><div className={`theme-preview-header theme-preview-header-${form.headerStyle}`}><strong>{form.name || "Marketplace name"}</strong><span>Home&nbsp;&nbsp; Hotels&nbsp;&nbsp; Contact</span><button>Login</button></div><div className="theme-preview-body"><div><small>{form.heroStyle} hero</small><h4>Discover your perfect stay</h4><p>Your site colors, typography, spacing and component styles update here.</p><button>Explore stays</button></div><article className={`theme-preview-card theme-preview-card-${form.cardStyle}`}><div/><strong>Featured property</strong><span>Beautiful stays near you</span></article></div><div className={`theme-preview-footer theme-preview-footer-${form.footerStyle}`}>{form.name || "Marketplace"} · Footer preview</div>
-              </div>}
-              <div className="modal-actions site-wizard-actions">
-                <button
-                  type="button"
-                  className="admin-secondary"
-                  onClick={() => {
-                    if (siteFormStep === 0) setShow(false);
-                    else setSiteFormStep((step) => step - 1);
+        page && (
+          <div className="page-builder-layout">
+            <section className="admin-card">
+              <div className="card-heading">
+                <div>
+                  <span className="admin-kicker">SECTIONS</span>
+                  <h2>Page structure</h2>
+                </div>
+                <select
+                  aria-label="Add section"
+                  value=""
+                  onChange={(e) => {
+                    const type = e.target.value;
+                    if (!type) return;
+                    const next = {
+                      id: `${type}-${Date.now()}`,
+                      type,
+                      enabled: true,
+                      order: sections.length,
+                      config: {},
+                    };
+                    updateSections([...sections, next]);
+                    setSelected(next.id);
                   }}
                 >
-                  {siteFormStep === 0 ? "Cancel" : "Previous"}
-                </button>
-                {siteFormStep < siteFormSteps.length - 1 ? (
-                  <button
-                    type="button"
-                    className="admin-primary compact"
-                    onClick={(event) => {
-                      const currentForm = event.currentTarget.form;
-                      if (currentForm?.reportValidity()) {
-                        setSiteFormStep((step) => step + 1);
+                  <option value="">+ Add section</option>
+                  {builderTypes.map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="builder-section-list">
+                {sections.map((s, index) => (
+                  <article
+                    className={selected === s.id ? "selected" : ""}
+                    key={s.id}
+                    onClick={() => setSelected(s.id)}
+                  >
+                    <button
+                      type="button"
+                      className={`builder-toggle ${s.enabled ? "on" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateSections(
+                          sections.map((x) =>
+                            x.id === s.id ? { ...x, enabled: !x.enabled } : x,
+                          ),
+                        );
+                      }}
+                    >
+                      {s.enabled ? "✓" : "○"}
+                    </button>
+                    <div>
+                      <strong>{s.type.replaceAll("-", " ")}</strong>
+                      <small>
+                        {s.enabled ? "Visible" : "Hidden"} · Position{" "}
+                        {index + 1}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(index, -1);
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === sections.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(index, 1);
+                      }}
+                    >
+                      ↓
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section className="admin-card builder-editor">
+              <span className="admin-kicker">SECTION EDITOR</span>
+              <h2>
+                {current?.type.replaceAll("-", " ") || "Select a section"}
+              </h2>
+              {current && (
+                <>
+                  <label>
+                    Title
+                    <input
+                      value={String(current.config.title || "")}
+                      onChange={(e) =>
+                        updateSections(
+                          sections.map((s) =>
+                            s.id === current.id
+                              ? {
+                                  ...s,
+                                  config: {
+                                    ...s.config,
+                                    title: e.target.value,
+                                  },
+                                }
+                              : s,
+                          ),
+                        )
                       }
+                    />
+                  </label>
+                  <label>
+                    Description / subtitle
+                    <textarea
+                      rows={4}
+                      value={String(
+                        current.config.subtitle ||
+                          current.config.description ||
+                          "",
+                      )}
+                      onChange={(e) =>
+                        updateSections(
+                          sections.map((s) =>
+                            s.id === current.id
+                              ? {
+                                  ...s,
+                                  config: {
+                                    ...s.config,
+                                    subtitle: e.target.value,
+                                    description: e.target.value,
+                                  },
+                                }
+                              : s,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  {[
+                    "featured-properties",
+                    "popular-hotels",
+                    "popular-villas",
+                    "popular-resorts",
+                    "popular-homestays",
+                    "destinations",
+                    "property-categories",
+                    "testimonials",
+                    "gallery",
+                    "faq",
+                  ].includes(current.type) && (
+                    <label>
+                      Item limit
+                      <input
+                        type="number"
+                        min="1"
+                        max="24"
+                        value={Number(current.config.limit || 6)}
+                        onChange={(e) =>
+                          updateSections(
+                            sections.map((s) =>
+                              s.id === current.id
+                                ? {
+                                    ...s,
+                                    config: {
+                                      ...s.config,
+                                      limit: Number(e.target.value),
+                                    },
+                                  }
+                                : s,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  )}
+                  {["cta", "promotional-banner"].includes(current.type) && (
+                    <>
+                      <label>
+                        Button text
+                        <input
+                          value={String(current.config.buttonText || "")}
+                          onChange={(e) =>
+                            updateSections(
+                              sections.map((s) =>
+                                s.id === current.id
+                                  ? {
+                                      ...s,
+                                      config: {
+                                        ...s.config,
+                                        buttonText: e.target.value,
+                                      },
+                                    }
+                                  : s,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Button URL
+                        <input
+                          value={String(current.config.buttonLink || "")}
+                          onChange={(e) =>
+                            updateSections(
+                              sections.map((s) =>
+                                s.id === current.id
+                                  ? {
+                                      ...s,
+                                      config: {
+                                        ...s.config,
+                                        buttonLink: e.target.value,
+                                      },
+                                    }
+                                  : s,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                    </>
+                  )}
+                  <button
+                    className="admin-secondary danger"
+                    onClick={() => {
+                      updateSections(
+                        sections.filter((s) => s.id !== current.id),
+                      );
+                      setSelected("");
                     }}
                   >
-                    Save & Next <ChevronRight />
+                    Remove section
                   </button>
-                ) : (
-                  <button
-                    className="admin-primary compact"
-                    disabled={Boolean(uploading) || uploadingHero !== null}
-                  >
-                    {editingId ? <Check /> : <Plus />}
-                    {editingId ? "Save changes" : "Create site"}
-                  </button>
-                )}
-              </div>
-            </form>
-            </div>
+                </>
+              )}
+            </section>
+            {previewSite && (
+              <section className="admin-card builder-preview">
+                <div className="builder-preview-heading">
+                  <div>
+                    <span className="admin-kicker">LIVE DRAFT PREVIEW</span>
+                    <h2>{previewSite.name}</h2>
+                  </div>
+                  <small>Uses the same renderer as the public website</small>
+                </div>
+                <div className="builder-preview-viewport">
+                  <PublicSiteProvider site={previewSite}>
+                    <PageRenderer page={previewPage} />
+                  </PublicSiteProvider>
+                </div>
+              </section>
+            )}
           </div>
-        </div>
+        )
       )}
     </>
   );
-}
-
-type BuilderSection={id:string;type:string;enabled:boolean;order:number;config:Record<string,unknown>};
-type BuilderPage={siteId:string;pageSlug:string;enabled:boolean;preset:string;draft:{seo:Record<string,unknown>;sections:BuilderSection[]};published:{seo:Record<string,unknown>;sections:BuilderSection[]};publishedAt?:string};
-const builderPages=["home","hotels","villas","resorts","homestays","search","about","contact","list-your-property","account","owner-dashboard"];
-const builderTypes=["hero","search","featured-properties","popular-hotels","popular-villas","popular-resorts","popular-homestays","property-categories","destinations","why-choose-us","promotional-banner","testimonials","gallery","faq","cta"];
-function PagesView({token}:{token:string}){
-  const [sites,setSites]=useState<Site[]>([]),[siteId,setSiteId]=useState(""),[pageSlug,setPageSlug]=useState("home"),[page,setPage]=useState<BuilderPage|null>(null),[selected,setSelected]=useState(""),[message,setMessage]=useState(""),[error,setError]=useState(""),[loading,setLoading]=useState(true);
-  useEffect(()=>{void api<ApiResponse<Site[]>>("/api/v1/admin/sites",token).then(r=>{setSites(r.data);setSiteId(old=>old||r.data.find(s=>s.status==="active")?._id||r.data[0]?._id||"")}).catch(e=>setError((e as Error).message))},[token]);
-  useEffect(()=>{if(!siteId)return;setLoading(true);void api<ApiResponse<BuilderPage>>(`/api/v1/admin/sites/${siteId}/pages/${pageSlug}`,token).then(r=>{setPage(r.data);setSelected(r.data.draft.sections[0]?.id||"");setError("")}).catch(e=>setError((e as Error).message)).finally(()=>setLoading(false))},[siteId,pageSlug,token]);
-  const sections=page?.draft.sections||[];const updateSections=(next:BuilderSection[])=>setPage(old=>old?{...old,draft:{...old.draft,sections:next.map((s,order)=>({...s,order}))}}:old);
-  const move=(index:number,amount:number)=>{const next=[...sections],target=index+amount;if(target<0||target>=next.length)return;[next[index],next[target]]=[next[target],next[index]];updateSections(next)};
-  const save=async()=>{if(!page)return;try{const r=await api<ApiResponse<BuilderPage>>(`/api/v1/admin/sites/${siteId}/pages/${pageSlug}`,token,{method:"PATCH",body:JSON.stringify({enabled:page.enabled,preset:page.preset,seo:page.draft.seo,sections})});setPage(r.data);setMessage("Draft saved.");setError("")}catch(e){setError((e as Error).message)}};
-  const publish=async()=>{try{const r=await api<ApiResponse<BuilderPage>>(`/api/v1/admin/sites/${siteId}/pages/${pageSlug}/publish`,token,{method:"POST"});setPage(r.data);setMessage("Page published successfully.");setError("")}catch(e){setError((e as Error).message)}};
-  const current=sections.find(s=>s.id===selected);
-  return <><PageHeader eyebrow="PAGE CONFIGURATION" title="Page builder" text="Control what each marketplace page shows using approved shared sections." action={<><button className="admin-secondary" onClick={()=>void save()}>Save draft</button><button className="admin-primary compact" onClick={()=>void publish()}><Check/>Publish</button></>}/>{message&&<div className="admin-alert success"><Check/>{message}</div>}{error&&<div className="admin-alert error"><CircleAlert/>{error}</div>}<div className="page-builder-toolbar"><label>Site<select value={siteId} onChange={e=>setSiteId(e.target.value)}>{sites.map(s=><option key={s._id} value={s._id}>{s.name}</option>)}</select></label><label>Page<select value={pageSlug} onChange={e=>setPageSlug(e.target.value)}>{builderPages.map(x=><option key={x}>{x}</option>)}</select></label><span>{page?.publishedAt?`Published ${new Date(page.publishedAt).toLocaleString()}`:"Using safe defaults"}</span></div>{loading?<div className="admin-loading"><LoaderCircle className="spin"/>Loading page configuration…</div>:page&&<div className="page-builder-layout"><section className="admin-card"><div className="card-heading"><div><span className="admin-kicker">SECTIONS</span><h2>Page structure</h2></div><select aria-label="Add section" value="" onChange={e=>{const type=e.target.value;if(!type)return;const next={id:`${type}-${Date.now()}`,type,enabled:true,order:sections.length,config:{}};updateSections([...sections,next]);setSelected(next.id)}}><option value="">+ Add section</option>{builderTypes.map(x=><option key={x}>{x}</option>)}</select></div><div className="builder-section-list">{sections.map((s,index)=><article className={selected===s.id?"selected":""} key={s.id} onClick={()=>setSelected(s.id)}><button type="button" className={`builder-toggle ${s.enabled?"on":""}`} onClick={e=>{e.stopPropagation();updateSections(sections.map(x=>x.id===s.id?{...x,enabled:!x.enabled}:x))}}>{s.enabled?"✓":"○"}</button><div><strong>{s.type.replaceAll("-"," ")}</strong><small>{s.enabled?"Visible":"Hidden"} · Position {index+1}</small></div><button type="button" disabled={index===0} onClick={e=>{e.stopPropagation();move(index,-1)}}>↑</button><button type="button" disabled={index===sections.length-1} onClick={e=>{e.stopPropagation();move(index,1)}}>↓</button></article>)}</div></section><section className="admin-card builder-editor"><span className="admin-kicker">SECTION EDITOR</span><h2>{current?.type.replaceAll("-"," ")||"Select a section"}</h2>{current&&<><label>Title<input value={String(current.config.title||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,title:e.target.value}}:s))}/></label><label>Description / subtitle<textarea rows={4} value={String(current.config.subtitle||current.config.description||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,subtitle:e.target.value,description:e.target.value}}:s))}/></label>{["featured-properties","popular-hotels","popular-villas","popular-resorts","popular-homestays","destinations","property-categories","testimonials","gallery","faq"].includes(current.type)&&<label>Item limit<input type="number" min="1" max="24" value={Number(current.config.limit||6)} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,limit:Number(e.target.value)}}:s))}/></label>}{["cta","promotional-banner"].includes(current.type)&&<><label>Button text<input value={String(current.config.buttonText||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,buttonText:e.target.value}}:s))}/></label><label>Button URL<input value={String(current.config.buttonLink||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,buttonLink:e.target.value}}:s))}/></label></>}<button className="admin-secondary danger" onClick={()=>{updateSections(sections.filter(s=>s.id!==current.id));setSelected("")}}>Remove section</button></>}</section><section className="admin-card builder-preview"><span className="admin-kicker">DRAFT PREVIEW</span><h2>{sites.find(s=>s._id===siteId)?.name}</h2>{sections.filter(s=>s.enabled).map((s,index)=><div key={s.id}><span>{index+1}</span><strong>{String(s.config.title||s.type.replaceAll("-"," "))}</strong></div>)}</section></div>}</>;
 }
 
 function OwnersView({ token }: { token: string }) {
