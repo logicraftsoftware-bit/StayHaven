@@ -135,6 +135,14 @@ type Owner = {
   phone: string;
   status: Status;
   siteIds: string[];
+  propertyCount?: number;
+  properties?: Property[];
+  sites?: Array<{ _id: string; name: string }>;
+  auditHistory?: Array<{
+    _id: string;
+    action: string;
+    createdAt: string;
+  }>;
   createdAt: string;
 };
 type Property = {
@@ -2009,6 +2017,7 @@ function OwnersView({ token }: { token: string }) {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Owner | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -2042,6 +2051,18 @@ function OwnersView({ token }: { token: string }) {
       setError((e as Error).message);
     }
   }
+  async function inspect(owner: Owner) {
+    try {
+      const response = await api<ApiResponse<Owner>>(
+        `/api/v1/admin/owners/${owner._id}`,
+        token,
+      );
+      setSelected(response.data);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   return (
     <>
       <PageHeader
@@ -2062,6 +2083,46 @@ function OwnersView({ token }: { token: string }) {
           {error}
         </div>
       )}
+      {selected && (
+        <section className="admin-card">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="admin-eyebrow">GLOBAL OWNER</p>
+              <h2>{selected.name}</h2>
+              <p>
+                {selected.email} · {selected.phone}
+              </p>
+            </div>
+            <button
+              className="admin-secondary-button"
+              onClick={() => setSelected(null)}
+            >
+              Close
+            </button>
+          </div>
+          <div className="mt-6 grid gap-5 md:grid-cols-3">
+            <div>
+              <strong>Properties</strong>
+              <p>{selected.properties?.length ?? 0} across all sites</p>
+            </div>
+            <div>
+              <strong>Marketplaces</strong>
+              <p>
+                {selected.sites?.map((site) => site.name).join(", ") || "None"}
+              </p>
+            </div>
+            <div>
+              <strong>Recent activity</strong>
+              <p>
+                {selected.auditHistory
+                  ?.slice(0, 4)
+                  .map((event) => event.action.replaceAll("_", " "))
+                  .join(", ") || "No activity"}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
       {loading ? (
         <div className="admin-loading">
           <LoaderCircle className="spin" /> Loading owners…
@@ -2079,6 +2140,8 @@ function OwnersView({ token }: { token: string }) {
               <tr>
                 <th>Owner</th>
                 <th>Phone</th>
+                <th>Properties</th>
+                <th>Marketplaces</th>
                 <th>Status</th>
                 <th>Joined</th>
                 <th>Action</th>
@@ -2092,21 +2155,33 @@ function OwnersView({ token }: { token: string }) {
                     <span>{owner.email}</span>
                   </td>
                   <td>{owner.phone}</td>
+                  <td>{owner.propertyCount ?? 0}</td>
+                  <td>{owner.siteIds?.length ?? 0}</td>
                   <td>
                     <StatusBadge value={owner.status} />
                   </td>
                   <td>{new Date(owner.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <select
-                      value={owner.status}
-                      onChange={(e) => change(owner, e.target.value as Status)}
-                    >
-                      {["PENDING", "ACTIVE", "SUSPENDED", "REJECTED"].map(
-                        (s) => (
-                          <option key={s}>{s}</option>
-                        ),
-                      )}
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="admin-secondary-button"
+                        onClick={() => void inspect(owner)}
+                      >
+                        View
+                      </button>
+                      <select
+                        value={owner.status}
+                        onChange={(e) =>
+                          change(owner, e.target.value as Status)
+                        }
+                      >
+                        {["PENDING", "ACTIVE", "SUSPENDED", "REJECTED"].map(
+                          (s) => (
+                            <option key={s}>{s}</option>
+                          ),
+                        )}
+                      </select>
+                    </div>
                   </td>
                 </tr>
               ))}

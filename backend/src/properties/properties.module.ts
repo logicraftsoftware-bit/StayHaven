@@ -6,6 +6,8 @@ import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
 import { SitesModule } from '../sites/sites.module';
 import { PublicPropertiesController } from './public-properties.controller';
+import { OwnerPropertiesController } from './owner-properties.controller';
+import { OwnersModule } from '../owners/owners.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -13,8 +15,13 @@ import { PublicPropertiesController } from './public-properties.controller';
     ]),
     AuditLogsModule,
     SitesModule,
+    OwnersModule,
   ],
-  controllers: [PropertiesController, PublicPropertiesController],
+  controllers: [
+    PropertiesController,
+    PublicPropertiesController,
+    OwnerPropertiesController,
+  ],
   providers: [PropertiesService],
   exports: [PropertiesService],
 })

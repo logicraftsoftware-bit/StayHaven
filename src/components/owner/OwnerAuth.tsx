@@ -1,11 +1,161 @@
 "use client";
-import { Building2,KeyRound,LogIn,UserPlus } from "lucide-react"; import { useRouter } from "next/navigation"; import { useState } from "react";
-const ACCOUNT_KEY="stayhaven-owner-account"; const SESSION_KEY="stayhaven-owner-session";
-const LEGACY_ACCOUNT_KEY="guwahati-homestay-owner-account";
-export function OwnerAuth(){const router=useRouter();const [mode,setMode]=useState<"login"|"register">("login");const [notice,setNotice]=useState("");const [name,setName]=useState("");const [email,setEmail]=useState("");const [mobile,setMobile]=useState("");const [password,setPassword]=useState("");
-  const register=(e:React.FormEvent)=>{e.preventDefault();if(!name||!email||!mobile||password.length<6){setNotice("Complete all fields and use at least 6 password characters.");return}localStorage.setItem(ACCOUNT_KEY,JSON.stringify({name,email,mobile,accountType:"hotel_owner"}));setPassword("");setMode("login");setNotice("Account created. Please login to continue.")};
-  const login=(e:React.FormEvent)=>{e.preventDefault();const stored=localStorage.getItem(ACCOUNT_KEY)||localStorage.getItem(LEGACY_ACCOUNT_KEY);const account=JSON.parse(stored||"null") as {email?:string}|null;if(!account){setNotice("No owner account found. Create an account first.");return}if(account.email?.toLowerCase()!==email.toLowerCase()||!password){setNotice("Enter the registered email and your password.");return}if(!localStorage.getItem(ACCOUNT_KEY)&&stored)localStorage.setItem(ACCOUNT_KEY,stored);localStorage.setItem(SESSION_KEY,JSON.stringify({accountType:"hotel_owner",email,loggedInAt:new Date().toISOString()}));router.push("/owner")};
-  return <section className="rounded-3xl border bg-white p-7 shadow-xl md:p-9"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-xl bg-charcoal text-white"><Building2/></span><div><p className="text-xs font-bold uppercase tracking-wider text-maroon">Hotel owner account</p><h2 className="font-display text-2xl font-bold">{mode==="login"?"Owner login":"Create owner account"}</h2></div></div>{notice&&<p role="status" className="mt-5 rounded-xl bg-red-50 p-3 text-sm font-semibold text-maroon">{notice}</p>}
-  {mode==="login"?<form onSubmit={login} className="mt-7 space-y-4"><label className="owner-label">Business email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="owner@example.com"/></label><label className="owner-label">Password<input required type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password"/></label><button className="btn-primary w-full justify-center"><LogIn className="size-4"/>Login to Owner Account</button><p className="text-center text-sm text-slate-500">Don&apos;t have an account? <button type="button" onClick={()=>{setMode("register");setNotice("")}} className="font-bold text-maroon">Create an account</button></p></form>
-  :<form onSubmit={register} className="mt-7 space-y-4"><label className="owner-label">Owner or business name<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Your name or registered business"/></label><label className="owner-label">Business email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="owner@example.com"/></label><label className="owner-label">Mobile number<input required type="tel" value={mobile} onChange={e=>setMobile(e.target.value)} placeholder="+91 98765 43210"/></label><label className="owner-label">Create password<input required type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 6 characters"/></label><button className="btn-primary w-full justify-center"><UserPlus className="size-4"/>Create Hotel Owner Account</button><button type="button" onClick={()=>{setMode("login");setNotice("")}} className="w-full text-sm font-bold text-maroon">Already have an account? Login</button></form>}
-  <p className="mt-6 flex items-start gap-2 text-xs leading-5 text-slate-500"><KeyRound className="mt-0.5 size-4 shrink-0 text-maroon"/>This browser-only prototype models the hotel_owner role. Production authorization must be enforced by the backend.</p></section>}
+
+import { Building2, KeyRound, LogIn, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { apiRequest } from "@/lib/api-client";
+
+export const OWNER_TOKEN_KEY = "stayhaven-owner-token";
+type Session = {
+  accessToken: string;
+  owner: { id: string; name: string; email: string; role: string };
+};
+type Response = { success: boolean; message: string; data: Session };
+
+export function OwnerAuth() {
+  const router = useRouter();
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (localStorage.getItem(OWNER_TOKEN_KEY)) router.replace("/owner");
+  }, [router]);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setNotice("");
+    try {
+      const body =
+        mode === "register"
+          ? { name, businessName, email, phone, password }
+          : { email, password };
+      const response = await apiRequest<Response>(
+        `/api/v1/owner/auth/${mode}`,
+        "",
+        { method: "POST", body: JSON.stringify(body) },
+      );
+      localStorage.setItem(OWNER_TOKEN_KEY, response.data.accessToken);
+      router.push("/owner");
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="rounded-3xl border bg-white p-7 shadow-xl md:p-9">
+      <div className="flex items-center gap-3">
+        <span className="grid size-12 place-items-center rounded-xl bg-charcoal text-white">
+          <Building2 />
+        </span>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-maroon">
+            Global hotel owner account
+          </p>
+          <h2 className="font-display text-2xl font-bold">
+            {mode === "login" ? "Owner login" : "Create owner account"}
+          </h2>
+        </div>
+      </div>
+      {notice && (
+        <p
+          role="alert"
+          className="mt-5 rounded-xl bg-red-50 p-3 text-sm font-semibold text-maroon"
+        >
+          {notice}
+        </p>
+      )}
+      <form onSubmit={submit} className="mt-7 space-y-4">
+        {mode === "register" && (
+          <>
+            <label className="owner-label">
+              Owner name
+              <input
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <label className="owner-label">
+              Business name
+              <input
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+              />
+            </label>
+          </>
+        )}
+        <label className="owner-label">
+          Business email
+          <input
+            required
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="owner@example.com"
+          />
+        </label>
+        {mode === "register" && (
+          <label className="owner-label">
+            Mobile number
+            <input
+              required
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </label>
+        )}
+        <label className="owner-label">
+          Password
+          <input
+            required
+            minLength={mode === "register" ? 8 : 1}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        <button
+          disabled={loading}
+          className="btn-primary w-full justify-center"
+        >
+          {mode === "login" ? (
+            <LogIn className="size-4" />
+          ) : (
+            <UserPlus className="size-4" />
+          )}
+          {loading
+            ? "Please wait…"
+            : mode === "login"
+              ? "Login to Owner Account"
+              : "Create Global Owner Account"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === "login" ? "register" : "login");
+            setNotice("");
+          }}
+          className="w-full text-sm font-bold text-maroon"
+        >
+          {mode === "login"
+            ? "Create an owner account"
+            : "Already registered? Login"}
+        </button>
+      </form>
+      <p className="mt-6 flex items-start gap-2 text-xs leading-5 text-slate-500">
+        <KeyRound className="mt-0.5 size-4 shrink-0 text-maroon" />
+        One account works across every StayHaven marketplace and the future
+        owner app.
+      </p>
+    </section>
+  );
+}

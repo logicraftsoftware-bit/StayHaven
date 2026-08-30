@@ -1,9 +1,14 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { PropertyStatus } from '../common/enums/status.enum';
+import { Types } from 'mongoose';
 describe('PropertiesService', () => {
   it('rejects invalid property IDs', async () => {
-    const service = new PropertiesService({} as never, {} as never);
+    const service = new PropertiesService(
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     await expect(service.get('invalid')).rejects.toBeInstanceOf(
       BadRequestException,
     );
@@ -18,7 +23,11 @@ describe('PropertiesService', () => {
       find: jest.fn(() => query),
       countDocuments: jest.fn().mockResolvedValue(0),
     };
-    const service = new PropertiesService(model as never, {} as never);
+    const service = new PropertiesService(
+      model as never,
+      {} as never,
+      {} as never,
+    );
     const result = await service.list({
       page: 1,
       limit: 20,
@@ -31,5 +40,54 @@ describe('PropertiesService', () => {
       totalPages: 0,
     });
     expect(query.limit).toHaveBeenCalledWith(20);
+  });
+
+  it('always scopes owner property access by authenticated owner id', async () => {
+    let captured: { _id: Types.ObjectId; ownerId: Types.ObjectId } | undefined;
+    const model = {
+      findOne: jest.fn(
+        (query: { _id: Types.ObjectId; ownerId: Types.ObjectId }) => {
+          captured = query;
+          return Promise.resolve(null);
+        },
+      ),
+    };
+    const service = new PropertiesService(
+      model as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      service.getOwner('507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(captured?._id.toHexString()).toBe('507f1f77bcf86cd799439012');
+    expect(captured?.ownerId.toHexString()).toBe('507f1f77bcf86cd799439011');
+  });
+
+  it('validates the selected active site before property creation', async () => {
+    const sites = {
+      getActive: jest.fn().mockRejectedValue(new NotFoundException()),
+    };
+    const model = { create: jest.fn() };
+    const service = new PropertiesService(
+      model as never,
+      {} as never,
+      sites as never,
+    );
+    await expect(
+      service.createOwner(
+        '507f1f77bcf86cd799439011',
+        {
+          siteId: '507f1f77bcf86cd799439013',
+          name: 'Archived site property',
+          propertyType: 'Hotel',
+          address: 'Address',
+          city: 'City',
+          state: 'State',
+        },
+        '507f1f77bcf86cd799439014',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(model.create).not.toHaveBeenCalled();
   });
 });

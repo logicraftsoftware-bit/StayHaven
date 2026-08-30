@@ -184,6 +184,17 @@ export class SitesService {
       .lean();
   }
 
+  async getActive(id: string) {
+    if (!Types.ObjectId.isValid(id))
+      throw new NotFoundException('Active site not found');
+    const site = await this.model
+      .findOne({ _id: new Types.ObjectId(id), status: SiteStatus.ACTIVE })
+      .select('name slug domain city state country status')
+      .lean();
+    if (!site) throw new NotFoundException('Active site not found');
+    return site;
+  }
+
   async resolveActiveByDomain(domain: string) {
     const normalized = normalizeDomain(domain);
     const record = await this.domainModel

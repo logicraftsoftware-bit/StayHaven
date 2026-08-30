@@ -28,6 +28,12 @@ export class Property {
   })
   status: PropertyStatus;
   @Prop() reviewReason?: string;
+  @Prop({ default: true, index: true }) active: boolean;
+  @Prop({ min: 0 }) price?: number;
+  @Prop({ min: 0 }) taxes?: number;
+  @Prop({ min: 1 }) rooms?: number;
+  @Prop({ min: 1 }) maxGuests?: number;
+  @Prop({ type: [String], default: [] }) amenities: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,3 +41,4 @@ export type PropertyDocument = HydratedDocument<Property>;
 export const PropertySchema = SchemaFactory.createForClass(Property);
 PropertySchema.index({ siteId: 1, status: 1, createdAt: -1 });
 PropertySchema.index({ ownerId: 1, status: 1 });
+PropertySchema.index({ ownerId: 1, siteId: 1, createdAt: -1 });

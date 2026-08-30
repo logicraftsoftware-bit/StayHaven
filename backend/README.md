@@ -246,3 +246,33 @@ curl -H "Host: shillong.localhost" http://127.0.0.1:5001/api/v1/properties
 ```
 
 Open `guwahati.localhost:3001` and `shillong.localhost:3001` after adding the local host mappings. Confirm that branding, theme variables, contact details, page configuration, favicon, and SEO differ by site. Change only Shillong in Super Admin and confirm Guwahati is unaffected. Finally, set the test site inactive and verify its public endpoints return not found. Do not use the production Guwahati record for destructive testing.
+
+## Phase 5 global hotel owners
+
+Owner identity is platform-wide and stored once in `gw_owners`. A hostname resolves a marketplace site, while the signed owner token resolves the owner. A property connects those independent identities with `ownerId + siteId`:
+
+```text
+hostname -> site resolver -> siteId
+authentication -> stable ownerId
+property -> ownerId + siteId
+```
+
+The deprecated owner `siteIds` field is not used for identity or authorization. Existing values are preserved for backward compatibility; live site membership is derived from the owner's properties. An owner can use the same email and password on every marketplace domain and in a future owner application.
+
+Public owner authentication:
+
+- `POST /api/v1/owner/auth/register`
+- `POST /api/v1/owner/auth/login`
+
+Authenticated owner routes (a `HOTEL_OWNER` bearer token is required):
+
+- `GET/PATCH /api/v1/owner/me`
+- `GET /api/v1/owner/sites` — active marketplaces only
+- `GET /api/v1/owner/properties` — global list, with optional `siteId` and `status` filters
+- `GET /api/v1/owner/properties/summary`
+- `POST /api/v1/owner/properties`
+- `GET/PATCH/DELETE /api/v1/owner/properties/:id`
+
+Property mutations always derive `ownerId` from the signed token. They never accept ownership from the request body. Explicit site selections are checked against active sites; when omitted, the trusted hostname resolver supplies the default site. Owners can edit or delete only properties in editable moderation states. Super Admin owner detail includes properties, marketplace membership derived from those properties, and owner audit history.
+
+MongoDB indexes cover unique owner email, owner phone lookup, `property.ownerId`, `property.siteId`, and compound `property.ownerId + property.siteId + createdAt`. All Phase 5 schema changes are additive and require no destructive migration.

@@ -146,7 +146,11 @@ describe('Backend security and workflow contracts', () => {
     };
     const model = { findById: jest.fn().mockResolvedValue(property) };
     const audit = { record: jest.fn() };
-    await new PropertiesService(model as never, audit as never).transition(
+    await new PropertiesService(
+      model as never,
+      audit as never,
+      {} as never,
+    ).transition(
       property._id.toString(),
       nextStatus,
       new Types.ObjectId().toString(),
@@ -164,7 +168,12 @@ describe('Backend security and workflow contracts', () => {
     const owner = { _id: new Types.ObjectId() };
     const model = { findByIdAndUpdate: jest.fn().mockResolvedValue(owner) };
     const audit = { record: jest.fn() };
-    await new OwnersService(model as never, audit as never).status(
+    await new OwnersService(
+      model as never,
+      audit as never,
+      {} as never,
+      {} as never,
+    ).status(
       owner._id.toString(),
       OwnerStatus.SUSPENDED,
       new Types.ObjectId().toString(),

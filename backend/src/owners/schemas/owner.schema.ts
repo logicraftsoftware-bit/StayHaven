@@ -7,7 +7,14 @@ export class Owner {
   @Prop({ required: true }) name: string;
   @Prop({ required: true, unique: true, lowercase: true, index: true })
   email: string;
-  @Prop({ required: true }) phone: string;
+  @Prop({ required: true, index: true }) phone: string;
+  @Prop() businessName?: string;
+  @Prop() address?: string;
+  @Prop() profileImage?: string;
+  @Prop({ default: false }) emailVerified: boolean;
+  @Prop({ default: false }) phoneVerified: boolean;
+  @Prop({ type: Types.ObjectId }) registeredFromSiteId?: Types.ObjectId;
+  @Prop() lastLoginAt?: Date;
   @Prop({ required: true, select: false }) passwordHash: string;
   @Prop({ type: String, enum: Role, default: Role.HOTEL_OWNER }) role: Role;
   @Prop({
@@ -17,8 +24,6 @@ export class Owner {
     index: true,
   })
   status: OwnerStatus;
-  @Prop({ type: [Types.ObjectId], default: [], index: true })
-  siteIds: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
