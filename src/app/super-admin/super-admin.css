@@ -15,6 +15,7 @@
 .admin-site-modal{width:min(1180px,calc(100vw - 40px));max-height:calc(100dvh - 40px);padding:0;border-radius:22px;background:#f7f8fa}
 .admin-site-modal .modal-close{z-index:4}
 .admin-modal.admin-site-modal{width:min(90vw,1480px);height:min(86dvh,860px);border-radius:18px}
+.site-editor-page{width:100%;padding-bottom:30px}.site-editor-panel{overflow:hidden;border:1px solid var(--admin-line);border-radius:18px;background:#fff;box-shadow:0 10px 32px #1018280a}.site-editor-panel .site-wizard-heading{padding:28px 32px 22px}.site-editor-panel .site-wizard-heading h2{margin:7px 0 5px;font-family:var(--font-lora);font-size:30px}.site-editor-title-row{display:flex;align-items:center;justify-content:space-between;gap:20px}.site-editor-title-row .admin-secondary{flex:none;padding:11px 15px}.site-editor-panel .site-wizard-steps{padding-right:30px;padding-left:30px}.site-editor-panel .site-wizard-scroll{overflow:visible}.site-editor-panel .site-wizard-section-heading{margin:32px 30px 0}.site-editor-panel .site-wizard-form{margin:18px 30px 8px;min-height:390px}.site-editor-panel .site-wizard-actions{position:static;bottom:auto;margin-top:34px;padding-bottom:0}
 .site-wizard-heading{padding:24px 46px 18px;background:#fff}
 .site-wizard-heading h2{margin:7px 0 5px}
 .site-wizard-heading p{max-width:720px;color:var(--admin-muted);font-size:13px;line-height:1.65}

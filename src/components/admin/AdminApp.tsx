@@ -814,6 +814,7 @@ function SitesView({ token }: { token: string }) {
   }
   return (
     <>
+      {!show && <>
       <PageHeader
         eyebrow="MARKETPLACE NETWORK"
         title="Sites"
@@ -951,23 +952,17 @@ function SitesView({ token }: { token: string }) {
           ))}
         </div>
       )}
+      </>}
       {show && (
-        <div
-          className="admin-modal-backdrop"
-          onMouseDown={() => setShow(false)}
-        >
+        <div className="site-editor-page">
           <div
-            className="admin-modal admin-site-modal"
-            onMouseDown={(e) => e.stopPropagation()}
+            className="site-editor-panel"
           >
-            <button className="modal-close" onClick={() => setShow(false)}>
-              <X />
-            </button>
             <div className="site-wizard-heading">
               <span className="admin-kicker">
                 {editingId ? "SITE CONFIGURATION" : "NEW MARKETPLACE"}
               </span>
-              <h2>{editingId ? "Edit site" : "Add a site"}</h2>
+              <div className="site-editor-title-row"><h2>{editingId ? "Edit site" : "Add a site"}</h2><button className="admin-secondary" type="button" onClick={() => setShow(false)}><X /> Back to sites</button></div>
               <p>
                 Configure domains, location, branding, SEO and public contact
                 information.
