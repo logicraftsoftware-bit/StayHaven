@@ -124,7 +124,7 @@ button {
   box-shadow: 0 20px 50px #001b3d33;
   color: #111827;
 }
-.page-search-section{position:relative;z-index:5;margin-top:-54px}.page-builder-section{margin-top:48px}.page-builder-section>h2{font-size:1.65rem;font-weight:800}.page-builder-section>p{margin-top:5px;color:#64748b}.page-placeholder-section{border:1px solid #e2e8f0;border-radius:var(--site-radius,18px);background:#fff;padding:32px}
+.page-search-section{position:relative;z-index:30;margin-top:-54px}.page-builder-section{margin-top:48px}.page-builder-section>h2{font-size:1.65rem;font-weight:800}.page-builder-section>p{margin-top:5px;color:#64748b}.page-placeholder-section{border:1px solid #e2e8f0;border-radius:var(--site-radius,18px);background:#fff;padding:32px}
 .search-field {
   padding: 9px 14px;
   border-right: 1px solid #e2e8f0;
