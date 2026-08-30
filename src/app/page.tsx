@@ -1,2 +1,3 @@
-import { Hero } from "@/components/home/Hero"; import { HomeSections } from "@/components/home/HomeSections"; import { Shell } from "@/components/layout/Shell";
-export default function Home(){return <Shell><Hero/><HomeSections/></Shell>}
+import type { Metadata } from "next"; import { Shell } from "@/components/layout/Shell"; import { PageRenderer } from "@/components/page-builder/PageRenderer"; import { getPublishedPage } from "@/lib/page-config";
+export async function generateMetadata():Promise<Metadata>{const page=await getPublishedPage("home");const seo=page.published.seo||{};return{title:seo.title||undefined,description:seo.description||undefined,alternates:seo.canonical?{canonical:seo.canonical}:undefined,robots:seo.noindex?{index:false,follow:false}:undefined}}
+export default async function Home(){const page=await getPublishedPage("home");return <Shell><PageRenderer page={page}/></Shell>}

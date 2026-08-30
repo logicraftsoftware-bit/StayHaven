@@ -111,6 +111,7 @@ button {
 .hero-style-split-screen .hero-media { left:45%; }
 .hero-style-split-screen .hero-overlay { background:linear-gradient(90deg,#06192d 0 48%,#06192d66); }
 .hero-style-mountain .hero-overlay { background:linear-gradient(90deg,#102c26ee,#102c2670); }
+.hero-align-center .container{align-items:center;text-align:center}.hero-align-right .container{align-items:flex-end;text-align:right}
 .search-panel {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1.3fr auto;
@@ -122,6 +123,7 @@ button {
   box-shadow: 0 20px 50px #001b3d33;
   color: #111827;
 }
+.page-search-section{position:relative;z-index:5;margin-top:-54px}.page-builder-section{margin-top:48px}.page-builder-section>h2{font-size:1.65rem;font-weight:800}.page-builder-section>p{margin-top:5px;color:#64748b}.page-placeholder-section{border:1px solid #e2e8f0;border-radius:var(--site-radius,18px);background:#fff;padding:32px}
 .search-field {
   padding: 9px 14px;
   border-right: 1px solid #e2e8f0;

@@ -6,6 +6,14 @@ One shared Next.js application resolves each marketplace theme from its Site con
 
 The site editor uses six modal steps: Basic information, Domain & location, Branding, Theme, Hero banners, and SEO & contact. Completed steps are green, the current step is amber, and future steps are gray.
 
+## Phase 4 — Controlled page configuration
+
+StayHaven remains one frontend, one backend and one MongoDB database serving multiple domains. Site configuration controls identity, theme configuration controls how a site looks, and page configuration controls what each page shows. Level 4 custom code is not enabled.
+
+Page definitions live in `gw_page_configs` and are uniquely scoped by `siteId + pageSlug`. Each record has independent draft and published content, page SEO, a preset and an ordered list of allowlisted sections. The public API reads only published content; Super Admin edits drafts and explicitly publishes them. Publishing invalidates the affected in-process page cache and creates an entry in `gw_audit_logs`.
+
+The page registry covers home, listing/search, informational, account and owner entry pages. The section registry is allowlisted in the backend and frontend; database values are never used as imports or executable code. Supported configuration fields are filtered per section, unknown sections are rejected by admin APIs and ignored safely by the renderer. Missing configurations use a non-destructive default homepage, so no database migration is required. Saving a page in Super Admin creates its record lazily and is safe for existing production sites.
+
 ## Getting Started
 
 First, run the development server:

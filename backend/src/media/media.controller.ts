@@ -123,8 +123,7 @@ export class MediaController {
     const format = videoSignatures.find((candidate) =>
       candidate.matches(file.buffer),
     );
-    if (!format)
-      throw new BadRequestException('Use an MP4 or WEBM video');
+    if (!format) throw new BadRequestException('Use an MP4 or WEBM video');
 
     const directory = join(
       this.config.getOrThrow<string>('uploadDir'),

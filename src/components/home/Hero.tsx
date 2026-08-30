@@ -12,13 +12,15 @@ function SlideHeading({ heading, highlighted }: { heading: string; highlighted?:
   return <>{before}<span className="text-gold">{highlighted}</span>{after.join(highlighted)}</>;
 }
 
-export function Hero() {
+export function Hero({ showSearch = true, sectionConfig = {} }: { showSearch?: boolean; sectionConfig?: Record<string, unknown> }) {
   const site = useSite();
   const slides = useMemo(() => getSiteHeroSlides(site), [site]);
   const theme = resolveSiteTheme(site.theme);
   const config = site.pageConfig?.hero;
   const [active, setActive] = useState(0);
-  const slide = slides[active] ?? slides[0];
+  const sourceSlide = slides[active] ?? slides[0];
+  const slide = { ...sourceSlide, heading: typeof sectionConfig.title === "string" && sectionConfig.title ? sectionConfig.title : sourceSlide.heading, description: typeof sectionConfig.subtitle === "string" && sectionConfig.subtitle ? sectionConfig.subtitle : sourceSlide.description, overlayOpacity: typeof sectionConfig.overlay === "number" ? sectionConfig.overlay : sourceSlide.overlayOpacity };
+  const heroStyle = typeof sectionConfig.style === "string" ? sectionConfig.style : theme.heroStyle || "default";
 
   useEffect(() => {
     if (slides.length < 2 || config?.autoplay === false) return;
@@ -28,7 +30,7 @@ export function Hero() {
   }, [active, config?.autoplay, config?.intervalSeconds, slide.durationSeconds, slides.length]);
 
   const move = (amount: number) => setActive((index) => (index + amount + slides.length) % slides.length);
-  return <section className={`hero hero-style-${theme.heroStyle || "default"}`}>
+  return <section className={`hero hero-style-${heroStyle} hero-align-${typeof sectionConfig.alignment === "string" ? sectionConfig.alignment : "left"}`}>
     <div className="hero-media" aria-hidden="true">
       {slide.mediaType === "video" ? <video key={slide.mediaUrl} autoPlay muted loop playsInline poster={slide.posterUrl}><source src={slide.mediaUrl}/></video> : <picture>{slide.mobileMediaUrl && <source media="(max-width: 767px)" srcSet={slide.mobileMediaUrl}/>}<img src={slide.mediaUrl} alt=""/></picture>}
     </div>
@@ -42,7 +44,7 @@ export function Hero() {
         <div className="hero-dots">{slides.map((item,index)=><button key={item.id || `${item.mediaUrl}-${index}`} type="button" className={index===active?"active":""} onClick={()=>setActive(index)} aria-label={`Show banner ${index+1}`}/>)}</div>
         <button type="button" onClick={() => move(1)} aria-label="Next banner"><ChevronRight/></button>
       </div>}
-      <div className="hero-search absolute inset-x-4 -bottom-14 md:inset-x-0"><SearchBox/></div>
+      {showSearch && <div className="hero-search absolute inset-x-4 -bottom-14 md:inset-x-0"><SearchBox/></div>}
     </div>
   </section>;
 }

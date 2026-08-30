@@ -32,7 +32,7 @@ import type { SiteHeroSlide } from "@/types/site";
 
 const TOKEN_KEY = "gh_super_admin_token";
 
-type View = "dashboard" | "sites" | "owners" | "properties" | "profile";
+type View = "dashboard" | "sites" | "pages" | "owners" | "properties" | "profile";
 type Status =
   | "ACTIVE"
   | "SUSPENDED"
@@ -259,6 +259,7 @@ function Login({
 const nav: { id: View; label: string; icon: typeof Home }[] = [
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "sites", label: "Sites", icon: Globe2 },
+  { id: "pages", label: "Page builder", icon: Home },
   { id: "properties", label: "Properties", icon: Building2 },
   { id: "owners", label: "Property owners", icon: Users },
   { id: "profile", label: "Account", icon: Settings },
@@ -1137,6 +1138,22 @@ function SitesView({ token }: { token: string }) {
   );
 }
 
+type BuilderSection={id:string;type:string;enabled:boolean;order:number;config:Record<string,unknown>};
+type BuilderPage={siteId:string;pageSlug:string;enabled:boolean;preset:string;draft:{seo:Record<string,unknown>;sections:BuilderSection[]};published:{seo:Record<string,unknown>;sections:BuilderSection[]};publishedAt?:string};
+const builderPages=["home","hotels","villas","resorts","homestays","search","about","contact","list-your-property","account","owner-dashboard"];
+const builderTypes=["hero","search","featured-properties","popular-hotels","popular-villas","popular-resorts","popular-homestays","property-categories","destinations","why-choose-us","promotional-banner","testimonials","gallery","faq","cta"];
+function PagesView({token}:{token:string}){
+  const [sites,setSites]=useState<Site[]>([]),[siteId,setSiteId]=useState(""),[pageSlug,setPageSlug]=useState("home"),[page,setPage]=useState<BuilderPage|null>(null),[selected,setSelected]=useState(""),[message,setMessage]=useState(""),[error,setError]=useState(""),[loading,setLoading]=useState(true);
+  useEffect(()=>{void api<ApiResponse<Site[]>>("/api/v1/admin/sites",token).then(r=>{setSites(r.data);setSiteId(old=>old||r.data.find(s=>s.status==="active")?._id||r.data[0]?._id||"")}).catch(e=>setError((e as Error).message))},[token]);
+  useEffect(()=>{if(!siteId)return;setLoading(true);void api<ApiResponse<BuilderPage>>(`/api/v1/admin/sites/${siteId}/pages/${pageSlug}`,token).then(r=>{setPage(r.data);setSelected(r.data.draft.sections[0]?.id||"");setError("")}).catch(e=>setError((e as Error).message)).finally(()=>setLoading(false))},[siteId,pageSlug,token]);
+  const sections=page?.draft.sections||[];const updateSections=(next:BuilderSection[])=>setPage(old=>old?{...old,draft:{...old.draft,sections:next.map((s,order)=>({...s,order}))}}:old);
+  const move=(index:number,amount:number)=>{const next=[...sections],target=index+amount;if(target<0||target>=next.length)return;[next[index],next[target]]=[next[target],next[index]];updateSections(next)};
+  const save=async()=>{if(!page)return;try{const r=await api<ApiResponse<BuilderPage>>(`/api/v1/admin/sites/${siteId}/pages/${pageSlug}`,token,{method:"PATCH",body:JSON.stringify({enabled:page.enabled,preset:page.preset,seo:page.draft.seo,sections})});setPage(r.data);setMessage("Draft saved.");setError("")}catch(e){setError((e as Error).message)}};
+  const publish=async()=>{try{const r=await api<ApiResponse<BuilderPage>>(`/api/v1/admin/sites/${siteId}/pages/${pageSlug}/publish`,token,{method:"POST"});setPage(r.data);setMessage("Page published successfully.");setError("")}catch(e){setError((e as Error).message)}};
+  const current=sections.find(s=>s.id===selected);
+  return <><PageHeader eyebrow="PAGE CONFIGURATION" title="Page builder" text="Control what each marketplace page shows using approved shared sections." action={<><button className="admin-secondary" onClick={()=>void save()}>Save draft</button><button className="admin-primary compact" onClick={()=>void publish()}><Check/>Publish</button></>}/>{message&&<div className="admin-alert success"><Check/>{message}</div>}{error&&<div className="admin-alert error"><CircleAlert/>{error}</div>}<div className="page-builder-toolbar"><label>Site<select value={siteId} onChange={e=>setSiteId(e.target.value)}>{sites.map(s=><option key={s._id} value={s._id}>{s.name}</option>)}</select></label><label>Page<select value={pageSlug} onChange={e=>setPageSlug(e.target.value)}>{builderPages.map(x=><option key={x}>{x}</option>)}</select></label><span>{page?.publishedAt?`Published ${new Date(page.publishedAt).toLocaleString()}`:"Using safe defaults"}</span></div>{loading?<div className="admin-loading"><LoaderCircle className="spin"/>Loading page configuration…</div>:page&&<div className="page-builder-layout"><section className="admin-card"><div className="card-heading"><div><span className="admin-kicker">SECTIONS</span><h2>Page structure</h2></div><select aria-label="Add section" value="" onChange={e=>{const type=e.target.value;if(!type)return;const next={id:`${type}-${Date.now()}`,type,enabled:true,order:sections.length,config:{}};updateSections([...sections,next]);setSelected(next.id)}}><option value="">+ Add section</option>{builderTypes.map(x=><option key={x}>{x}</option>)}</select></div><div className="builder-section-list">{sections.map((s,index)=><article className={selected===s.id?"selected":""} key={s.id} onClick={()=>setSelected(s.id)}><button type="button" className={`builder-toggle ${s.enabled?"on":""}`} onClick={e=>{e.stopPropagation();updateSections(sections.map(x=>x.id===s.id?{...x,enabled:!x.enabled}:x))}}>{s.enabled?"✓":"○"}</button><div><strong>{s.type.replaceAll("-"," ")}</strong><small>{s.enabled?"Visible":"Hidden"} · Position {index+1}</small></div><button type="button" disabled={index===0} onClick={e=>{e.stopPropagation();move(index,-1)}}>↑</button><button type="button" disabled={index===sections.length-1} onClick={e=>{e.stopPropagation();move(index,1)}}>↓</button></article>)}</div></section><section className="admin-card builder-editor"><span className="admin-kicker">SECTION EDITOR</span><h2>{current?.type.replaceAll("-"," ")||"Select a section"}</h2>{current&&<><label>Title<input value={String(current.config.title||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,title:e.target.value}}:s))}/></label><label>Description / subtitle<textarea rows={4} value={String(current.config.subtitle||current.config.description||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,subtitle:e.target.value,description:e.target.value}}:s))}/></label>{["featured-properties","popular-hotels","popular-villas","popular-resorts","popular-homestays","destinations","property-categories","testimonials","gallery","faq"].includes(current.type)&&<label>Item limit<input type="number" min="1" max="24" value={Number(current.config.limit||6)} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,limit:Number(e.target.value)}}:s))}/></label>}{["cta","promotional-banner"].includes(current.type)&&<><label>Button text<input value={String(current.config.buttonText||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,buttonText:e.target.value}}:s))}/></label><label>Button URL<input value={String(current.config.buttonLink||"")} onChange={e=>updateSections(sections.map(s=>s.id===current.id?{...s,config:{...s.config,buttonLink:e.target.value}}:s))}/></label></>}<button className="admin-secondary danger" onClick={()=>{updateSections(sections.filter(s=>s.id!==current.id));setSelected("")}}>Remove section</button></>}</section><section className="admin-card builder-preview"><span className="admin-kicker">DRAFT PREVIEW</span><h2>{sites.find(s=>s._id===siteId)?.name}</h2>{sections.filter(s=>s.enabled).map((s,index)=><div key={s.id}><span>{index+1}</span><strong>{String(s.config.title||s.type.replaceAll("-"," "))}</strong></div>)}</section></div>}</>;
+}
+
 function OwnersView({ token }: { token: string }) {
   const [owners, setOwners] = useState<Owner[]>([]);
   const [search, setSearch] = useState("");
@@ -1579,6 +1596,8 @@ export function AdminApp() {
       <DashboardView token={token} go={setView} />
     ) : view === "sites" ? (
       <SitesView token={token} />
+    ) : view === "pages" ? (
+      <PagesView token={token} />
     ) : view === "owners" ? (
       <OwnersView token={token} />
     ) : view === "properties" ? (

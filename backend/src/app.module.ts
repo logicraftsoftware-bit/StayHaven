@@ -11,6 +11,7 @@ import { SitesModule } from './sites/sites.module';
 import { PropertiesModule } from './properties/properties.module';
 import { OwnersModule } from './owners/owners.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { PageConfigsModule } from './page-configs/page-configs.module';
 import { HealthController } from './health.controller';
 import { MediaModule } from './media/media.module';
 @Module({
@@ -33,6 +34,7 @@ import { MediaModule } from './media/media.module';
       },
     }),
     AuditLogsModule,
+    PageConfigsModule,
     AdminsModule,
     AuthModule,
     SitesModule,

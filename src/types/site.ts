@@ -52,6 +52,9 @@ export type SitePageConfig = {
   };
   [key: string]: unknown;
 };
+export type PageSectionType = "hero"|"search"|"featured-properties"|"popular-hotels"|"popular-villas"|"popular-resorts"|"popular-homestays"|"property-categories"|"destinations"|"why-choose-us"|"promotional-banner"|"testimonials"|"gallery"|"faq"|"cta";
+export type PageSection = { id:string; type:PageSectionType; enabled:boolean; order:number; config:Record<string,unknown> };
+export type PublishedPageConfig = { pageSlug:string; enabled:boolean; preset:string; published:{ seo?:{title?:string;description?:string;canonical?:string;noindex?:boolean}; sections:PageSection[] } };
 
 export type SiteConfig = {
   id?: string;
