@@ -91,11 +91,22 @@ button {
 }
 .hero {
   position: relative;
-  background:
-    linear-gradient(90deg, #031b3ddd, #062a55a8),
-    url("https://images.unsplash.com/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=2000&q=88")
-      center/cover;
+  overflow: visible;
+  background: #082b63;
 }
+.hero-media,.hero-overlay { position: absolute; inset: 0; overflow: hidden; }
+.hero-media img,.hero-media video,.hero-media picture { width: 100%; height: 100%; display: block; object-fit: cover; }
+.hero-overlay { background: linear-gradient(90deg,#031b3d,#062a55 72%,#031b3d); pointer-events: none; }
+.hero-controls { display:flex; align-items:center; gap:12px; margin-top:30px; }
+.hero-controls>button { display:grid; width:38px; height:38px; place-items:center; border:1px solid #ffffff80; border-radius:50%; background:#081a2f70; }
+.hero-controls svg { width:18px; }
+.hero-dots { display:flex; gap:7px; }
+.hero-dots button { width:8px; height:8px; border-radius:999px; background:#ffffff80; transition:width .2s ease; }
+.hero-dots button.active { width:26px; background:var(--primary); }
+.hero-style-minimal .hero-overlay { background:#111827; opacity:.42!important; }
+.hero-style-split-screen .hero-media { left:45%; }
+.hero-style-split-screen .hero-overlay { background:linear-gradient(90deg,#06192d 0 48%,#06192d66); }
+.hero-style-mountain .hero-overlay { background:linear-gradient(90deg,#102c26ee,#102c2670); }
 .search-panel {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1.3fr auto;

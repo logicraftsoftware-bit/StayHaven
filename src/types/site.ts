@@ -1,4 +1,11 @@
+export type SiteThemePreset = "default" | "mountain" | "modern" | "minimal";
+export type SiteHeroStyle = "default" | "full-image" | "video" | "split-screen" | "mountain" | "minimal";
+export type SiteHeaderStyle = "default" | "centered" | "transparent" | "overlay";
+export type SiteCardStyle = "default" | "rounded" | "minimal" | "image-overlay" | "compact";
+export type SiteFooterStyle = "default" | "minimal" | "multi-column" | "dark";
+
 export type SiteTheme = {
+  preset?: SiteThemePreset;
   primary?: string;
   primaryColor?: string;
   secondary?: string;
@@ -6,12 +13,38 @@ export type SiteTheme = {
   dark?: string;
   light?: string;
   fontFamily?: string;
-  headerStyle?: string;
-  heroStyle?: string;
-  cardStyle?: string;
+  headerStyle?: SiteHeaderStyle;
+  heroStyle?: SiteHeroStyle;
+  cardStyle?: SiteCardStyle;
   buttonStyle?: string;
-  footerStyle?: string;
+  footerStyle?: SiteFooterStyle;
   layoutStyle?: string;
+};
+
+export type SiteHeroSlide = {
+  id?: string;
+  mediaType: "image" | "video";
+  mediaUrl: string;
+  mobileMediaUrl?: string;
+  posterUrl?: string;
+  eyebrow?: string;
+  heading: string;
+  highlightedText?: string;
+  description?: string;
+  altText?: string;
+  enabled?: boolean;
+  overlayOpacity?: number;
+  durationSeconds?: number;
+};
+
+export type SitePageConfig = {
+  hero?: {
+    autoplay?: boolean;
+    intervalSeconds?: number;
+    showControls?: boolean;
+    slides?: SiteHeroSlide[];
+  };
+  [key: string]: unknown;
 };
 
 export type SiteConfig = {
@@ -48,6 +81,6 @@ export type SiteConfig = {
   };
   contact?: { email?: string; phone?: string; address?: string };
   social?: Record<string, string>;
-  pageConfig?: Record<string, unknown>;
+  pageConfig?: SitePageConfig;
   status?: "active" | "inactive" | "archived";
 };

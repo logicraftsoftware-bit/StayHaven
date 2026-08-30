@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { apiRequest as api, publicApiBase } from "@/lib/api-client";
+import type { SiteHeroSlide } from "@/types/site";
 
 const TOKEN_KEY = "gh_super_admin_token";
 
@@ -473,6 +474,8 @@ function SitesView({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<"logo" | "favicon" | "">("");
+  const [heroSlides, setHeroSlides] = useState<SiteHeroSlide[]>([]);
+  const [uploadingHero, setUploadingHero] = useState<number | null>(null);
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -496,6 +499,10 @@ function SitesView({ token }: { token: string }) {
       parsedPageConfig = JSON.parse(form.pageConfig || "{}");
     } catch {
       setError("Homepage section configuration must be valid JSON.");
+      return;
+    }
+    if (heroSlides.some((slide) => !slide.mediaUrl.trim())) {
+      setError("Upload an image or video for every hero banner before saving.");
       return;
     }
     const {
@@ -540,7 +547,13 @@ function SitesView({ token }: { token: string }) {
       seo: { title: seoTitle, description: seoDescription, canonicalUrl },
       contact: { email, phone, address },
       social: { facebook, instagram, youtube },
-      pageConfig: parsedPageConfig,
+      pageConfig: {
+        ...parsedPageConfig,
+        hero: {
+          ...((parsedPageConfig.hero as Record<string, unknown> | undefined) || {}),
+          slides: heroSlides,
+        },
+      },
     };
     try {
       await api(
@@ -549,6 +562,7 @@ function SitesView({ token }: { token: string }) {
         { method: editingId ? "PATCH" : "POST", body: JSON.stringify(body) },
       );
       setForm(blankSite);
+      setHeroSlides([]);
       setEditingId("");
       setShow(false);
       setMessage(
@@ -558,6 +572,35 @@ function SitesView({ token }: { token: string }) {
     } catch (e) {
       setError((e as Error).message);
     }
+  }
+  async function uploadHeroMedia(index: number, file?: File) {
+    if (!file) return;
+    const video = file.type.startsWith("video/");
+    const limit = video ? 25 : 5;
+    if (file.size > limit * 1024 * 1024) {
+      setError(`${video ? "Video" : "Image"} must be ${limit} MB or smaller.`);
+      return;
+    }
+    setError("");
+    setUploadingHero(index);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await api<ApiResponse<{ url: string }>>(
+        video ? "/api/v1/admin/media/videos" : "/api/v1/admin/media/images",
+        token,
+        { method: "POST", body: data },
+      );
+      setHeroSlides((old) => old.map((slide, slideIndex) => slideIndex === index ? { ...slide, mediaType: video ? "video" : "image", mediaUrl: response.data.url } : slide));
+      setMessage("Hero media uploaded. Save the site to publish it.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUploadingHero(null);
+    }
+  }
+  function addHeroSlide() {
+    setHeroSlides((old) => [...old, { id: `hero-${Date.now()}`, mediaType: "image", mediaUrl: "", eyebrow: "", heading: "", highlightedText: "", description: "", altText: "", enabled: true, overlayOpacity: .58, durationSeconds: 6 }]);
   }
   async function uploadSiteImage(
     field: "logo" | "favicon",
@@ -623,6 +666,8 @@ function SitesView({ token }: { token: string }) {
       youtube: site.social?.youtube || "",
       pageConfig: JSON.stringify(site.pageConfig || {}, null, 2),
     });
+    const pageConfig = site.pageConfig as { hero?: { slides?: SiteHeroSlide[] } } | undefined;
+    setHeroSlides(Array.isArray(pageConfig?.hero?.slides) ? pageConfig.hero.slides : []);
     setShow(true);
   }
   async function toggle(site: Site) {
@@ -682,6 +727,7 @@ function SitesView({ token }: { token: string }) {
             onClick={() => {
               setEditingId("");
               setForm(blankSite);
+              setHeroSlides([]);
               setShow(true);
             }}
           >
@@ -870,16 +916,31 @@ function SitesView({ token }: { token: string }) {
                     </span>
                   </label>
                 ) : key === "pageConfig" ? (
-                  <label className="admin-form-wide" key={key}>
-                    Homepage section configuration (JSON)
-                    <textarea
-                      rows={6}
-                      value={value}
-                      onChange={(e) =>
-                        setForm((old) => ({ ...old, [key]: e.target.value }))
-                      }
-                    />
-                  </label>
+                  <div className="admin-form-wide hero-editor" key={key}>
+                    <div className="hero-editor-title"><span><strong>Hero banners</strong><small>Add multiple images or videos with independent text.</small></span><button type="button" className="admin-secondary compact" onClick={addHeroSlide}><Plus/>Add banner</button></div>
+                    {heroSlides.length === 0 && <p className="hero-editor-empty">No custom banners yet. The current site hero remains as the fallback.</p>}
+                    {heroSlides.map((slide,index)=><section className="hero-slide-editor" key={slide.id || index}>
+                      <div className="hero-slide-preview">
+                        {slide.mediaUrl ? slide.mediaType === "video" ? <video src={`${slide.mediaUrl.startsWith("/") ? publicApiBase : ""}${slide.mediaUrl}`} muted controls/> : <>
+                          {/* Hero media may be uploaded dynamically from the API. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`${slide.mediaUrl.startsWith("/") ? publicApiBase : ""}${slide.mediaUrl}`} alt="Banner preview"/>
+                        </> : <Upload/>}
+                        <label className="admin-secondary compact">{uploadingHero===index?<LoaderCircle className="spin"/>:<Upload/>}Upload image/video<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" hidden disabled={uploadingHero!==null} onChange={(event)=>{void uploadHeroMedia(index,event.target.files?.[0]);event.target.value="";}}/></label>
+                      </div>
+                      <div className="hero-slide-fields">
+                        <label>Heading<input value={slide.heading} required onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,heading:e.target.value}:item))}/></label>
+                        <label>Highlighted text<input value={slide.highlightedText || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,highlightedText:e.target.value}:item))}/></label>
+                        <label className="wide">Description<textarea rows={3} value={slide.description || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,description:e.target.value}:item))}/></label>
+                        <label>Eyebrow text<input value={slide.eyebrow || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,eyebrow:e.target.value}:item))}/></label>
+                        <label>Alt text<input value={slide.altText || ""} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,altText:e.target.value}:item))}/></label>
+                        <label>Duration (seconds)<input type="number" min="3" max="30" value={slide.durationSeconds || 6} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,durationSeconds:Number(e.target.value)}:item))}/></label>
+                        <label>Overlay opacity<input type="number" min="0" max="0.9" step="0.05" value={slide.overlayOpacity ?? .58} onChange={(e)=>setHeroSlides((old)=>old.map((item,i)=>i===index?{...item,overlayOpacity:Number(e.target.value)}:item))}/></label>
+                      </div>
+                      <button type="button" className="modal-close" aria-label="Remove banner" onClick={()=>setHeroSlides((old)=>old.filter((_,i)=>i!==index))}><X/></button>
+                    </section>)}
+                    <details><summary>Advanced homepage JSON</summary><textarea rows={6} value={value} onChange={(e)=>setForm((old)=>({...old,[key]:e.target.value}))}/></details>
+                  </div>
                 ) : (
                 <label key={key}>
                   {key === "slug"
@@ -915,7 +976,7 @@ function SitesView({ token }: { token: string }) {
                 </button>
                 <button
                   className="admin-primary compact"
-                  disabled={Boolean(uploading)}
+                  disabled={Boolean(uploading) || uploadingHero !== null}
                 >
                   {editingId ? <Check /> : <Plus />}
                   {editingId ? "Save changes" : "Create site"}

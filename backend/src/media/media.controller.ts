@@ -44,6 +44,20 @@ const imageSignatures = [
   },
 ];
 
+const videoSignatures = [
+  {
+    extension: 'mp4',
+    matches: (b: Buffer) =>
+      b.length >= 12 && b.subarray(4, 8).toString('ascii') === 'ftyp',
+  },
+  {
+    extension: 'webm',
+    matches: (b: Buffer) =>
+      b.length >= 4 &&
+      b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
+  },
+];
+
 @ApiTags('Media')
 @ApiBearerAuth()
 @Controller('admin/media')
@@ -85,6 +99,43 @@ export class MediaController {
     return {
       success: true,
       message: 'Image uploaded successfully',
+      data: { url: `/api/uploads/site-media/${filename}` },
+    };
+  }
+
+  @Post('videos')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { files: 1, fileSize: 25 * 1024 * 1024 },
+    }),
+  )
+  async uploadVideo(@UploadedFile() file?: Express.Multer.File) {
+    if (!file?.buffer?.length)
+      throw new BadRequestException('Select a video to upload');
+    const format = videoSignatures.find((candidate) =>
+      candidate.matches(file.buffer),
+    );
+    if (!format)
+      throw new BadRequestException('Use an MP4 or WEBM video');
+
+    const directory = join(
+      this.config.getOrThrow<string>('uploadDir'),
+      'site-media',
+    );
+    await mkdir(directory, { recursive: true });
+    const filename = `${Date.now()}-${randomUUID()}.${format.extension}`;
+    await writeFile(join(directory, filename), file.buffer, { flag: 'wx' });
+    return {
+      success: true,
+      message: 'Video uploaded successfully',
       data: { url: `/api/uploads/site-media/${filename}` },
     };
   }
