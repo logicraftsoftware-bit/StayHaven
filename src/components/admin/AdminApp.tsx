@@ -465,6 +465,71 @@ const blankSite = {
   youtube: "",
   pageConfig: "{}",
 };
+
+const siteFormSteps = [
+  {
+    title: "Basic information",
+    description: "Site identity and marketplace name",
+    fields: ["name", "slug"],
+  },
+  {
+    title: "Domain & location",
+    description: "Domains, city and regional defaults",
+    fields: [
+      "domain",
+      "aliases",
+      "city",
+      "state",
+      "country",
+      "timezone",
+      "currency",
+    ],
+  },
+  {
+    title: "Branding",
+    description: "Logo, favicon, colors and typography",
+    fields: [
+      "logo",
+      "favicon",
+      "primaryColor",
+      "secondaryColor",
+      "fontFamily",
+    ],
+  },
+  {
+    title: "Theme",
+    description: "Shared component and layout styles",
+    fields: [
+      "headerStyle",
+      "heroStyle",
+      "cardStyle",
+      "buttonStyle",
+      "footerStyle",
+      "layoutStyle",
+    ],
+  },
+  {
+    title: "Hero banners",
+    description: "Images, videos and banner content",
+    fields: ["pageConfig"],
+  },
+  {
+    title: "SEO & contact",
+    description: "Search metadata and public channels",
+    fields: [
+      "seoTitle",
+      "seoDescription",
+      "canonicalUrl",
+      "email",
+      "phone",
+      "address",
+      "facebook",
+      "instagram",
+      "youtube",
+    ],
+  },
+] as const;
+
 function SitesView({ token }: { token: string }) {
   const [sites, setSites] = useState<Site[]>([]);
   const [show, setShow] = useState(false);
@@ -476,6 +541,7 @@ function SitesView({ token }: { token: string }) {
   const [uploading, setUploading] = useState<"logo" | "favicon" | "">("");
   const [heroSlides, setHeroSlides] = useState<SiteHeroSlide[]>([]);
   const [uploadingHero, setUploadingHero] = useState<number | null>(null);
+  const [siteFormStep, setSiteFormStep] = useState(0);
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -668,6 +734,7 @@ function SitesView({ token }: { token: string }) {
     });
     const pageConfig = site.pageConfig as { hero?: { slides?: SiteHeroSlide[] } } | undefined;
     setHeroSlides(Array.isArray(pageConfig?.hero?.slides) ? pageConfig.hero.slides : []);
+    setSiteFormStep(0);
     setShow(true);
   }
   async function toggle(site: Site) {
@@ -728,6 +795,7 @@ function SitesView({ token }: { token: string }) {
               setEditingId("");
               setForm(blankSite);
               setHeroSlides([]);
+              setSiteFormStep(0);
               setShow(true);
             }}
           >
@@ -865,16 +933,41 @@ function SitesView({ token }: { token: string }) {
             <button className="modal-close" onClick={() => setShow(false)}>
               <X />
             </button>
-            <span className="admin-kicker">
-              {editingId ? "SITE CONFIGURATION" : "NEW MARKETPLACE"}
-            </span>
-            <h2>{editingId ? "Edit site" : "Add a site"}</h2>
-            <p>
-              Configure domains, location, branding, SEO and public contact
-              information.
-            </p>
-            <form className="admin-form-grid" onSubmit={create}>
-              {Object.entries(form).map(([key, value]) =>
+            <div className="site-wizard-heading">
+              <span className="admin-kicker">
+                {editingId ? "SITE CONFIGURATION" : "NEW MARKETPLACE"}
+              </span>
+              <h2>{editingId ? "Edit site" : "Add a site"}</h2>
+              <p>
+                Configure domains, location, branding, SEO and public contact
+                information.
+              </p>
+            </div>
+            <nav className="site-wizard-steps" aria-label="Site configuration steps">
+              {siteFormSteps.map((step, index) => (
+                <button
+                  type="button"
+                  className={`${index === siteFormStep ? "active" : ""} ${index < siteFormStep ? "complete" : ""}`}
+                  key={step.title}
+                  onClick={() => setSiteFormStep(index)}
+                  aria-current={index === siteFormStep ? "step" : undefined}
+                >
+                  <span>{index < siteFormStep ? <Check /> : index + 1}</span>
+                  <strong>{step.title}</strong>
+                </button>
+              ))}
+            </nav>
+            <div className="site-wizard-section-heading">
+              <div>
+                <span>STEP {siteFormStep + 1} OF {siteFormSteps.length}</span>
+                <h3>{siteFormSteps[siteFormStep].title}</h3>
+                <p>{siteFormSteps[siteFormStep].description}</p>
+              </div>
+            </div>
+            <form className="admin-form-grid site-wizard-form" onSubmit={create}>
+              {Object.entries(form)
+                .filter(([key]) => siteFormSteps[siteFormStep].fields.some((field) => field === key))
+                .map(([key, value]) =>
                 key === "logo" || key === "favicon" ? (
                   <label className="site-image-field" key={key}>
                     {key === "logo" ? "Logo" : "Favicon"}
@@ -966,21 +1059,39 @@ function SitesView({ token }: { token: string }) {
                 </label>
                 ),
               )}
-              <div className="modal-actions">
+              <div className="modal-actions site-wizard-actions">
                 <button
                   type="button"
                   className="admin-secondary"
-                  onClick={() => setShow(false)}
+                  onClick={() => {
+                    if (siteFormStep === 0) setShow(false);
+                    else setSiteFormStep((step) => step - 1);
+                  }}
                 >
-                  Cancel
+                  {siteFormStep === 0 ? "Cancel" : "Previous"}
                 </button>
-                <button
-                  className="admin-primary compact"
-                  disabled={Boolean(uploading) || uploadingHero !== null}
-                >
-                  {editingId ? <Check /> : <Plus />}
-                  {editingId ? "Save changes" : "Create site"}
-                </button>
+                {siteFormStep < siteFormSteps.length - 1 ? (
+                  <button
+                    type="button"
+                    className="admin-primary compact"
+                    onClick={(event) => {
+                      const currentForm = event.currentTarget.form;
+                      if (currentForm?.reportValidity()) {
+                        setSiteFormStep((step) => step + 1);
+                      }
+                    }}
+                  >
+                    Save & Next <ChevronRight />
+                  </button>
+                ) : (
+                  <button
+                    className="admin-primary compact"
+                    disabled={Boolean(uploading) || uploadingHero !== null}
+                  >
+                    {editingId ? <Check /> : <Plus />}
+                    {editingId ? "Save changes" : "Create site"}
+                  </button>
+                )}
               </div>
             </form>
           </div>
