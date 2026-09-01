@@ -6,9 +6,9 @@
 .header {
   position: relative;
   z-index: 10;
-  border-bottom: 1px solid #ffffff29;
-  background: #17191de8;
-  color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  color: #111315;
 }
 .headerInner {
   display: flex;
@@ -21,9 +21,7 @@
 }
 .header :global(.brand-logo) {
   width: 210px;
-  border-radius: 11px;
-  background: #fff;
-  padding: 6px 10px;
+  padding: 4px 0;
 }
 .header nav {
   display: flex;
@@ -45,12 +43,14 @@
   width: 18px;
 }
 .downloadButton {
-  border: 1px solid #ffffff38;
-  background: #ffffff1c;
-  color: #fff;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #111315;
 }
 .downloadButton:hover {
-  background: #ffffff2b;
+  border-color: #8b0d18;
+  background: #fff7f7;
+  color: #8b0d18;
 }
 .listButton {
   background: #a30f1c;

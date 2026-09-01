@@ -18,6 +18,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
   async validate(payload: { sub: string; role: Role }) {
+    if (
+      [Role.HOTEL_OWNER, Role.TEAM_MEMBER, Role.CUSTOMER].includes(payload.role)
+    )
+      return { sub: payload.sub, role: payload.role };
+
     const admin = await this.admins.findSafe(payload.sub);
     if (admin.status !== AdminStatus.ACTIVE)
       throw new UnauthorizedException('Administrator account is suspended');
