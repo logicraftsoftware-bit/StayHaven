@@ -2244,6 +2244,7 @@ function PropertiesView({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [propertyTypes, setPropertyTypes] = useState<PropertyTypeMaster[]>([]);
+  const [uploadingTypeImage, setUploadingTypeImage] = useState(false);
   const [typeForm, setTypeForm] = useState<Partial<PropertyTypeMaster> | null>(
     null,
   );
@@ -2294,7 +2295,7 @@ function PropertiesView({ token }: { token: string }) {
   }
   async function saveType(event: FormEvent) {
     event.preventDefault();
-    if (!typeForm) return;
+    if (!typeForm || uploadingTypeImage) return;
     try {
       await api(
         `/api/v1/admin/property-types${typeForm._id ? `/${typeForm._id}` : ""}`,
@@ -2311,14 +2312,22 @@ function PropertiesView({ token }: { token: string }) {
     }
   }
   async function uploadTypeImage(file: File) {
-    const data = new FormData();
-    data.append("file", file);
-    const result = await api<ApiResponse<{ url: string }>>(
-      "/api/v1/admin/media/images",
-      token,
-      { method: "POST", body: data },
-    );
-    setTypeForm((value) => ({ ...value, image: result.data.url }));
+    setUploadingTypeImage(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const result = await api<ApiResponse<{ url: string }>>(
+        "/api/v1/admin/media/images",
+        token,
+        { method: "POST", body: data },
+      );
+      setTypeForm((value) => ({ ...value, image: result.data.url }));
+      setError("");
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setUploadingTypeImage(false);
+    }
   }
   async function deleteType(item: PropertyTypeMaster) {
     if (!window.confirm(`Delete ${item.name}? Existing properties will keep their saved type.`)) return;
@@ -2489,9 +2498,9 @@ function PropertiesView({ token }: { token: string }) {
                     <img src={`${typeForm.image.startsWith("/") ? publicApiBase : ""}${typeForm.image}`} alt="Property type preview" />
                   ) : <ImagePlus />}
                 </span>
-                <span><strong>Choose image</strong><small>PNG, JPG or WEBP · maximum 5 MB</small></span>
+                <span><strong>{uploadingTypeImage ? "Uploading to Cloudinary…" : typeForm.image ? "Image uploaded" : "Choose image"}</strong><small>PNG, JPG or WEBP · maximum 5 MB</small></span>
                 <Upload />
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => e.target.files?.[0] && void uploadTypeImage(e.target.files[0])} />
+                <input disabled={uploadingTypeImage} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => e.target.files?.[0] && void uploadTypeImage(e.target.files[0])} />
               </span>
             </label>
           </div>
@@ -2499,8 +2508,8 @@ function PropertiesView({ token }: { token: string }) {
             <button type="button" onClick={() => setTypeForm(null)}>
               Cancel
             </button>
-            <button className="admin-primary compact">
-              Save property type
+            <button className="admin-primary compact" disabled={uploadingTypeImage}>
+              {uploadingTypeImage ? "Uploading image…" : "Save property type"}
             </button>
           </div>
         </form>
