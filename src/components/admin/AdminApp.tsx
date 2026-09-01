@@ -7,6 +7,7 @@ import Image from "next/image";
 import {
   Building2,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleAlert,
   ExternalLink,
@@ -26,6 +27,7 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -34,6 +36,7 @@ import {
   ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
 } from "react";
@@ -2622,16 +2625,27 @@ function ProfileView({
   token,
   admin,
   setAdmin,
+  section,
 }: {
   token: string;
   admin: Admin;
   setAdmin: (a: Admin) => void;
+  section: "profile" | "password";
 }) {
+  const profileForm = useRef<HTMLFormElement>(null);
+  const passwordForm = useRef<HTMLFormElement>(null);
   const [name, setName] = useState(admin.name);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => {
+    const target = section === "password" ? passwordForm.current : profileForm.current;
+    requestAnimationFrame(() => {
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.querySelector<HTMLInputElement>("input:not(:disabled)")?.focus();
+    });
+  }, [section]);
   async function updateProfile(e: FormEvent) {
     e.preventDefault();
     try {
@@ -2681,7 +2695,7 @@ function ProfileView({
         </div>
       )}
       <div className="admin-grid-two">
-        <form className="admin-card account-form" onSubmit={updateProfile}>
+        <form ref={profileForm} className="admin-card account-form" onSubmit={updateProfile}>
           <h2>Profile details</h2>
           <label>
             Name
@@ -2698,7 +2712,7 @@ function ProfileView({
           </label>
           <button className="admin-primary compact">Save profile</button>
         </form>
-        <form className="admin-card account-form" onSubmit={updatePassword}>
+        <form ref={passwordForm} className="admin-card account-form" onSubmit={updatePassword}>
           <h2>Change password</h2>
           <label>
             Current password
@@ -2824,6 +2838,9 @@ export function AdminApp() {
   const [view, setView] = useState<View>("dashboard");
   const [checking, setChecking] = useState(true);
   const [menu, setMenu] = useState(false);
+  const [profileMenu, setProfileMenu] = useState(false);
+  const [profileSection, setProfileSection] = useState<"profile" | "password">("profile");
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY);
     if (!saved) {
@@ -2838,6 +2855,20 @@ export function AdminApp() {
       .catch(() => sessionStorage.removeItem(TOKEN_KEY))
       .finally(() => setChecking(false));
   }, []);
+  useEffect(() => {
+    function closeProfileMenu(event: PointerEvent) {
+      if (!profileMenuRef.current?.contains(event.target as Node)) setProfileMenu(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setProfileMenu(false);
+    }
+    document.addEventListener("pointerdown", closeProfileMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeProfileMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
   function login(nextToken: string, nextAdmin: Admin) {
     setToken(nextToken);
     setAdmin(nextAdmin);
@@ -2846,6 +2877,13 @@ export function AdminApp() {
     sessionStorage.removeItem(TOKEN_KEY);
     setToken("");
     setAdmin(null);
+    setProfileMenu(false);
+  }
+  function openAccount(section: "profile" | "password") {
+    setProfileSection(section);
+    setView("profile");
+    setMenu(false);
+    setProfileMenu(false);
   }
   if (checking)
     return (
@@ -2869,7 +2907,7 @@ export function AdminApp() {
     ) : view === "api-settings" ? (
       <ApiSettingsView token={token} />
     ) : (
-      <ProfileView token={token} admin={admin} setAdmin={setAdmin} />
+      <ProfileView token={token} admin={admin} setAdmin={setAdmin} section={profileSection} />
     );
   return (
     <div className="admin-shell">
@@ -2886,6 +2924,7 @@ export function AdminApp() {
               key={id}
               className={view === id ? "active" : ""}
               onClick={() => {
+                if (id === "profile") setProfileSection("profile");
                 setView(id);
                 setMenu(false);
               }}
@@ -2924,9 +2963,33 @@ export function AdminApp() {
             <span>StayHaven Network</span>
             <strong>{nav.find((item) => item.id === view)?.label}</strong>
           </div>
-          <a href="/" target="_blank">
-            View website <ExternalLink />
-          </a>
+          <div className="admin-profile-menu" ref={profileMenuRef}>
+            <button
+              className="admin-profile-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={profileMenu}
+              onClick={() => setProfileMenu((open) => !open)}
+            >
+              <span className="admin-profile-avatar">{admin.name.slice(0, 1).toUpperCase()}</span>
+              <span className="admin-profile-copy"><strong>{admin.name}</strong><small>Super Admin</small></span>
+              <ChevronDown className={profileMenu ? "open" : ""} />
+            </button>
+            {profileMenu && (
+              <div className="admin-profile-dropdown" role="menu">
+                <div className="admin-profile-summary">
+                  <span className="admin-profile-avatar">{admin.name.slice(0, 1).toUpperCase()}</span>
+                  <div><strong>{admin.name}</strong><small>{admin.email}</small></div>
+                </div>
+                <div className="admin-profile-links">
+                  <button type="button" role="menuitem" onClick={() => openAccount("profile")}><UserRound /><span><strong>View profile</strong><small>Manage your account details</small></span></button>
+                  <button type="button" role="menuitem" onClick={() => openAccount("password")}><KeyRound /><span><strong>Change password</strong><small>Update account security</small></span></button>
+                  <a href="/" target="_blank" rel="noreferrer" role="menuitem"><ExternalLink /><span><strong>View website</strong><small>Open the public marketplace</small></span></a>
+                </div>
+                <button className="admin-profile-logout" type="button" role="menuitem" onClick={logout}><LogOut /> Log out</button>
+              </div>
+            )}
+          </div>
         </header>
         <main className="admin-content">{content}</main>
       </div>
