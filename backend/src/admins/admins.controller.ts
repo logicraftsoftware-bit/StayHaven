@@ -1,11 +1,26 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { AdminsService } from './admins.service';
-import { ChangePasswordDto, CreateManagedAdminDto, UpdateAdminDto, UpdateManagedAdminDto } from './dto/admin.dto';
+import {
+  ChangePasswordDto,
+  CreateManagedAdminDto,
+  UpdateAdminDto,
+  UpdateManagedAdminDto,
+} from './dto/admin.dto';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -38,12 +53,37 @@ export class AdminsController {
     return { success: true, data: await this.service.listManaged(r.user.sub) };
   }
   @Get('users/sites') async userSites(@Req() r: { user: { sub: string } }) {
-    return { success: true, data: await this.service.listAssignableSites(r.user.sub) };
+    return {
+      success: true,
+      data: await this.service.listAssignableSites(r.user.sub),
+    };
   }
-  @Post('users') async createUser(@Req() r: { user: { sub: string } }, @Body() dto: CreateManagedAdminDto) {
-    return { success: true, message: 'Administrator created', data: await this.service.createManaged(r.user.sub, dto) };
+  @Post('users') async createUser(
+    @Req() r: { user: { sub: string } },
+    @Body() dto: CreateManagedAdminDto,
+  ) {
+    return {
+      success: true,
+      message: 'Administrator created',
+      data: await this.service.createManaged(r.user.sub, dto),
+    };
   }
-  @Patch('users/:id') async updateUser(@Req() r: { user: { sub: string } }, @Param('id', MongoIdPipe) id: string, @Body() dto: UpdateManagedAdminDto) {
-    return { success: true, message: 'Administrator updated', data: await this.service.updateManaged(r.user.sub, id, dto) };
+  @Patch('users/:id') async updateUser(
+    @Req() r: { user: { sub: string } },
+    @Param('id', MongoIdPipe) id: string,
+    @Body() dto: UpdateManagedAdminDto,
+  ) {
+    return {
+      success: true,
+      message: 'Administrator updated',
+      data: await this.service.updateManaged(r.user.sub, id, dto),
+    };
+  }
+  @Delete('users/:id') async deleteUser(
+    @Req() r: { user: { sub: string } },
+    @Param('id', MongoIdPipe) id: string,
+  ) {
+    await this.service.deleteManaged(r.user.sub, id);
+    return { success: true, message: 'Administrator deleted', data: null };
   }
 }

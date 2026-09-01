@@ -52,7 +52,14 @@ import type {
 const TOKEN_KEY = "gh_super_admin_token";
 
 type View =
-  "dashboard" | "sites" | "pages" | "owners" | "properties" | "api-settings" | "users" | "profile";
+  | "dashboard"
+  | "sites"
+  | "pages"
+  | "owners"
+  | "properties"
+  | "api-settings"
+  | "users"
+  | "profile";
 type Status =
   | "ACTIVE"
   | "SUSPENDED"
@@ -300,13 +307,43 @@ function Login({
   );
 }
 
-const nav: { id: View; label: string; icon: typeof Home; permission?: string }[] = [
-  { id: "dashboard", label: "Overview", icon: LayoutDashboard, permission: "VIEW_DASHBOARD" },
+const nav: {
+  id: View;
+  label: string;
+  icon: typeof Home;
+  permission?: string;
+}[] = [
+  {
+    id: "dashboard",
+    label: "Overview",
+    icon: LayoutDashboard,
+    permission: "VIEW_DASHBOARD",
+  },
   { id: "sites", label: "Sites", icon: Globe2, permission: "MANAGE_SITES" },
-  { id: "pages", label: "Page builder", icon: Home, permission: "MANAGE_PAGES" },
-  { id: "properties", label: "Properties", icon: Building2, permission: "MANAGE_PROPERTIES" },
-  { id: "owners", label: "Property owners", icon: Users, permission: "MANAGE_OWNERS" },
-  { id: "api-settings", label: "API Settings", icon: MapPinned, permission: "MANAGE_API_SETTINGS" },
+  {
+    id: "pages",
+    label: "Page builder",
+    icon: Home,
+    permission: "MANAGE_PAGES",
+  },
+  {
+    id: "properties",
+    label: "Properties",
+    icon: Building2,
+    permission: "MANAGE_PROPERTIES",
+  },
+  {
+    id: "owners",
+    label: "Property owners",
+    icon: Users,
+    permission: "MANAGE_OWNERS",
+  },
+  {
+    id: "api-settings",
+    label: "API Settings",
+    icon: MapPinned,
+    permission: "MANAGE_API_SETTINGS",
+  },
   { id: "users", label: "Users", icon: UserRound, permission: "MANAGE_USERS" },
   { id: "profile", label: "Account", icon: Settings },
 ];
@@ -589,7 +626,13 @@ const siteFormSteps = [
   },
 ] as const;
 
-function SitesView({ token, canCreate }: { token: string; canCreate: boolean }) {
+function SitesView({
+  token,
+  canCreate,
+}: {
+  token: string;
+  canCreate: boolean;
+}) {
   const [sites, setSites] = useState<Site[]>([]);
   const [show, setShow] = useState(false);
   const [editingId, setEditingId] = useState("");
@@ -898,20 +941,22 @@ function SitesView({ token, canCreate }: { token: string; canCreate: boolean }) 
             eyebrow="MARKETPLACE NETWORK"
             title="Sites"
             text="Create and control every location-specific StayHaven marketplace from one shared platform."
-            action={canCreate ? (
-              <button
-                className="admin-primary compact"
-                onClick={() => {
-                  setEditingId("");
-                  setForm(blankSite);
-                  setHeroSlides([]);
-                  setSiteFormStep(0);
-                  setShow(true);
-                }}
-              >
-                <Plus /> Add site
-              </button>
-            ) : undefined}
+            action={
+              canCreate ? (
+                <button
+                  className="admin-primary compact"
+                  onClick={() => {
+                    setEditingId("");
+                    setForm(blankSite);
+                    setHeroSlides([]);
+                    setSiteFormStep(0);
+                    setShow(true);
+                  }}
+                >
+                  <Plus /> Add site
+                </button>
+              ) : undefined
+            }
           />
           {message && (
             <div className="admin-alert success">
@@ -2352,7 +2397,12 @@ function PropertiesView({ token }: { token: string }) {
     }
   }
   async function deleteType(item: PropertyTypeMaster) {
-    if (!window.confirm(`Delete ${item.name}? Existing properties will keep their saved type.`)) return;
+    if (
+      !window.confirm(
+        `Delete ${item.name}? Existing properties will keep their saved type.`,
+      )
+    )
+      return;
     try {
       await api(`/api/v1/admin/property-types/${item._id}`, token, {
         method: "DELETE",
@@ -2423,15 +2473,34 @@ function PropertiesView({ token }: { token: string }) {
                       )}
                     </span>
                   </td>
-                  <td><strong>{item.name}</strong></td>
-                  <td><span className="table-muted">{item.description || "—"}</span></td>
+                  <td>
+                    <strong>{item.name}</strong>
+                  </td>
+                  <td>
+                    <span className="table-muted">
+                      {item.description || "—"}
+                    </span>
+                  </td>
                   <td>{item.commissionPercent}%</td>
-                  <td><StatusBadge value={item.status} /></td>
+                  <td>
+                    <StatusBadge value={item.status} />
+                  </td>
                   <td>{item.sortOrder}</td>
                   <td className="actions">
                     <div className="table-action-buttons">
-                      <button className="edit" onClick={() => setTypeForm(item)}>Edit</button>
-                      <button className="delete" onClick={() => void deleteType(item)} aria-label={`Delete ${item.name}`}><Trash2 /></button>
+                      <button
+                        className="edit"
+                        onClick={() => setTypeForm(item)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="delete"
+                        onClick={() => void deleteType(item)}
+                        aria-label={`Delete ${item.name}`}
+                      >
+                        <Trash2 />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -2441,105 +2510,149 @@ function PropertiesView({ token }: { token: string }) {
         </div>
       </section>
       {typeForm && (
-        <div className="property-type-modal-backdrop" role="presentation" onMouseDown={() => setTypeForm(null)}>
-        <form className="property-type-modal" onSubmit={saveType} onMouseDown={(event) => event.stopPropagation()}>
-          <header>
-            <div><span>PROPERTY TYPE</span><h2>{typeForm._id ? "Edit" : "Add"} property type</h2><p>Configure how this accommodation type appears to owners.</p></div>
-            <button type="button" className="property-type-modal-close" onClick={() => setTypeForm(null)} aria-label="Close"><X /></button>
-          </header>
-          <div className="property-type-modal-body admin-grid-two">
-            {error && (
-              <div className="admin-alert error property-type-form-error">
-                <CircleAlert /> {error}
+        <div
+          className="property-type-modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setTypeForm(null)}
+        >
+          <form
+            className="property-type-modal"
+            onSubmit={saveType}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>PROPERTY TYPE</span>
+                <h2>{typeForm._id ? "Edit" : "Add"} property type</h2>
+                <p>Configure how this accommodation type appears to owners.</p>
               </div>
-            )}
-            <label>
-              Name
-              <input
-                required
-                value={typeForm.name || ""}
-                onChange={(e) =>
-                  setTypeForm({ ...typeForm, name: e.target.value })
-                }
-              />
-            </label>
-            <label>
-              Commission %
-              <input
-                required
-                type="number"
-                min="0"
-                max="100"
-                value={typeForm.commissionPercent ?? 0}
-                onChange={(e) =>
-                  setTypeForm({
-                    ...typeForm,
-                    commissionPercent: Number(e.target.value),
-                  })
-                }
-              />
-            </label>
-            <label>
-              Description
-              <input
-                value={typeForm.description || ""}
-                onChange={(e) =>
-                  setTypeForm({ ...typeForm, description: e.target.value })
-                }
-              />
-            </label>
-            <label>
-              Status
-              <select
-                value={typeForm.status || "active"}
-                onChange={(e) =>
-                  setTypeForm({
-                    ...typeForm,
-                    status: e.target.value as "active" | "inactive",
-                  })
-                }
+              <button
+                type="button"
+                className="property-type-modal-close"
+                onClick={() => setTypeForm(null)}
+                aria-label="Close"
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
-            <label>
-              Sort order
-              <input
-                type="number"
-                value={typeForm.sortOrder ?? 0}
-                onChange={(e) =>
-                  setTypeForm({
-                    ...typeForm,
-                    sortOrder: Number(e.target.value),
-                  })
-                }
-              />
-            </label>
-            <label className="property-type-image-field">
-              Property type image
-              <span className="property-type-upload">
-                <span className="property-type-upload-preview">
-                  {typeForm.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`${typeForm.image.startsWith("/") ? publicApiBase : ""}${typeForm.image}`} alt="Property type preview" />
-                  ) : <ImagePlus />}
+                <X />
+              </button>
+            </header>
+            <div className="property-type-modal-body admin-grid-two">
+              {error && (
+                <div className="admin-alert error property-type-form-error">
+                  <CircleAlert /> {error}
+                </div>
+              )}
+              <label>
+                Name
+                <input
+                  required
+                  value={typeForm.name || ""}
+                  onChange={(e) =>
+                    setTypeForm({ ...typeForm, name: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Commission %
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={typeForm.commissionPercent ?? 0}
+                  onChange={(e) =>
+                    setTypeForm({
+                      ...typeForm,
+                      commissionPercent: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Description
+                <input
+                  value={typeForm.description || ""}
+                  onChange={(e) =>
+                    setTypeForm({ ...typeForm, description: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={typeForm.status || "active"}
+                  onChange={(e) =>
+                    setTypeForm({
+                      ...typeForm,
+                      status: e.target.value as "active" | "inactive",
+                    })
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label>
+                Sort order
+                <input
+                  type="number"
+                  value={typeForm.sortOrder ?? 0}
+                  onChange={(e) =>
+                    setTypeForm({
+                      ...typeForm,
+                      sortOrder: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label className="property-type-image-field">
+                Property type image
+                <span className="property-type-upload">
+                  <span className="property-type-upload-preview">
+                    {typeForm.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`${typeForm.image.startsWith("/") ? publicApiBase : ""}${typeForm.image}`}
+                        alt="Property type preview"
+                      />
+                    ) : (
+                      <ImagePlus />
+                    )}
+                  </span>
+                  <span>
+                    <strong>
+                      {uploadingTypeImage
+                        ? "Uploading to Cloudinary…"
+                        : typeForm.image
+                          ? "Image uploaded"
+                          : "Choose image"}
+                    </strong>
+                    <small>PNG, JPG or WEBP · maximum 5 MB</small>
+                  </span>
+                  <Upload />
+                  <input
+                    disabled={uploadingTypeImage}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) =>
+                      e.target.files?.[0] &&
+                      void uploadTypeImage(e.target.files[0])
+                    }
+                  />
                 </span>
-                <span><strong>{uploadingTypeImage ? "Uploading to Cloudinary…" : typeForm.image ? "Image uploaded" : "Choose image"}</strong><small>PNG, JPG or WEBP · maximum 5 MB</small></span>
-                <Upload />
-                <input disabled={uploadingTypeImage} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => e.target.files?.[0] && void uploadTypeImage(e.target.files[0])} />
-              </span>
-            </label>
-          </div>
-          <div className="property-type-modal-actions">
-            <button type="button" onClick={() => setTypeForm(null)}>
-              Cancel
-            </button>
-            <button className="admin-primary compact" disabled={uploadingTypeImage}>
-              {uploadingTypeImage ? "Uploading image…" : "Save property type"}
-            </button>
-          </div>
-        </form>
+              </label>
+            </div>
+            <div className="property-type-modal-actions">
+              <button type="button" onClick={() => setTypeForm(null)}>
+                Cancel
+              </button>
+              <button
+                className="admin-primary compact"
+                disabled={uploadingTypeImage}
+              >
+                {uploadingTypeImage ? "Uploading image…" : "Save property type"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
       <Filters
@@ -2635,12 +2748,25 @@ const adminPermissionOptions = [
   ["MANAGE_PAGES", "Page builder", "Edit and publish site pages"],
   ["MANAGE_PROPERTIES", "Properties", "Review properties and property types"],
   ["MANAGE_OWNERS", "Property owners", "View and manage owner accounts"],
-  ["MANAGE_API_SETTINGS", "API settings", "Manage Google Maps and integrations"],
+  [
+    "MANAGE_API_SETTINGS",
+    "API settings",
+    "Manage Google Maps and integrations",
+  ],
   ["MANAGE_USERS", "Users", "Create and manage delegated administrators"],
 ] as const;
 
 function UsersView({ token, admin }: { token: string; admin: Admin }) {
-  const emptyForm = { name: "", email: "", password: "", adminLevel: "BRANCH_ADMIN", permissions: [] as string[], siteIds: [] as string[], status: "ACTIVE" };
+  const emptyForm = {
+    name: "",
+    email: "",
+    password: "",
+    adminLevel: "BRANCH_ADMIN",
+    permissions: [] as string[],
+    siteIds: [] as string[],
+    status: "ACTIVE",
+    avatar: "",
+  };
   const [users, setUsers] = useState<Admin[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -2648,10 +2774,17 @@ function UsersView({ token, admin }: { token: string; admin: Admin }) {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [permissionTarget, setPermissionTarget] = useState<Admin | null>(null);
+  const [permissionValues, setPermissionValues] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const ownPermissions = admin.role === "SUPER_ADMIN" ? adminPermissionOptions : adminPermissionOptions.filter(([value]) => admin.permissions?.includes(value));
-  const availablePermissions = form.adminLevel === "MAIN_ADMIN" ? ownPermissions : ownPermissions.filter(([value]) => value !== "MANAGE_USERS");
+  const ownPermissions =
+    admin.role === "SUPER_ADMIN"
+      ? adminPermissionOptions
+      : adminPermissionOptions.filter(([value]) =>
+          admin.permissions?.includes(value),
+        );
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -2661,35 +2794,495 @@ function UsersView({ token, admin }: { token: string; admin: Admin }) {
       ]);
       setUsers(userResult.data);
       setSites(siteResult.data);
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setLoading(false); }
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
-  useEffect(() => { void load(); }, [load]);
-  function openCreate() { setEditingId(""); setForm(emptyForm); setError(""); setShow(true); }
+  useEffect(() => {
+    void load();
+  }, [load]);
+  function openCreate() {
+    setEditingId("");
+    setForm(emptyForm);
+    setError("");
+    setShow(true);
+  }
   function openEdit(user: Admin) {
     setEditingId(user._id || user.id || "");
-    setForm({ name: user.name, email: user.email, password: "", adminLevel: user.adminLevel || "USER", permissions: user.permissions || [], siteIds: (user.siteIds || []).map((site) => typeof site === "string" ? site : site._id), status: user.status || "ACTIVE" });
-    setError(""); setShow(true);
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      adminLevel: user.adminLevel || "USER",
+      permissions: user.permissions || [],
+      siteIds: (user.siteIds || []).map((site) =>
+        typeof site === "string" ? site : site._id,
+      ),
+      status: user.status || "ACTIVE",
+      avatar: user.avatar || "",
+    });
+    setError("");
+    setShow(true);
   }
   async function save(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setError("");
+    event.preventDefault();
+    setSaving(true);
+    setError("");
     try {
       const body: Record<string, unknown> = { ...form };
-      if (editingId) { delete body.email; if (!form.password) delete body.password; }
-      await api(`/api/v1/admin/users${editingId ? `/${editingId}` : ""}`, token, { method: editingId ? "PATCH" : "POST", body: JSON.stringify(body) });
-      setShow(false); setMessage(editingId ? "Administrator updated successfully." : "Administrator created successfully."); await load();
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setSaving(false); }
+      if (!form.avatar) delete body.avatar;
+      if (editingId) {
+        delete body.permissions;
+        delete body.email;
+        if (!form.password) delete body.password;
+      } else {
+        body.permissions = [];
+        delete body.status;
+      }
+      await api(
+        `/api/v1/admin/users${editingId ? `/${editingId}` : ""}`,
+        token,
+        { method: editingId ? "PATCH" : "POST", body: JSON.stringify(body) },
+      );
+      setShow(false);
+      setMessage(
+        editingId
+          ? "Administrator updated successfully."
+          : "Administrator created successfully.",
+      );
+      await load();
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
   }
-  function togglePermission(value: string) { setForm((old) => ({ ...old, permissions: old.permissions.includes(value) ? old.permissions.filter((item) => item !== value) : [...old.permissions, value] })); }
-  function toggleSite(value: string) { setForm((old) => ({ ...old, siteIds: old.siteIds.includes(value) ? old.siteIds.filter((item) => item !== value) : [...old.siteIds, value] })); }
-  return <>
-    <PageHeader eyebrow="ACCESS CONTROL" title="Users & permissions" text="Create administrators, assign marketplace sites and control exactly what each account can access." action={<button className="admin-primary compact" onClick={openCreate}><Plus /> Add user</button>} />
-    {message && <div className="admin-alert success"><Check />{message}</div>}{error && !show && <div className="admin-alert error"><CircleAlert />{error}</div>}
-    {loading ? <div className="admin-loading"><LoaderCircle className="spin" /> Loading users…</div> : users.length === 0 ? <Empty icon={<Users />} title="No delegated users" text="Create your first administrator and assign their permissions." /> :
-      <div className="admin-table-wrap users-table"><table><thead><tr><th>User</th><th>Level</th><th>Sites</th><th>Permissions</th><th>Status</th><th>Action</th></tr></thead><tbody>{users.map((user) => <tr key={user._id || user.id}><td><div className="user-cell">{user.avatar ? <Image src={user.avatar} alt="" width={38} height={38} unoptimized /> : <span>{user.name.slice(0,1).toUpperCase()}</span>}<div><strong>{user.name}</strong><small>{user.email}</small></div></div></td><td>{(user.adminLevel || "ADMIN").replaceAll("_", " ")}</td><td>{user.siteIds?.length || 0} assigned</td><td>{user.permissions?.length || 0} enabled</td><td><StatusBadge value={user.status || "ACTIVE"} /></td><td><button className="admin-secondary" onClick={() => openEdit(user)}>Edit</button></td></tr>)}</tbody></table></div>}
-    {show && <div className="admin-modal-backdrop" onMouseDown={() => setShow(false)}><form className="admin-modal user-modal" onSubmit={save} onMouseDown={(event) => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setShow(false)}><X /></button><span className="admin-kicker">ADMIN ACCESS</span><h2>{editingId ? "Edit administrator" : "Add administrator"}</h2><p>Only selected modules and assigned sites will be available after login.</p>{error && <div className="admin-alert error"><CircleAlert />{error}</div>}<div className="admin-form-grid"><label>Name<input value={form.name} onChange={(e) => setForm({...form,name:e.target.value})} required minLength={2} /></label><label>Email<input type="email" value={form.email} onChange={(e) => setForm({...form,email:e.target.value})} required disabled={!!editingId} /></label><label>{editingId ? "New password (optional)" : "Temporary password"}<input type="password" value={form.password} onChange={(e) => setForm({...form,password:e.target.value})} required={!editingId} minLength={8} /></label><label>Account level<select value={form.adminLevel} onChange={(e) => setForm({...form,adminLevel:e.target.value})}>{admin.role === "SUPER_ADMIN" && <option value="MAIN_ADMIN">Main admin</option>}<option value="BRANCH_ADMIN">Branch admin</option><option value="USER">User</option></select></label>{editingId && <label>Status<select value={form.status} onChange={(e) => setForm({...form,status:e.target.value})}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option></select></label>}</div><div className="user-access-section"><h3>Assigned websites</h3><p>Select the branches this administrator can manage.</p><div className="access-options">{sites.map((site) => <label key={site._id}><input type="checkbox" checked={form.siteIds.includes(site._id)} onChange={() => toggleSite(site._id)} /><span><strong>{site.name}</strong><small>{site.domain}</small></span></label>)}</div></div><div className="user-access-section"><h3>Permissions</h3><p>You can only grant permissions available to your own account.</p><div className="permission-options">{availablePermissions.map(([value,label,text]) => <label key={value}><input type="checkbox" checked={form.permissions.includes(value)} onChange={() => togglePermission(value)} /><span><strong>{label}</strong><small>{text}</small></span></label>)}</div></div><div className="modal-actions"><button type="button" className="admin-secondary" onClick={() => setShow(false)}>Cancel</button><button className="admin-primary compact" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <ShieldCheck />}{saving ? "Saving…" : "Save administrator"}</button></div></form></div>}
-  </>;
+  async function uploadManagedPhoto(file?: File) {
+    if (!file) return;
+    setUploadingPhoto(true);
+    setError("");
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const result = await api<ApiResponse<{ url: string }>>(
+        "/api/v1/admin/media/images",
+        token,
+        { method: "POST", body: data },
+      );
+      setForm((old) => ({ ...old, avatar: result.data.url }));
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+  function openPermissions(user: Admin) {
+    setPermissionTarget(user);
+    setPermissionValues(user.permissions || []);
+    setMessage("");
+    setError("");
+  }
+  async function savePermissions() {
+    if (!permissionTarget) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api(
+        `/api/v1/admin/users/${permissionTarget._id || permissionTarget.id}`,
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ permissions: permissionValues }),
+        },
+      );
+      setMessage("Permissions updated successfully.");
+      setPermissionTarget(null);
+      await load();
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function deleteUser(user: Admin) {
+    if (
+      !window.confirm(
+        `Delete ${user.name}? This administrator will immediately lose access.`,
+      )
+    )
+      return;
+    setError("");
+    try {
+      await api(`/api/v1/admin/users/${user._id || user.id}`, token, {
+        method: "DELETE",
+      });
+      setMessage("Administrator deleted successfully.");
+      await load();
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
+  }
+  function toggleSite(value: string) {
+    setForm((old) => ({
+      ...old,
+      siteIds: old.siteIds.includes(value)
+        ? old.siteIds.filter((item) => item !== value)
+        : [...old.siteIds, value],
+    }));
+  }
+  if (permissionTarget) {
+    const permissionChoices =
+      permissionTarget.adminLevel === "MAIN_ADMIN"
+        ? ownPermissions
+        : ownPermissions.filter(([value]) => value !== "MANAGE_USERS");
+    return (
+      <section className="permissions-page">
+        <PageHeader
+          eyebrow="ACCESS CONTROL"
+          title={`Permissions for ${permissionTarget.name}`}
+          text="Choose exactly which panel modules this administrator can access. Changes apply to their next request."
+          action={
+            <button
+              className="admin-secondary"
+              onClick={() => setPermissionTarget(null)}
+            >
+              <ChevronRight className="back-chevron" /> Back to users
+            </button>
+          }
+        />
+        {error && (
+          <div className="admin-alert error">
+            <CircleAlert />
+            {error}
+          </div>
+        )}
+        <div className="admin-card permission-page-card">
+          <div className="permission-user-summary">
+            {permissionTarget.avatar ? (
+              <Image
+                src={permissionTarget.avatar}
+                alt=""
+                width={58}
+                height={58}
+                unoptimized
+              />
+            ) : (
+              <span>{permissionTarget.name.slice(0, 1).toUpperCase()}</span>
+            )}
+            <div>
+              <strong>{permissionTarget.name}</strong>
+              <small>{permissionTarget.email}</small>
+              <em>
+                {(permissionTarget.adminLevel || "ADMIN").replaceAll("_", " ")}
+              </em>
+            </div>
+          </div>
+          <div className="permission-options permission-page-options">
+            {permissionChoices.map(([value, label, text]) => (
+              <label key={value}>
+                <input
+                  type="checkbox"
+                  checked={permissionValues.includes(value)}
+                  onChange={() =>
+                    setPermissionValues((old) =>
+                      old.includes(value)
+                        ? old.filter((item) => item !== value)
+                        : [...old, value],
+                    )
+                  }
+                />
+                <span>
+                  <strong>{label}</strong>
+                  <small>{text}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="permission-page-actions">
+            <span>{permissionValues.length} permissions selected</span>
+            <button
+              className="admin-primary compact"
+              disabled={saving}
+              onClick={() => void savePermissions()}
+            >
+              {saving ? <LoaderCircle className="spin" /> : <ShieldCheck />}
+              {saving ? "Saving…" : "Save permissions"}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <>
+      <PageHeader
+        eyebrow="ACCESS CONTROL"
+        title="Users & permissions"
+        text="Create administrators, assign marketplace sites and control exactly what each account can access."
+        action={
+          <button className="admin-primary compact" onClick={openCreate}>
+            <Plus /> Add user
+          </button>
+        }
+      />
+      {message && (
+        <div className="admin-alert success">
+          <Check />
+          {message}
+        </div>
+      )}
+      {error && !show && (
+        <div className="admin-alert error">
+          <CircleAlert />
+          {error}
+        </div>
+      )}
+      {loading ? (
+        <div className="admin-loading">
+          <LoaderCircle className="spin" /> Loading users…
+        </div>
+      ) : users.length === 0 ? (
+        <Empty
+          icon={<Users />}
+          title="No delegated users"
+          text="Create your first administrator and assign their permissions."
+        />
+      ) : (
+        <div className="admin-table-wrap users-table">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Level</th>
+                <th>Sites</th>
+                <th>Permissions</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user._id || user.id}>
+                  <td>
+                    <div className="user-cell">
+                      {user.avatar ? (
+                        <Image
+                          src={user.avatar}
+                          alt=""
+                          width={38}
+                          height={38}
+                          unoptimized
+                        />
+                      ) : (
+                        <span>{user.name.slice(0, 1).toUpperCase()}</span>
+                      )}
+                      <div>
+                        <strong>{user.name}</strong>
+                        <small>{user.email}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{(user.adminLevel || "ADMIN").replaceAll("_", " ")}</td>
+                  <td>{user.siteIds?.length || 0} assigned</td>
+                  <td>{user.permissions?.length || 0} enabled</td>
+                  <td>
+                    <StatusBadge value={user.status || "ACTIVE"} />
+                  </td>
+                  <td>
+                    <div className="user-row-actions">
+                      <button
+                        className="admin-secondary"
+                        onClick={() => openEdit(user)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="admin-secondary permission-button"
+                        onClick={() => openPermissions(user)}
+                      >
+                        <ShieldCheck /> Permissions
+                      </button>
+                      <button
+                        className="admin-secondary delete-button"
+                        onClick={() => void deleteUser(user)}
+                      >
+                        <Trash2 /> Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {show && (
+        <div
+          className="admin-modal-backdrop"
+          onMouseDown={() => setShow(false)}
+        >
+          <form
+            className="admin-modal user-modal"
+            onSubmit={save}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setShow(false)}
+            >
+              <X />
+            </button>
+            <span className="admin-kicker">ADMIN ACCESS</span>
+            <h2>{editingId ? "Edit administrator" : "Add administrator"}</h2>
+            <p>
+              Add account details and assigned websites here. Configure module
+              permissions from the separate Permissions page after saving.
+            </p>
+            {error && (
+              <div className="admin-alert error">
+                <CircleAlert />
+                {error}
+              </div>
+            )}
+            <label className="managed-photo-upload">
+              <span>Profile photo</span>
+              <div>
+                {form.avatar ? (
+                  <Image
+                    src={form.avatar}
+                    alt="Administrator profile"
+                    width={64}
+                    height={64}
+                    unoptimized
+                  />
+                ) : (
+                  <span className="managed-photo-placeholder">
+                    <UserRound />
+                  </span>
+                )}
+                <span>
+                  <strong>
+                    {uploadingPhoto
+                      ? "Uploading to Cloudinary…"
+                      : form.avatar
+                        ? "Change profile photo"
+                        : "Upload profile photo"}
+                  </strong>
+                  <small>PNG, JPG or WEBP · maximum 5 MB</small>
+                </span>
+                <Upload />
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={uploadingPhoto}
+                onChange={(event) =>
+                  void uploadManagedPhoto(event.target.files?.[0])
+                }
+              />
+            </label>
+            <div className="admin-form-grid">
+              <label>
+                Name
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  minLength={2}
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                  disabled={!!editingId}
+                />
+              </label>
+              <label>
+                {editingId ? "New password (optional)" : "Temporary password"}
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
+                  required={!editingId}
+                  minLength={8}
+                />
+              </label>
+              <label>
+                Account level
+                <select
+                  value={form.adminLevel}
+                  onChange={(e) =>
+                    setForm({ ...form, adminLevel: e.target.value })
+                  }
+                >
+                  {admin.role === "SUPER_ADMIN" && (
+                    <option value="MAIN_ADMIN">Main admin</option>
+                  )}
+                  <option value="BRANCH_ADMIN">Branch admin</option>
+                  <option value="USER">User</option>
+                </select>
+              </label>
+              {editingId && (
+                <label>
+                  Status
+                  <select
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm({ ...form, status: e.target.value })
+                    }
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="SUSPENDED">Suspended</option>
+                  </select>
+                </label>
+              )}
+            </div>
+            <div className="user-access-section">
+              <h3>Assigned websites</h3>
+              <p>Select the branches this administrator can manage.</p>
+              <div className="access-options">
+                {sites.map((site) => (
+                  <label key={site._id}>
+                    <input
+                      type="checkbox"
+                      checked={form.siteIds.includes(site._id)}
+                      onChange={() => toggleSite(site._id)}
+                    />
+                    <span>
+                      <strong>{site.name}</strong>
+                      <small>{site.domain}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="admin-secondary"
+                onClick={() => setShow(false)}
+              >
+                Cancel
+              </button>
+              <button className="admin-primary compact" disabled={saving}>
+                {saving ? <LoaderCircle className="spin" /> : <ShieldCheck />}
+                {saving ? "Saving…" : "Save administrator"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
+  );
 }
 
 function ProfileView({
@@ -2714,7 +3307,8 @@ function ProfileView({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
-    const target = section === "password" ? passwordForm.current : profileForm.current;
+    const target =
+      section === "password" ? passwordForm.current : profileForm.current;
     requestAnimationFrame(() => {
       target?.scrollIntoView({ behavior: "smooth", block: "center" });
       target?.querySelector<HTMLInputElement>("input:not(:disabled)")?.focus();
@@ -2725,7 +3319,11 @@ function ProfileView({
     try {
       const r = await api<ApiResponse<Admin>>("/api/v1/admin/me", token, {
         method: "PATCH",
-        body: JSON.stringify({ name, avatar: avatar || undefined, panelLogo: panelLogo || undefined }),
+        body: JSON.stringify({
+          name,
+          avatar: avatar || undefined,
+          panelLogo: panelLogo || undefined,
+        }),
       });
       setAdmin(r.data);
       setMessage("Profile updated.");
@@ -2736,14 +3334,24 @@ function ProfileView({
   }
   async function uploadAsset(kind: "avatar" | "logo", file?: File) {
     if (!file) return;
-    setUploading(kind); setError("");
+    setUploading(kind);
+    setError("");
     try {
-      const data = new FormData(); data.append("file", file);
-      const result = await api<ApiResponse<{ url: string }>>("/api/v1/admin/media/images", token, { method: "POST", body: data });
-      if (kind === "avatar") setAvatar(result.data.url); else setPanelLogo(result.data.url);
+      const data = new FormData();
+      data.append("file", file);
+      const result = await api<ApiResponse<{ url: string }>>(
+        "/api/v1/admin/media/images",
+        token,
+        { method: "POST", body: data },
+      );
+      if (kind === "avatar") setAvatar(result.data.url);
+      else setPanelLogo(result.data.url);
       setMessage("Image uploaded. Select Save profile to apply it.");
-    } catch (reason) { setError((reason as Error).message); }
-    finally { setUploading(""); }
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setUploading("");
+    }
   }
   async function updatePassword(e: FormEvent) {
     e.preventDefault();
@@ -2780,9 +3388,103 @@ function ProfileView({
         </div>
       )}
       <div className="admin-grid-two">
-        <form ref={profileForm} className="admin-card account-form" onSubmit={updateProfile}>
-          <div className="account-card-heading"><div><span className="admin-kicker">PERSONAL DETAILS</span><h2>Profile details</h2><p>Update how your administrator identity appears across the panel.</p></div>{avatar ? <Image className="account-avatar-preview" src={avatar} alt={admin.name} width={74} height={74} unoptimized /> : <span className="account-avatar-preview fallback">{admin.name.slice(0,1).toUpperCase()}</span>}</div>
-          <div className="account-upload-grid"><label className="account-upload"><span>Profile photo</span><div>{avatar ? <Image src={avatar} alt="Profile preview" width={58} height={58} unoptimized /> : <UserRound />}<span><strong>{uploading === "avatar" ? "Uploading…" : "Upload profile photo"}</strong><small>PNG, JPG or WEBP · maximum 5 MB</small></span><Upload /></div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset("avatar", event.target.files?.[0])} /></label><label className="account-upload"><span>Left panel logo</span><div>{panelLogo ? <Image src={panelLogo} alt="Panel logo preview" width={92} height={48} unoptimized /> : <Image src="/logo.png" alt="Current logo" width={92} height={48} />}<span><strong>{uploading === "logo" ? "Uploading…" : "Upload panel logo"}</strong><small>Shown above the left navigation menu</small></span><Upload /></div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset("logo", event.target.files?.[0])} /></label></div>
+        <form
+          ref={profileForm}
+          className="admin-card account-form"
+          onSubmit={updateProfile}
+        >
+          <div className="account-card-heading">
+            <div>
+              <span className="admin-kicker">PERSONAL DETAILS</span>
+              <h2>Profile details</h2>
+              <p>
+                Update how your administrator identity appears across the panel.
+              </p>
+            </div>
+            {avatar ? (
+              <Image
+                className="account-avatar-preview"
+                src={avatar}
+                alt={admin.name}
+                width={74}
+                height={74}
+                unoptimized
+              />
+            ) : (
+              <span className="account-avatar-preview fallback">
+                {admin.name.slice(0, 1).toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="account-upload-grid">
+            <label className="account-upload">
+              <span>Profile photo</span>
+              <div>
+                {avatar ? (
+                  <Image
+                    src={avatar}
+                    alt="Profile preview"
+                    width={58}
+                    height={58}
+                    unoptimized
+                  />
+                ) : (
+                  <UserRound />
+                )}
+                <span>
+                  <strong>
+                    {uploading === "avatar"
+                      ? "Uploading…"
+                      : "Upload profile photo"}
+                  </strong>
+                  <small>PNG, JPG or WEBP · maximum 5 MB</small>
+                </span>
+                <Upload />
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) =>
+                  void uploadAsset("avatar", event.target.files?.[0])
+                }
+              />
+            </label>
+            <label className="account-upload">
+              <span>Left panel logo</span>
+              <div>
+                {panelLogo ? (
+                  <Image
+                    src={panelLogo}
+                    alt="Panel logo preview"
+                    width={92}
+                    height={48}
+                    unoptimized
+                  />
+                ) : (
+                  <Image
+                    src="/logo.png"
+                    alt="Current logo"
+                    width={92}
+                    height={48}
+                  />
+                )}
+                <span>
+                  <strong>
+                    {uploading === "logo" ? "Uploading…" : "Upload panel logo"}
+                  </strong>
+                  <small>Shown above the left navigation menu</small>
+                </span>
+                <Upload />
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) =>
+                  void uploadAsset("logo", event.target.files?.[0])
+                }
+              />
+            </label>
+          </div>
           <label>
             Name
             <input
@@ -2796,10 +3498,18 @@ function ProfileView({
             Email
             <input value={admin.email} disabled />
           </label>
-          <button className="admin-primary compact" disabled={!!uploading}>Save profile</button>
+          <button className="admin-primary compact" disabled={!!uploading}>
+            Save profile
+          </button>
         </form>
-        <form ref={passwordForm} className="admin-card account-form" onSubmit={updatePassword}>
-          <span className="admin-kicker">SECURITY</span><h2>Change password</h2><p>Use a unique password with at least eight characters.</p>
+        <form
+          ref={passwordForm}
+          className="admin-card account-form"
+          onSubmit={updatePassword}
+        >
+          <span className="admin-kicker">SECURITY</span>
+          <h2>Change password</h2>
+          <p>Use a unique password with at least eight characters.</p>
           <label>
             Current password
             <input
@@ -2841,7 +3551,9 @@ function ApiSettingsView({ token }: { token: string }) {
       "/api/v1/admin/settings/maps",
       token,
     )
-      .then((result) => setGoogleMapsBrowserKey(result.data.googleMapsBrowserKey || ""))
+      .then((result) =>
+        setGoogleMapsBrowserKey(result.data.googleMapsBrowserKey || ""),
+      )
       .catch((reason) => setError((reason as Error).message))
       .finally(() => setLoading(false));
   }, [token]);
@@ -2876,17 +3588,34 @@ function ApiSettingsView({ token }: { token: string }) {
         title="API Settings"
         text="Connect external services used across the StayHaven platform."
       />
-      {message && <div className="admin-alert success"><Check />{message}</div>}
-      {error && <div className="admin-alert error"><CircleAlert />{error}</div>}
+      {message && (
+        <div className="admin-alert success">
+          <Check />
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="admin-alert error">
+          <CircleAlert />
+          {error}
+        </div>
+      )}
       {loading ? (
-        <div className="admin-loading"><LoaderCircle className="spin" /> Loading API settings…</div>
+        <div className="admin-loading">
+          <LoaderCircle className="spin" /> Loading API settings…
+        </div>
       ) : (
         <form className="admin-card api-settings-card" onSubmit={save}>
           <div className="api-settings-card-heading">
-            <i><MapPinned /></i>
+            <i>
+              <MapPinned />
+            </i>
             <div>
               <h2>Google Maps & Places</h2>
-              <p>Enable Google business/place search, automatic addresses and exact map-pin selection for property onboarding.</p>
+              <p>
+                Enable Google business/place search, automatic addresses and
+                exact map-pin selection for property onboarding.
+              </p>
             </div>
             <StatusBadge value={googleMapsBrowserKey ? "active" : "inactive"} />
           </div>
@@ -2899,18 +3628,33 @@ function ApiSettingsView({ token }: { token: string }) {
               placeholder="AIza…"
               autoComplete="off"
             />
-            <small>Leave empty to use the current fallback map automatically.</small>
+            <small>
+              Leave empty to use the current fallback map automatically.
+            </small>
           </label>
           <div className="api-settings-security">
             <ShieldCheck />
             <div>
               <strong>Required Google Cloud restrictions</strong>
-              <p>Use Website restrictions for <code>https://guwahatihomestay.com/*</code> and <code>https://www.guwahatihomestay.com/*</code>. Restrict the key to Maps JavaScript API and Places API (New). Add future StayHaven domains before enabling them.</p>
+              <p>
+                Use Website restrictions for{" "}
+                <code>https://guwahatihomestay.com/*</code> and{" "}
+                <code>https://www.guwahatihomestay.com/*</code>. Restrict the
+                key to Maps JavaScript API and Places API (New). Add future
+                StayHaven domains before enabling them.
+              </p>
             </div>
           </div>
           <div className="api-settings-actions">
-            {googleMapsBrowserKey && <button type="button" onClick={() => setGoogleMapsBrowserKey("")}>Remove key</button>}
-            <button className="admin-primary compact" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <KeyRound />}{saving ? "Saving…" : "Save API settings"}</button>
+            {googleMapsBrowserKey && (
+              <button type="button" onClick={() => setGoogleMapsBrowserKey("")}>
+                Remove key
+              </button>
+            )}
+            <button className="admin-primary compact" disabled={saving}>
+              {saving ? <LoaderCircle className="spin" /> : <KeyRound />}
+              {saving ? "Saving…" : "Save API settings"}
+            </button>
           </div>
         </form>
       )}
@@ -2925,7 +3669,9 @@ export function AdminApp() {
   const [checking, setChecking] = useState(true);
   const [menu, setMenu] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
-  const [profileSection, setProfileSection] = useState<"profile" | "password">("profile");
+  const [profileSection, setProfileSection] = useState<"profile" | "password">(
+    "profile",
+  );
   const profileMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY);
@@ -2941,13 +3687,20 @@ export function AdminApp() {
       .catch(() => sessionStorage.removeItem(TOKEN_KEY))
       .finally(() => setChecking(false));
   }, []);
-  const allowedNav = nav.filter((item) => !item.permission || admin?.role === "SUPER_ADMIN" || admin?.permissions?.includes(item.permission));
+  const allowedNav = nav.filter(
+    (item) =>
+      !item.permission ||
+      admin?.role === "SUPER_ADMIN" ||
+      admin?.permissions?.includes(item.permission),
+  );
   useEffect(() => {
-    if (admin && !allowedNav.some((item) => item.id === view)) setView(allowedNav[0]?.id || "profile");
+    if (admin && !allowedNav.some((item) => item.id === view))
+      setView(allowedNav[0]?.id || "profile");
   }, [admin, allowedNav, view]);
   useEffect(() => {
     function closeProfileMenu(event: PointerEvent) {
-      if (!profileMenuRef.current?.contains(event.target as Node)) setProfileMenu(false);
+      if (!profileMenuRef.current?.contains(event.target as Node))
+        setProfileMenu(false);
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setProfileMenu(false);
@@ -2999,7 +3752,12 @@ export function AdminApp() {
     ) : view === "users" ? (
       <UsersView token={token} admin={admin} />
     ) : (
-      <ProfileView token={token} admin={admin} setAdmin={setAdmin} section={profileSection} />
+      <ProfileView
+        token={token}
+        admin={admin}
+        setAdmin={setAdmin}
+        section={profileSection}
+      />
     );
   return (
     <div className="admin-shell">
@@ -3027,7 +3785,19 @@ export function AdminApp() {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <div className="admin-avatar">{admin.avatar ? <Image src={admin.avatar} alt="" width={38} height={38} unoptimized /> : admin.name.slice(0, 1).toUpperCase()}</div>
+          <div className="admin-avatar">
+            {admin.avatar ? (
+              <Image
+                src={admin.avatar}
+                alt=""
+                width={38}
+                height={38}
+                unoptimized
+              />
+            ) : (
+              admin.name.slice(0, 1).toUpperCase()
+            )}
+          </div>
           <div>
             <strong>{admin.name}</strong>
             <span>{admin.email}</span>
@@ -3051,7 +3821,9 @@ export function AdminApp() {
           </button>
           <div>
             <span>StayHaven Network</span>
-            <strong>{allowedNav.find((item) => item.id === view)?.label}</strong>
+            <strong>
+              {allowedNav.find((item) => item.id === view)?.label}
+            </strong>
           </div>
           <div className="admin-profile-menu" ref={profileMenuRef}>
             <button
@@ -3061,22 +3833,89 @@ export function AdminApp() {
               aria-expanded={profileMenu}
               onClick={() => setProfileMenu((open) => !open)}
             >
-              <span className="admin-profile-avatar">{admin.avatar ? <Image src={admin.avatar} alt="" width={36} height={36} unoptimized /> : admin.name.slice(0, 1).toUpperCase()}</span>
-              <span className="admin-profile-copy"><strong>{admin.name}</strong><small>{admin.role === "SUPER_ADMIN" ? "Super Admin" : (admin.adminLevel || "Admin").replaceAll("_", " ")}</small></span>
+              <span className="admin-profile-avatar">
+                {admin.avatar ? (
+                  <Image
+                    src={admin.avatar}
+                    alt=""
+                    width={36}
+                    height={36}
+                    unoptimized
+                  />
+                ) : (
+                  admin.name.slice(0, 1).toUpperCase()
+                )}
+              </span>
+              <span className="admin-profile-copy">
+                <strong>{admin.name}</strong>
+                <small>
+                  {admin.role === "SUPER_ADMIN"
+                    ? "Super Admin"
+                    : (admin.adminLevel || "Admin").replaceAll("_", " ")}
+                </small>
+              </span>
               <ChevronDown className={profileMenu ? "open" : ""} />
             </button>
             {profileMenu && (
               <div className="admin-profile-dropdown" role="menu">
                 <div className="admin-profile-summary">
-                  <span className="admin-profile-avatar">{admin.avatar ? <Image src={admin.avatar} alt="" width={36} height={36} unoptimized /> : admin.name.slice(0, 1).toUpperCase()}</span>
-                  <div><strong>{admin.name}</strong><small>{admin.email}</small></div>
+                  <span className="admin-profile-avatar">
+                    {admin.avatar ? (
+                      <Image
+                        src={admin.avatar}
+                        alt=""
+                        width={36}
+                        height={36}
+                        unoptimized
+                      />
+                    ) : (
+                      admin.name.slice(0, 1).toUpperCase()
+                    )}
+                  </span>
+                  <div>
+                    <strong>{admin.name}</strong>
+                    <small>{admin.email}</small>
+                  </div>
                 </div>
                 <div className="admin-profile-links">
-                  <button type="button" role="menuitem" onClick={() => openAccount("profile")}><UserRound /><span><strong>View profile</strong><small>Manage your account details</small></span></button>
-                  <button type="button" role="menuitem" onClick={() => openAccount("password")}><KeyRound /><span><strong>Change password</strong><small>Update account security</small></span></button>
-                  <a href="/" target="_blank" rel="noreferrer" role="menuitem"><ExternalLink /><span><strong>View website</strong><small>Open the public marketplace</small></span></a>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => openAccount("profile")}
+                  >
+                    <UserRound />
+                    <span>
+                      <strong>View profile</strong>
+                      <small>Manage your account details</small>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => openAccount("password")}
+                  >
+                    <KeyRound />
+                    <span>
+                      <strong>Change password</strong>
+                      <small>Update account security</small>
+                    </span>
+                  </button>
+                  <a href="/" target="_blank" rel="noreferrer" role="menuitem">
+                    <ExternalLink />
+                    <span>
+                      <strong>View website</strong>
+                      <small>Open the public marketplace</small>
+                    </span>
+                  </a>
                 </div>
-                <button className="admin-profile-logout" type="button" role="menuitem" onClick={logout}><LogOut /> Log out</button>
+                <button
+                  className="admin-profile-logout"
+                  type="button"
+                  role="menuitem"
+                  onClick={logout}
+                >
+                  <LogOut /> Log out
+                </button>
               </div>
             )}
           </div>
