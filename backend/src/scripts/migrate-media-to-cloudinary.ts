@@ -47,6 +47,7 @@ async function migrate() {
   );
   const files = await readdir(directory, { withFileTypes: true });
   const urls = new Map<string, string>();
+  const assetFolder = `${folder}/site-media`;
 
   for (const entry of files.filter((item) => item.isFile())) {
     const extension = extname(entry.name).toLowerCase();
@@ -59,6 +60,7 @@ async function migrate() {
       uploaded = await cloudinary.uploader.upload(join(directory, entry.name), {
         resource_type: resourceType,
         public_id: publicId,
+        asset_folder: assetFolder,
         overwrite: false,
         unique_filename: false,
       });
@@ -67,6 +69,11 @@ async function migrate() {
         resource_type: resourceType,
       })) as UploadApiResponse;
     }
+    await cloudinary.uploader.explicit(publicId, {
+      resource_type: resourceType,
+      type: 'upload',
+      asset_folder: assetFolder,
+    });
     urls.set(`${legacyPrefix}${entry.name}`, uploaded.secure_url);
     console.log(`Uploaded ${entry.name}`);
   }

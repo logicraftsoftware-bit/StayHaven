@@ -52,6 +52,7 @@ export class MediaService {
         {
           resource_type: kind,
           folder: `${folder}/site-media`,
+          asset_folder: `${folder}/site-media`,
           use_filename: false,
           unique_filename: true,
         },
