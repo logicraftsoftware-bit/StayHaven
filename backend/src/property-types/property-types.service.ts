@@ -18,7 +18,7 @@ export class PropertyTypesService {
   ) {}
   listAdmin() {
     return this.model
-      .find()
+      .find({ deletedAt: null })
       .select('+commissionPercent')
       .sort({ sortOrder: 1, name: 1 })
       .lean();
@@ -55,6 +55,18 @@ export class PropertyTypesService {
         .replace(/^-|-$/g, '');
     const value = await this.model
       .findByIdAndUpdate(id, update, { new: true, runValidators: true })
+      .select('+commissionPercent');
+    if (!value) throw new NotFoundException('Property type not found');
+    return value;
+  }
+
+  async remove(id: string) {
+    const value = await this.model
+      .findByIdAndUpdate(
+        id,
+        { status: 'inactive', deletedAt: new Date() },
+        { new: true },
+      )
       .select('+commissionPercent');
     if (!value) throw new NotFoundException('Property type not found');
     return value;

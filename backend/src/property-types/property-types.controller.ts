@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -49,5 +50,13 @@ export class PropertyTypesController {
     @Body() dto: UpdatePropertyTypeDto,
   ) {
     return { success: true, data: await this.service.update(id, dto) };
+  }
+
+  @Delete('admin/property-types/:id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async remove(@Param('id', MongoIdPipe) id: string) {
+    return { success: true, data: await this.service.remove(id) };
   }
 }

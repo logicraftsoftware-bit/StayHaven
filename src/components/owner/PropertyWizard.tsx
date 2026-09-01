@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { apiRequest } from "@/lib/api-client";
+import { apiRequest, publicApiBase } from "@/lib/api-client";
 import { useSite } from "@/components/site/SiteProvider";
 import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 import { PropertyManager } from "./PropertyManager";
@@ -351,7 +351,10 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                   }}
                 >
                   {type.image ? (
-                    <img src={type.image} alt="" />
+                    <img
+                      src={`${type.image.startsWith("/") ? publicApiBase : ""}${type.image}`}
+                      alt={`${type.name} property type`}
+                    />
                   ) : (
                     <BuildingIcon />
                   )}

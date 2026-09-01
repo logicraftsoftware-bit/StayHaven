@@ -13,6 +13,7 @@ export class PropertyType {
   @Prop({ enum: ['active', 'inactive'], default: 'active', index: true })
   status: string;
   @Prop({ default: 0 }) sortOrder: number;
+  @Prop({ default: null }) deletedAt?: Date;
 }
 export type PropertyTypeDocument = HydratedDocument<PropertyType>;
 export const PropertyTypeSchema = SchemaFactory.createForClass(PropertyType);

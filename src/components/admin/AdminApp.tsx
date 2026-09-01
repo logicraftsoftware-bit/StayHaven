@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Globe2,
   Home,
+  ImagePlus,
   KeyRound,
   LayoutDashboard,
   LoaderCircle,
@@ -22,6 +23,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Trash2,
   Upload,
   Users,
   X,
@@ -2318,6 +2320,17 @@ function PropertiesView({ token }: { token: string }) {
     );
     setTypeForm((value) => ({ ...value, image: result.data.url }));
   }
+  async function deleteType(item: PropertyTypeMaster) {
+    if (!window.confirm(`Delete ${item.name}? Existing properties will keep their saved type.`)) return;
+    try {
+      await api(`/api/v1/admin/property-types/${item._id}`, token, {
+        method: "DELETE",
+      });
+      await load();
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
+  }
   return (
     <>
       <PageHeader
@@ -2325,8 +2338,8 @@ function PropertiesView({ token }: { token: string }) {
         title="Properties"
         text="Review submissions and keep every published stay up to standard."
       />
-      <section className="admin-card" style={{ marginBottom: 24 }}>
-        <div className="section-heading">
+      <section className="admin-card property-master-card">
+        <div className="property-master-heading">
           <div>
             <h2>Property type master</h2>
             <p>
@@ -2346,33 +2359,64 @@ function PropertiesView({ token }: { token: string }) {
               })
             }
           >
-            <Plus /> Add type
+            <Plus /> Add Property Type
           </button>
         </div>
-        <div className="domain-table">
-          {propertyTypes.map((item) => (
-            <div className="domain-row" key={item._id}>
-              {item.image ? (
-                <Image src={item.image} alt="" width={54} height={40} />
-              ) : (
-                <Building2 />
-              )}
-              <strong>{item.name}</strong>
-              <span>{item.commissionPercent}% commission</span>
-              <StatusBadge value={item.status} />
-              <button onClick={() => setTypeForm(item)}>Edit</button>
-            </div>
-          ))}
+        <div className="property-master-table-wrap">
+          <table className="property-master-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Property type</th>
+                <th>Description</th>
+                <th>Commission</th>
+                <th>Status</th>
+                <th>Order</th>
+                <th className="actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {propertyTypes.map((item) => (
+                <tr key={item._id}>
+                  <td>
+                    <span className="property-type-thumbnail">
+                      {item.image ? (
+                        // Cloudinary and legacy API-hosted images are both supported.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`${item.image.startsWith("/") ? publicApiBase : ""}${item.image}`}
+                          alt={`${item.name} property type`}
+                        />
+                      ) : (
+                        <Building2 />
+                      )}
+                    </span>
+                  </td>
+                  <td><strong>{item.name}</strong></td>
+                  <td><span className="table-muted">{item.description || "—"}</span></td>
+                  <td>{item.commissionPercent}%</td>
+                  <td><StatusBadge value={item.status} /></td>
+                  <td>{item.sortOrder}</td>
+                  <td className="actions">
+                    <div className="table-action-buttons">
+                      <button className="edit" onClick={() => setTypeForm(item)}>Edit</button>
+                      <button className="delete" onClick={() => void deleteType(item)} aria-label={`Delete ${item.name}`}><Trash2 /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
       {typeForm && (
-        <form
-          className="admin-card account-form"
-          onSubmit={saveType}
-          style={{ marginBottom: 24 }}
-        >
-          <h2>{typeForm._id ? "Edit" : "Add"} property type</h2>
-          <div className="admin-grid-two">
+        <div className="property-type-modal-backdrop" role="presentation" onMouseDown={() => setTypeForm(null)}>
+        <form className="property-type-modal" onSubmit={saveType} onMouseDown={(event) => event.stopPropagation()}>
+          <header>
+            <div><span>PROPERTY TYPE</span><h2>{typeForm._id ? "Edit" : "Add"} property type</h2><p>Configure how this accommodation type appears to owners.</p></div>
+            <button type="button" className="property-type-modal-close" onClick={() => setTypeForm(null)} aria-label="Close"><X /></button>
+          </header>
+          <div className="property-type-modal-body admin-grid-two">
             <label>
               Name
               <input
@@ -2436,18 +2480,22 @@ function PropertiesView({ token }: { token: string }) {
                 }
               />
             </label>
-            <label>
-              Image
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) =>
-                  e.target.files?.[0] && void uploadTypeImage(e.target.files[0])
-                }
-              />
+            <label className="property-type-image-field">
+              Property type image
+              <span className="property-type-upload">
+                <span className="property-type-upload-preview">
+                  {typeForm.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`${typeForm.image.startsWith("/") ? publicApiBase : ""}${typeForm.image}`} alt="Property type preview" />
+                  ) : <ImagePlus />}
+                </span>
+                <span><strong>Choose image</strong><small>PNG, JPG or WEBP · maximum 5 MB</small></span>
+                <Upload />
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => e.target.files?.[0] && void uploadTypeImage(e.target.files[0])} />
+              </span>
             </label>
           </div>
-          <div className="dialog-actions">
+          <div className="property-type-modal-actions">
             <button type="button" onClick={() => setTypeForm(null)}>
               Cancel
             </button>
@@ -2456,6 +2504,7 @@ function PropertiesView({ token }: { token: string }) {
             </button>
           </div>
         </form>
+        </div>
       )}
       <Filters
         search={search}
