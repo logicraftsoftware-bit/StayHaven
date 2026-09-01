@@ -59,7 +59,7 @@ const videoSignatures = [
 @ApiBearerAuth()
 @Controller(['admin/media', 'owner/media'])
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SUPER_ADMIN, Role.HOTEL_OWNER)
+@Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.HOTEL_OWNER)
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 

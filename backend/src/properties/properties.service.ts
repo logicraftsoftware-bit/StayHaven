@@ -51,15 +51,16 @@ export class PropertiesService {
     private propertyTypes: PropertyTypesService,
     @Optional() private config?: ConfigService,
   ) {}
-  async list(q: PropertyQueryDto) {
+  async list(q: PropertyQueryDto, allowedSiteIds?: string[]) {
     const filter: {
       status?: PropertyStatus;
-      siteId?: string;
+      siteId?: string | { $in: Types.ObjectId[] };
       ownerId?: string;
       $or?: Array<Record<string, unknown>>;
     } = {};
     if (q.status) filter.status = q.status;
     if (q.siteId) filter.siteId = q.siteId;
+    else if (allowedSiteIds) filter.siteId = { $in: allowedSiteIds.map((id) => new Types.ObjectId(id)) };
     if (q.ownerId) filter.ownerId = q.ownerId;
     if (q.search)
       filter.$or = [
@@ -130,8 +131,10 @@ export class PropertiesService {
     });
     return p;
   }
-  count(status?: PropertyStatus) {
-    return this.model.countDocuments(status ? { status } : {});
+  count(status?: PropertyStatus, siteIds?: string[]) {
+    const filter: Record<string, unknown> = status ? { status } : {};
+    if (siteIds) filter.siteId = { $in: siteIds.map((id) => new Types.ObjectId(id)) };
+    return this.model.countDocuments(filter);
   }
 
   listPublic(siteId: string) {

@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
@@ -19,7 +19,8 @@ export class DashboardController {
     private owners: OwnersService,
     private sites: SitesService,
   ) {}
-  @Get() async dashboard() {
+  @Get() async dashboard(@Req() request: { user: { role: Role; siteIds?: string[] } }) {
+    const siteIds = request.user.role === Role.SUPER_ADMIN ? undefined : (request.user.siteIds || []);
     const [
       totalProperties,
       pendingProperties,
@@ -30,14 +31,14 @@ export class DashboardController {
       suspendedOwners,
       totalSites,
     ] = await Promise.all([
-      this.properties.count(),
-      this.properties.count(PropertyStatus.PENDING),
-      this.properties.count(PropertyStatus.APPROVED),
-      this.properties.count(PropertyStatus.REJECTED),
-      this.owners.count(),
-      this.owners.count(OwnerStatus.ACTIVE),
-      this.owners.count(OwnerStatus.SUSPENDED),
-      this.sites.count(),
+      this.properties.count(undefined, siteIds),
+      this.properties.count(PropertyStatus.PENDING, siteIds),
+      this.properties.count(PropertyStatus.APPROVED, siteIds),
+      this.properties.count(PropertyStatus.REJECTED, siteIds),
+      this.owners.count(undefined, siteIds),
+      this.owners.count(OwnerStatus.ACTIVE, siteIds),
+      this.owners.count(OwnerStatus.SUSPENDED, siteIds),
+      this.sites.count(siteIds),
     ]);
     return {
       success: true,

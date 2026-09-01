@@ -24,7 +24,7 @@ export class AuthService {
     await this.admins.touchLogin(admin);
     await this.audit.record({
       actorId: admin._id,
-      actorRole: Role.SUPER_ADMIN,
+      actorRole: admin.role,
       action: 'ADMIN_LOGIN',
       entityType: 'ADMIN',
       entityId: admin._id,
@@ -34,6 +34,8 @@ export class AuthService {
     const accessToken = await this.jwt.signAsync({
       sub: String(admin._id),
       role: admin.role,
+      permissions: admin.permissions || [],
+      siteIds: (admin.siteIds || []).map(String),
     });
     return {
       success: true,
@@ -45,6 +47,11 @@ export class AuthService {
           name: admin.name,
           email: admin.email,
           role: admin.role,
+          adminLevel: admin.adminLevel,
+          permissions: admin.permissions || [],
+          siteIds: admin.siteIds || [],
+          avatar: admin.avatar,
+          panelLogo: admin.panelLogo,
         },
       },
     };

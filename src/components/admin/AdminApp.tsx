@@ -52,7 +52,7 @@ import type {
 const TOKEN_KEY = "gh_super_admin_token";
 
 type View =
-  "dashboard" | "sites" | "pages" | "owners" | "properties" | "api-settings" | "profile";
+  "dashboard" | "sites" | "pages" | "owners" | "properties" | "api-settings" | "users" | "profile";
 type Status =
   | "ACTIVE"
   | "SUSPENDED"
@@ -76,6 +76,12 @@ type Admin = {
   name: string;
   email: string;
   role: string;
+  adminLevel?: "MAIN_ADMIN" | "BRANCH_ADMIN" | "USER";
+  permissions?: string[];
+  siteIds?: Array<string | { _id: string; name: string; domain?: string }>;
+  avatar?: string;
+  panelLogo?: string;
+  status?: "ACTIVE" | "SUSPENDED";
   lastLoginAt?: string;
 };
 type Dashboard = {
@@ -173,15 +179,16 @@ type PropertyTypeMaster = {
   sortOrder: number;
 };
 
-function Brand() {
+function Brand({ logo }: { logo?: string }) {
   return (
     <div className="admin-brand">
       <Image
-        src="/logo.png"
+        src={logo || "/logo.png"}
         alt="StayHaven"
         width={500}
         height={167}
         priority
+        unoptimized={!!logo}
       />
       <span>Super Admin</span>
     </div>
@@ -293,13 +300,14 @@ function Login({
   );
 }
 
-const nav: { id: View; label: string; icon: typeof Home }[] = [
-  { id: "dashboard", label: "Overview", icon: LayoutDashboard },
-  { id: "sites", label: "Sites", icon: Globe2 },
-  { id: "pages", label: "Page builder", icon: Home },
-  { id: "properties", label: "Properties", icon: Building2 },
-  { id: "owners", label: "Property owners", icon: Users },
-  { id: "api-settings", label: "API Settings", icon: MapPinned },
+const nav: { id: View; label: string; icon: typeof Home; permission?: string }[] = [
+  { id: "dashboard", label: "Overview", icon: LayoutDashboard, permission: "VIEW_DASHBOARD" },
+  { id: "sites", label: "Sites", icon: Globe2, permission: "MANAGE_SITES" },
+  { id: "pages", label: "Page builder", icon: Home, permission: "MANAGE_PAGES" },
+  { id: "properties", label: "Properties", icon: Building2, permission: "MANAGE_PROPERTIES" },
+  { id: "owners", label: "Property owners", icon: Users, permission: "MANAGE_OWNERS" },
+  { id: "api-settings", label: "API Settings", icon: MapPinned, permission: "MANAGE_API_SETTINGS" },
+  { id: "users", label: "Users", icon: UserRound, permission: "MANAGE_USERS" },
   { id: "profile", label: "Account", icon: Settings },
 ];
 
@@ -581,7 +589,7 @@ const siteFormSteps = [
   },
 ] as const;
 
-function SitesView({ token }: { token: string }) {
+function SitesView({ token, canCreate }: { token: string; canCreate: boolean }) {
   const [sites, setSites] = useState<Site[]>([]);
   const [show, setShow] = useState(false);
   const [editingId, setEditingId] = useState("");
@@ -890,7 +898,7 @@ function SitesView({ token }: { token: string }) {
             eyebrow="MARKETPLACE NETWORK"
             title="Sites"
             text="Create and control every location-specific StayHaven marketplace from one shared platform."
-            action={
+            action={canCreate ? (
               <button
                 className="admin-primary compact"
                 onClick={() => {
@@ -903,7 +911,7 @@ function SitesView({ token }: { token: string }) {
               >
                 <Plus /> Add site
               </button>
-            }
+            ) : undefined}
           />
           {message && (
             <div className="admin-alert success">
@@ -2621,6 +2629,69 @@ function PropertiesView({ token }: { token: string }) {
   );
 }
 
+const adminPermissionOptions = [
+  ["VIEW_DASHBOARD", "Overview", "View network statistics and activity"],
+  ["MANAGE_SITES", "Sites", "Create and configure marketplace sites"],
+  ["MANAGE_PAGES", "Page builder", "Edit and publish site pages"],
+  ["MANAGE_PROPERTIES", "Properties", "Review properties and property types"],
+  ["MANAGE_OWNERS", "Property owners", "View and manage owner accounts"],
+  ["MANAGE_API_SETTINGS", "API settings", "Manage Google Maps and integrations"],
+  ["MANAGE_USERS", "Users", "Create and manage delegated administrators"],
+] as const;
+
+function UsersView({ token, admin }: { token: string; admin: Admin }) {
+  const emptyForm = { name: "", email: "", password: "", adminLevel: "BRANCH_ADMIN", permissions: [] as string[], siteIds: [] as string[], status: "ACTIVE" };
+  const [users, setUsers] = useState<Admin[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const ownPermissions = admin.role === "SUPER_ADMIN" ? adminPermissionOptions : adminPermissionOptions.filter(([value]) => admin.permissions?.includes(value));
+  const availablePermissions = form.adminLevel === "MAIN_ADMIN" ? ownPermissions : ownPermissions.filter(([value]) => value !== "MANAGE_USERS");
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [userResult, siteResult] = await Promise.all([
+        api<ApiResponse<Admin[]>>("/api/v1/admin/users", token),
+        api<ApiResponse<Site[]>>("/api/v1/admin/users/sites", token),
+      ]);
+      setUsers(userResult.data);
+      setSites(siteResult.data);
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setLoading(false); }
+  }, [token]);
+  useEffect(() => { void load(); }, [load]);
+  function openCreate() { setEditingId(""); setForm(emptyForm); setError(""); setShow(true); }
+  function openEdit(user: Admin) {
+    setEditingId(user._id || user.id || "");
+    setForm({ name: user.name, email: user.email, password: "", adminLevel: user.adminLevel || "USER", permissions: user.permissions || [], siteIds: (user.siteIds || []).map((site) => typeof site === "string" ? site : site._id), status: user.status || "ACTIVE" });
+    setError(""); setShow(true);
+  }
+  async function save(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("");
+    try {
+      const body: Record<string, unknown> = { ...form };
+      if (editingId) { delete body.email; if (!form.password) delete body.password; }
+      await api(`/api/v1/admin/users${editingId ? `/${editingId}` : ""}`, token, { method: editingId ? "PATCH" : "POST", body: JSON.stringify(body) });
+      setShow(false); setMessage(editingId ? "Administrator updated successfully." : "Administrator created successfully."); await load();
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setSaving(false); }
+  }
+  function togglePermission(value: string) { setForm((old) => ({ ...old, permissions: old.permissions.includes(value) ? old.permissions.filter((item) => item !== value) : [...old.permissions, value] })); }
+  function toggleSite(value: string) { setForm((old) => ({ ...old, siteIds: old.siteIds.includes(value) ? old.siteIds.filter((item) => item !== value) : [...old.siteIds, value] })); }
+  return <>
+    <PageHeader eyebrow="ACCESS CONTROL" title="Users & permissions" text="Create administrators, assign marketplace sites and control exactly what each account can access." action={<button className="admin-primary compact" onClick={openCreate}><Plus /> Add user</button>} />
+    {message && <div className="admin-alert success"><Check />{message}</div>}{error && !show && <div className="admin-alert error"><CircleAlert />{error}</div>}
+    {loading ? <div className="admin-loading"><LoaderCircle className="spin" /> Loading users…</div> : users.length === 0 ? <Empty icon={<Users />} title="No delegated users" text="Create your first administrator and assign their permissions." /> :
+      <div className="admin-table-wrap users-table"><table><thead><tr><th>User</th><th>Level</th><th>Sites</th><th>Permissions</th><th>Status</th><th>Action</th></tr></thead><tbody>{users.map((user) => <tr key={user._id || user.id}><td><div className="user-cell">{user.avatar ? <Image src={user.avatar} alt="" width={38} height={38} unoptimized /> : <span>{user.name.slice(0,1).toUpperCase()}</span>}<div><strong>{user.name}</strong><small>{user.email}</small></div></div></td><td>{(user.adminLevel || "ADMIN").replaceAll("_", " ")}</td><td>{user.siteIds?.length || 0} assigned</td><td>{user.permissions?.length || 0} enabled</td><td><StatusBadge value={user.status || "ACTIVE"} /></td><td><button className="admin-secondary" onClick={() => openEdit(user)}>Edit</button></td></tr>)}</tbody></table></div>}
+    {show && <div className="admin-modal-backdrop" onMouseDown={() => setShow(false)}><form className="admin-modal user-modal" onSubmit={save} onMouseDown={(event) => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setShow(false)}><X /></button><span className="admin-kicker">ADMIN ACCESS</span><h2>{editingId ? "Edit administrator" : "Add administrator"}</h2><p>Only selected modules and assigned sites will be available after login.</p>{error && <div className="admin-alert error"><CircleAlert />{error}</div>}<div className="admin-form-grid"><label>Name<input value={form.name} onChange={(e) => setForm({...form,name:e.target.value})} required minLength={2} /></label><label>Email<input type="email" value={form.email} onChange={(e) => setForm({...form,email:e.target.value})} required disabled={!!editingId} /></label><label>{editingId ? "New password (optional)" : "Temporary password"}<input type="password" value={form.password} onChange={(e) => setForm({...form,password:e.target.value})} required={!editingId} minLength={8} /></label><label>Account level<select value={form.adminLevel} onChange={(e) => setForm({...form,adminLevel:e.target.value})}>{admin.role === "SUPER_ADMIN" && <option value="MAIN_ADMIN">Main admin</option>}<option value="BRANCH_ADMIN">Branch admin</option><option value="USER">User</option></select></label>{editingId && <label>Status<select value={form.status} onChange={(e) => setForm({...form,status:e.target.value})}><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option></select></label>}</div><div className="user-access-section"><h3>Assigned websites</h3><p>Select the branches this administrator can manage.</p><div className="access-options">{sites.map((site) => <label key={site._id}><input type="checkbox" checked={form.siteIds.includes(site._id)} onChange={() => toggleSite(site._id)} /><span><strong>{site.name}</strong><small>{site.domain}</small></span></label>)}</div></div><div className="user-access-section"><h3>Permissions</h3><p>You can only grant permissions available to your own account.</p><div className="permission-options">{availablePermissions.map(([value,label,text]) => <label key={value}><input type="checkbox" checked={form.permissions.includes(value)} onChange={() => togglePermission(value)} /><span><strong>{label}</strong><small>{text}</small></span></label>)}</div></div><div className="modal-actions"><button type="button" className="admin-secondary" onClick={() => setShow(false)}>Cancel</button><button className="admin-primary compact" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <ShieldCheck />}{saving ? "Saving…" : "Save administrator"}</button></div></form></div>}
+  </>;
+}
+
 function ProfileView({
   token,
   admin,
@@ -2635,6 +2706,9 @@ function ProfileView({
   const profileForm = useRef<HTMLFormElement>(null);
   const passwordForm = useRef<HTMLFormElement>(null);
   const [name, setName] = useState(admin.name);
+  const [avatar, setAvatar] = useState(admin.avatar || "");
+  const [panelLogo, setPanelLogo] = useState(admin.panelLogo || "");
+  const [uploading, setUploading] = useState<"avatar" | "logo" | "">("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -2651,7 +2725,7 @@ function ProfileView({
     try {
       const r = await api<ApiResponse<Admin>>("/api/v1/admin/me", token, {
         method: "PATCH",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, avatar: avatar || undefined, panelLogo: panelLogo || undefined }),
       });
       setAdmin(r.data);
       setMessage("Profile updated.");
@@ -2659,6 +2733,17 @@ function ProfileView({
     } catch (reason) {
       setError((reason as Error).message);
     }
+  }
+  async function uploadAsset(kind: "avatar" | "logo", file?: File) {
+    if (!file) return;
+    setUploading(kind); setError("");
+    try {
+      const data = new FormData(); data.append("file", file);
+      const result = await api<ApiResponse<{ url: string }>>("/api/v1/admin/media/images", token, { method: "POST", body: data });
+      if (kind === "avatar") setAvatar(result.data.url); else setPanelLogo(result.data.url);
+      setMessage("Image uploaded. Select Save profile to apply it.");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setUploading(""); }
   }
   async function updatePassword(e: FormEvent) {
     e.preventDefault();
@@ -2696,7 +2781,8 @@ function ProfileView({
       )}
       <div className="admin-grid-two">
         <form ref={profileForm} className="admin-card account-form" onSubmit={updateProfile}>
-          <h2>Profile details</h2>
+          <div className="account-card-heading"><div><span className="admin-kicker">PERSONAL DETAILS</span><h2>Profile details</h2><p>Update how your administrator identity appears across the panel.</p></div>{avatar ? <Image className="account-avatar-preview" src={avatar} alt={admin.name} width={74} height={74} unoptimized /> : <span className="account-avatar-preview fallback">{admin.name.slice(0,1).toUpperCase()}</span>}</div>
+          <div className="account-upload-grid"><label className="account-upload"><span>Profile photo</span><div>{avatar ? <Image src={avatar} alt="Profile preview" width={58} height={58} unoptimized /> : <UserRound />}<span><strong>{uploading === "avatar" ? "Uploading…" : "Upload profile photo"}</strong><small>PNG, JPG or WEBP · maximum 5 MB</small></span><Upload /></div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset("avatar", event.target.files?.[0])} /></label><label className="account-upload"><span>Left panel logo</span><div>{panelLogo ? <Image src={panelLogo} alt="Panel logo preview" width={92} height={48} unoptimized /> : <Image src="/logo.png" alt="Current logo" width={92} height={48} />}<span><strong>{uploading === "logo" ? "Uploading…" : "Upload panel logo"}</strong><small>Shown above the left navigation menu</small></span><Upload /></div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadAsset("logo", event.target.files?.[0])} /></label></div>
           <label>
             Name
             <input
@@ -2710,10 +2796,10 @@ function ProfileView({
             Email
             <input value={admin.email} disabled />
           </label>
-          <button className="admin-primary compact">Save profile</button>
+          <button className="admin-primary compact" disabled={!!uploading}>Save profile</button>
         </form>
         <form ref={passwordForm} className="admin-card account-form" onSubmit={updatePassword}>
-          <h2>Change password</h2>
+          <span className="admin-kicker">SECURITY</span><h2>Change password</h2><p>Use a unique password with at least eight characters.</p>
           <label>
             Current password
             <input
@@ -2855,6 +2941,10 @@ export function AdminApp() {
       .catch(() => sessionStorage.removeItem(TOKEN_KEY))
       .finally(() => setChecking(false));
   }, []);
+  const allowedNav = nav.filter((item) => !item.permission || admin?.role === "SUPER_ADMIN" || admin?.permissions?.includes(item.permission));
+  useEffect(() => {
+    if (admin && !allowedNav.some((item) => item.id === view)) setView(allowedNav[0]?.id || "profile");
+  }, [admin, allowedNav, view]);
   useEffect(() => {
     function closeProfileMenu(event: PointerEvent) {
       if (!profileMenuRef.current?.contains(event.target as Node)) setProfileMenu(false);
@@ -2897,7 +2987,7 @@ export function AdminApp() {
     view === "dashboard" ? (
       <DashboardView token={token} go={setView} />
     ) : view === "sites" ? (
-      <SitesView token={token} />
+      <SitesView token={token} canCreate={admin.role === "SUPER_ADMIN"} />
     ) : view === "pages" ? (
       <PagesView token={token} />
     ) : view === "owners" ? (
@@ -2906,6 +2996,8 @@ export function AdminApp() {
       <PropertiesView token={token} />
     ) : view === "api-settings" ? (
       <ApiSettingsView token={token} />
+    ) : view === "users" ? (
+      <UsersView token={token} admin={admin} />
     ) : (
       <ProfileView token={token} admin={admin} setAdmin={setAdmin} section={profileSection} />
     );
@@ -2913,13 +3005,13 @@ export function AdminApp() {
     <div className="admin-shell">
       <aside className={menu ? "open" : ""}>
         <div className="sidebar-head">
-          <Brand />
+          <Brand logo={admin.panelLogo} />
           <button onClick={() => setMenu(false)}>
             <X />
           </button>
         </div>
         <nav>
-          {nav.map(({ id, label, icon: Icon }) => (
+          {allowedNav.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               className={view === id ? "active" : ""}
@@ -2935,9 +3027,7 @@ export function AdminApp() {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <div className="admin-avatar">
-            {admin.name.slice(0, 1).toUpperCase()}
-          </div>
+          <div className="admin-avatar">{admin.avatar ? <Image src={admin.avatar} alt="" width={38} height={38} unoptimized /> : admin.name.slice(0, 1).toUpperCase()}</div>
           <div>
             <strong>{admin.name}</strong>
             <span>{admin.email}</span>
@@ -2961,7 +3051,7 @@ export function AdminApp() {
           </button>
           <div>
             <span>StayHaven Network</span>
-            <strong>{nav.find((item) => item.id === view)?.label}</strong>
+            <strong>{allowedNav.find((item) => item.id === view)?.label}</strong>
           </div>
           <div className="admin-profile-menu" ref={profileMenuRef}>
             <button
@@ -2971,14 +3061,14 @@ export function AdminApp() {
               aria-expanded={profileMenu}
               onClick={() => setProfileMenu((open) => !open)}
             >
-              <span className="admin-profile-avatar">{admin.name.slice(0, 1).toUpperCase()}</span>
-              <span className="admin-profile-copy"><strong>{admin.name}</strong><small>Super Admin</small></span>
+              <span className="admin-profile-avatar">{admin.avatar ? <Image src={admin.avatar} alt="" width={36} height={36} unoptimized /> : admin.name.slice(0, 1).toUpperCase()}</span>
+              <span className="admin-profile-copy"><strong>{admin.name}</strong><small>{admin.role === "SUPER_ADMIN" ? "Super Admin" : (admin.adminLevel || "Admin").replaceAll("_", " ")}</small></span>
               <ChevronDown className={profileMenu ? "open" : ""} />
             </button>
             {profileMenu && (
               <div className="admin-profile-dropdown" role="menu">
                 <div className="admin-profile-summary">
-                  <span className="admin-profile-avatar">{admin.name.slice(0, 1).toUpperCase()}</span>
+                  <span className="admin-profile-avatar">{admin.avatar ? <Image src={admin.avatar} alt="" width={36} height={36} unoptimized /> : admin.name.slice(0, 1).toUpperCase()}</span>
                   <div><strong>{admin.name}</strong><small>{admin.email}</small></div>
                 </div>
                 <div className="admin-profile-links">

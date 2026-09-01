@@ -43,7 +43,7 @@ export class OwnersService {
     private jwt: JwtService,
     private sites: SitesService,
   ) {}
-  async list(q: OwnerQueryDto) {
+  async list(q: OwnerQueryDto, allowedSiteIds?: string[]) {
     const match: Record<string, unknown> = {};
     if (q.status) match.status = q.status;
     if (q.search)
@@ -66,6 +66,12 @@ export class OwnersService {
       pipeline.push({
         $match: {
           properties: { $elemMatch: { siteId: new Types.ObjectId(q.siteId) } },
+        },
+      });
+    else if (allowedSiteIds)
+      pipeline.push({
+        $match: {
+          properties: { $elemMatch: { siteId: { $in: allowedSiteIds.map((id) => new Types.ObjectId(id)) } } },
         },
       });
     pipeline.push(
@@ -134,8 +140,16 @@ export class OwnersService {
     });
     return owner;
   }
-  count(status?: OwnerStatus) {
-    return this.model.countDocuments(status ? { status } : {});
+  async count(status?: OwnerStatus, siteIds?: string[]) {
+    if (!siteIds) return this.model.countDocuments(status ? { status } : {});
+    const match: Record<string, unknown> = status ? { status } : {};
+    const result = await this.model.aggregate([
+      { $match: match },
+      { $lookup: { from: 'gw_properties', localField: '_id', foreignField: 'ownerId', as: 'properties' } },
+      { $match: { properties: { $elemMatch: { siteId: { $in: siteIds.map((id) => new Types.ObjectId(id)) } } } } },
+      { $count: 'total' },
+    ]);
+    return result[0]?.total || 0;
   }
 
   async ensureAccess(id: string) {

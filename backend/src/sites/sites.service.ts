@@ -107,8 +107,9 @@ export class SitesService {
       throw e;
     }
   }
-  async list() {
-    const sites = await this.model.find().sort({ createdAt: -1 }).lean();
+  async list(allowedSiteIds?: string[]) {
+    const filter = allowedSiteIds ? { _id: { $in: allowedSiteIds.map((id) => new Types.ObjectId(id)) } } : {};
+    const sites = await this.model.find(filter).sort({ createdAt: -1 }).lean();
     const domains = await this.domainModel
       .find()
       .sort({ isPrimary: -1 })
@@ -170,8 +171,8 @@ export class SitesService {
     });
     return this.get(id);
   }
-  count() {
-    return this.model.countDocuments();
+  count(siteIds?: string[]) {
+    return this.model.countDocuments(siteIds ? { _id: { $in: siteIds.map((id) => new Types.ObjectId(id)) } } : {});
   }
 
   listActive() {

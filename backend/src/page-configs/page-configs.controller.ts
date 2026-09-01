@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -23,18 +24,24 @@ import { PageConfigsService } from './page-configs.service';
 @Roles(Role.SUPER_ADMIN)
 export class PageConfigsController {
   constructor(private service: PageConfigsService) {}
+  private assertSite(user: { role: Role; siteIds?: string[] }, siteId: string) {
+    if (user.role !== Role.SUPER_ADMIN && !user.siteIds?.includes(siteId)) throw new ForbiddenException('This marketplace site is not assigned to your account');
+  }
   @Get(':page') async get(
     @Param('siteId', MongoIdPipe) siteId: string,
     @Param('page') page: string,
+    @Req() req: { user: { role: Role; siteIds?: string[] } },
   ) {
+    this.assertSite(req.user, siteId);
     return { success: true, data: await this.service.getAdmin(siteId, page) };
   }
   @Patch(':page') async update(
     @Param('siteId', MongoIdPipe) siteId: string,
     @Param('page') page: string,
     @Body() dto: UpdatePageConfigDto,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: { sub: string; role: Role; siteIds?: string[] } },
   ) {
+    this.assertSite(req.user, siteId);
     return {
       success: true,
       data: await this.service.updateDraft(siteId, page, dto, req.user.sub),
@@ -43,8 +50,9 @@ export class PageConfigsController {
   @Post(':page/publish') async publish(
     @Param('siteId', MongoIdPipe) siteId: string,
     @Param('page') page: string,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: { sub: string; role: Role; siteIds?: string[] } },
   ) {
+    this.assertSite(req.user, siteId);
     return {
       success: true,
       data: await this.service.publish(siteId, page, req.user.sub),
