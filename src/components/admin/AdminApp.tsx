@@ -18,6 +18,7 @@ import {
   LoaderCircle,
   LogOut,
   Menu,
+  MapPinned,
   Plus,
   RefreshCw,
   Search,
@@ -48,7 +49,7 @@ import type {
 const TOKEN_KEY = "gh_super_admin_token";
 
 type View =
-  "dashboard" | "sites" | "pages" | "owners" | "properties" | "profile";
+  "dashboard" | "sites" | "pages" | "owners" | "properties" | "api-settings" | "profile";
 type Status =
   | "ACTIVE"
   | "SUSPENDED"
@@ -295,6 +296,7 @@ const nav: { id: View; label: string; icon: typeof Home }[] = [
   { id: "pages", label: "Page builder", icon: Home },
   { id: "properties", label: "Properties", icon: Building2 },
   { id: "owners", label: "Property owners", icon: Users },
+  { id: "api-settings", label: "API Settings", icon: MapPinned },
   { id: "profile", label: "Account", icon: Settings },
 ];
 
@@ -2727,6 +2729,95 @@ function ProfileView({
   );
 }
 
+function ApiSettingsView({ token }: { token: string }) {
+  const [googleMapsBrowserKey, setGoogleMapsBrowserKey] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api<ApiResponse<{ googleMapsBrowserKey: string }>>(
+      "/api/v1/admin/settings/maps",
+      token,
+    )
+      .then((result) => setGoogleMapsBrowserKey(result.data.googleMapsBrowserKey || ""))
+      .catch((reason) => setError((reason as Error).message))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+    setError("");
+    try {
+      const result = await api<ApiResponse<{ googleMapsBrowserKey: string }>>(
+        "/api/v1/admin/settings/maps",
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ googleMapsBrowserKey }),
+        },
+      );
+      setGoogleMapsBrowserKey(result.data.googleMapsBrowserKey || "");
+      setMessage(result.message || "API settings saved.");
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="INTEGRATIONS"
+        title="API Settings"
+        text="Connect external services used across the StayHaven platform."
+      />
+      {message && <div className="admin-alert success"><Check />{message}</div>}
+      {error && <div className="admin-alert error"><CircleAlert />{error}</div>}
+      {loading ? (
+        <div className="admin-loading"><LoaderCircle className="spin" /> Loading API settings…</div>
+      ) : (
+        <form className="admin-card api-settings-card" onSubmit={save}>
+          <div className="api-settings-card-heading">
+            <i><MapPinned /></i>
+            <div>
+              <h2>Google Maps & Places</h2>
+              <p>Enable Google business/place search, automatic addresses and exact map-pin selection for property onboarding.</p>
+            </div>
+            <StatusBadge value={googleMapsBrowserKey ? "active" : "inactive"} />
+          </div>
+          <label>
+            Google Maps browser API key
+            <input
+              type="password"
+              value={googleMapsBrowserKey}
+              onChange={(event) => setGoogleMapsBrowserKey(event.target.value)}
+              placeholder="AIza…"
+              autoComplete="off"
+            />
+            <small>Leave empty to use the current fallback map automatically.</small>
+          </label>
+          <div className="api-settings-security">
+            <ShieldCheck />
+            <div>
+              <strong>Required Google Cloud restrictions</strong>
+              <p>Use Website restrictions for <code>https://guwahatihomestay.com/*</code> and <code>https://www.guwahatihomestay.com/*</code>. Restrict the key to Maps JavaScript API and Places API (New). Add future StayHaven domains before enabling them.</p>
+            </div>
+          </div>
+          <div className="api-settings-actions">
+            {googleMapsBrowserKey && <button type="button" onClick={() => setGoogleMapsBrowserKey("")}>Remove key</button>}
+            <button className="admin-primary compact" disabled={saving}>{saving ? <LoaderCircle className="spin" /> : <KeyRound />}{saving ? "Saving…" : "Save API settings"}</button>
+          </div>
+        </form>
+      )}
+    </>
+  );
+}
+
 export function AdminApp() {
   const [token, setToken] = useState("");
   const [admin, setAdmin] = useState<Admin | null>(null);
@@ -2775,6 +2866,8 @@ export function AdminApp() {
       <OwnersView token={token} />
     ) : view === "properties" ? (
       <PropertiesView token={token} />
+    ) : view === "api-settings" ? (
+      <ApiSettingsView token={token} />
     ) : (
       <ProfileView token={token} admin={admin} setAdmin={setAdmin} />
     );

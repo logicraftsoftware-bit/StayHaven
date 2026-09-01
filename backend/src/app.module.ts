@@ -16,6 +16,7 @@ import { HealthController } from './health.controller';
 import { MediaModule } from './media/media.module';
 import { PropertyTypesModule } from './property-types/property-types.module';
 import { OwnerOperationsModule } from './owner-operations/owner-operations.module';
+import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -45,6 +46,7 @@ import { OwnerOperationsModule } from './owner-operations/owner-operations.modul
     MediaModule,
     PropertyTypesModule,
     OwnerOperationsModule,
+    PlatformSettingsModule,
   ],
   controllers: [HealthController],
 })

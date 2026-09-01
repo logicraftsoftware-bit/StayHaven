@@ -1101,6 +1101,32 @@ button {
   .property-location-address-grid { grid-template-columns: 1fr; }
 }
 
+.property-map-loading { display: grid; place-items: center; min-height: 460px; border: 1px solid #dfe3e8; border-radius: 14px; background: #f8fafc; color: #667085; font-weight: 700; }
+.property-map-fallback-note { padding: 10px 13px; border: 1px solid #fedf89; border-radius: 9px; background: #fffaeb; color: #93370d; font-size: 12px; }
+.google-location-picker .property-location-fields { display: flex; flex-direction: column; }
+.google-location-picker .property-location-message { margin-top: 14px; }
+.api-settings-card { max-width: 900px; padding: 0; overflow: hidden; }
+.api-settings-card-heading { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 16px; padding: 25px 28px; border-bottom: 1px solid #e7e9ed; }
+.api-settings-card-heading > i { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 13px; background: #fff0f1; color: #a40d1a; }
+.api-settings-card-heading svg { width: 24px; }
+.api-settings-card-heading h2 { margin: 0 0 5px; font-size: 21px; }
+.api-settings-card-heading p { margin: 0; color: #667085; line-height: 1.5; }
+.api-settings-card > label { display: grid; gap: 8px; margin: 26px 28px 18px; font-size: 13px; font-weight: 800; }
+.api-settings-card > label input { width: 100%; border: 1px solid #cbd3dd; border-radius: 10px; padding: 14px; background: #fff; font: inherit; }
+.api-settings-card > label small { color: #667085; font-weight: 500; }
+.api-settings-security { display: flex; align-items: flex-start; gap: 13px; margin: 0 28px 26px; padding: 15px; border-left: 4px solid #1570ef; background: #eff8ff; color: #344054; }
+.api-settings-security > svg { flex: 0 0 20px; width: 20px; color: #1570ef; }
+.api-settings-security p { margin: 5px 0 0; font-size: 12px; line-height: 1.55; }
+.api-settings-security code { padding: 1px 4px; border-radius: 4px; background: #fff; }
+.api-settings-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 20px 28px; border-top: 1px solid #e7e9ed; }
+.api-settings-actions > button:not(.admin-primary) { padding: 0 18px; border: 1px solid #d5dae1; border-radius: 9px; font-weight: 800; }
+@media (max-width: 640px) {
+  .api-settings-card-heading { grid-template-columns: 46px 1fr; padding: 20px; }
+  .api-settings-card-heading .status { grid-column: 2; justify-self: start; }
+  .api-settings-card > label, .api-settings-security { margin-left: 20px; margin-right: 20px; }
+  .api-settings-actions { padding: 18px 20px; }
+}
+
 /* Guwahati Homestay brand palette overrides; layout values intentionally unchanged. */
 .btn-primary {
   background: #111315;

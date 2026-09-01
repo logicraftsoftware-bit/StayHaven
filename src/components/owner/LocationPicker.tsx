@@ -3,6 +3,8 @@
 import "leaflet/dist/leaflet.css";
 import { Crosshair, Info, MapPin, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { apiRequest } from "@/lib/api-client";
+import { GoogleLocationPicker } from "./GoogleLocationPicker";
 
 type LocationValue = {
   latitude?: number;
@@ -28,7 +30,43 @@ type SearchResult = {
 
 const defaultPoint: [number, number] = [26.1445, 91.7362];
 
-export function LocationPicker({
+export function LocationPicker(props: {
+  value: LocationValue;
+  address: string;
+  onChange: (patch: AddressPatch) => void;
+}) {
+  const [googleKey, setGoogleKey] = useState<string | null>(null);
+  const [googleError, setGoogleError] = useState("");
+
+  useEffect(() => {
+    apiRequest<{ success: boolean; data: { googleMapsBrowserKey?: string } }>(
+      "/api/v1/settings/maps",
+    )
+      .then((result) => setGoogleKey(result.data.googleMapsBrowserKey || ""))
+      .catch(() => setGoogleKey(""));
+  }, []);
+
+  if (googleKey === null)
+    return <div className="property-map-loading">Loading location service…</div>;
+  if (googleKey && !googleError)
+    return (
+      <GoogleLocationPicker
+        apiKey={googleKey}
+        {...props}
+        onLoadError={setGoogleError}
+      />
+    );
+  return (
+    <>
+      {googleError && (
+        <div className="property-map-fallback-note">Google Maps could not load, so the fallback map is active. Ask Super Admin to check the API key restrictions.</div>
+      )}
+      <FallbackLocationPicker {...props} />
+    </>
+  );
+}
+
+function FallbackLocationPicker({
   value,
   address,
   onChange,
