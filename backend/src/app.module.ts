@@ -14,6 +14,8 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { PageConfigsModule } from './page-configs/page-configs.module';
 import { HealthController } from './health.controller';
 import { MediaModule } from './media/media.module';
+import { PropertyTypesModule } from './property-types/property-types.module';
+import { OwnerOperationsModule } from './owner-operations/owner-operations.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -41,6 +43,8 @@ import { MediaModule } from './media/media.module';
     PropertiesModule,
     OwnersModule,
     MediaModule,
+    PropertyTypesModule,
+    OwnerOperationsModule,
   ],
   controllers: [HealthController],
 })

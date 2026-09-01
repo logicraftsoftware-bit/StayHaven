@@ -57,9 +57,9 @@ const videoSignatures = [
 
 @ApiTags('Media')
 @ApiBearerAuth()
-@Controller('admin/media')
+@Controller(['admin/media', 'owner/media'])
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SUPER_ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.HOTEL_OWNER)
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 
@@ -128,6 +128,45 @@ export class MediaController {
     return {
       success: true,
       message: 'Video uploaded successfully',
+      data,
+    };
+  }
+
+  @Post('documents')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { files: 1, fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  async uploadDocument(@UploadedFile() file?: Express.Multer.File) {
+    if (!file?.buffer?.length)
+      throw new BadRequestException('Select a document to upload');
+    const image = imageSignatures.find((candidate) =>
+      candidate.matches(file.buffer),
+    );
+    const isPdf = file.buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+    if (!image && !isPdf)
+      throw new BadRequestException(
+        'Use a PDF, PNG, JPG, WEBP, GIF, or ICO file',
+      );
+
+    const data = await this.media.upload(
+      file.buffer,
+      image ? 'image' : 'raw',
+      image?.extension || 'pdf',
+      'property-documents',
+    );
+    return {
+      success: true,
+      message: 'Document uploaded successfully',
       data,
     };
   }

@@ -14,6 +14,7 @@
     "start:prod": "node dist/main.js",
     "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seed-admin.ts",
     "seed:site": "ts-node -r tsconfig-paths/register src/scripts/seed-site.ts",
+    "seed:property-types": "ts-node -r tsconfig-paths/register src/scripts/seed-property-types.ts",
     "migrate:site-domains": "ts-node -r tsconfig-paths/register src/scripts/sync-site-domains.ts",
     "migrate:media-cloudinary": "ts-node -r tsconfig-paths/register src/scripts/migrate-media-to-cloudinary.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

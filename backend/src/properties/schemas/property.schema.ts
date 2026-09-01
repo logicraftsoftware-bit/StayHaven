@@ -10,6 +10,9 @@ export class Property {
   @Prop({ required: true }) name: string;
   @Prop({ required: true, index: true }) slug: string;
   @Prop({ required: true }) propertyType: string;
+  @Prop({ type: Types.ObjectId, ref: 'PropertyType', index: true })
+  propertyTypeId?: Types.ObjectId;
+  @Prop() displayName?: string;
   @Prop() description?: string;
   @Prop({ required: true }) address: string;
   @Prop({ required: true }) city: string;
@@ -34,6 +37,22 @@ export class Property {
   @Prop({ min: 1 }) rooms?: number;
   @Prop({ min: 1 }) maxGuests?: number;
   @Prop({ type: [String], default: [] }) amenities: string[];
+  @Prop({ type: Object, default: {} }) basicInfo: Record<string, unknown>;
+  @Prop({ type: Object, default: {} }) locationDetails: Record<string, unknown>;
+  @Prop({ type: [Object], default: [] }) roomDetails: Record<string, unknown>[];
+  @Prop({ type: [Object], default: [] }) media: Record<string, unknown>[];
+  @Prop({ type: [Object], default: [] }) mealPlans: Record<string, unknown>[];
+  @Prop({ type: Object, default: {} }) policies: Record<string, unknown>;
+  @Prop({ type: String, default: '', select: false })
+  financeLegal: string;
+  @Prop({ type: [Object], default: [], select: false })
+  documents: Record<string, unknown>[];
+  @Prop({ type: Object, default: {} }) seo: Record<string, unknown>;
+  @Prop({ type: [Object], default: [] }) reviewHistory: Record<
+    string,
+    unknown
+  >[];
+  @Prop({ default: 0, min: 0, max: 100 }) completeness: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,3 +61,4 @@ export const PropertySchema = SchemaFactory.createForClass(Property);
 PropertySchema.index({ siteId: 1, status: 1, createdAt: -1 });
 PropertySchema.index({ ownerId: 1, status: 1 });
 PropertySchema.index({ ownerId: 1, siteId: 1, createdAt: -1 });
+PropertySchema.index({ siteId: 1, slug: 1 }, { unique: true });

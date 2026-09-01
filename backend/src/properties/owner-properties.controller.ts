@@ -81,7 +81,7 @@ export class OwnerPropertiesController {
   ) {
     return {
       success: true,
-      data: await this.properties.getOwner(req.user.sub, id),
+      data: await this.properties.getOwnerView(req.user.sub, id),
     };
   }
 

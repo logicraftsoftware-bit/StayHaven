@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { v2 as cloudinary } from 'cloudinary';
 
-export type MediaKind = 'image' | 'video';
+export type MediaKind = 'image' | 'video' | 'raw';
 
 @Injectable()
 export class MediaService {
@@ -26,18 +26,24 @@ export class MediaService {
     }
   }
 
-  async upload(buffer: Buffer, kind: MediaKind, extension: string) {
-    if (this.cloudinaryEnabled) return this.uploadToCloudinary(buffer, kind);
+  async upload(
+    buffer: Buffer,
+    kind: MediaKind,
+    extension: string,
+    subfolder = 'site-media',
+  ) {
+    if (this.cloudinaryEnabled)
+      return this.uploadToCloudinary(buffer, kind, subfolder);
 
     const directory = join(
       this.config.getOrThrow<string>('uploadDir'),
-      'site-media',
+      subfolder,
     );
     await mkdir(directory, { recursive: true });
     const filename = `${Date.now()}-${randomUUID()}.${extension}`;
     await writeFile(join(directory, filename), buffer, { flag: 'wx' });
     return {
-      url: `/api/uploads/site-media/${filename}`,
+      url: `/api/uploads/${subfolder}/${filename}`,
       storage: 'local' as const,
     };
   }
@@ -45,14 +51,15 @@ export class MediaService {
   private uploadToCloudinary(
     buffer: Buffer,
     kind: MediaKind,
+    subfolder: string,
   ): Promise<{ url: string; publicId: string; storage: 'cloudinary' }> {
     const folder = this.config.get<string>('cloudinary.folder') || 'stayhaven';
     return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
           resource_type: kind,
-          folder: `${folder}/site-media`,
-          asset_folder: `${folder}/site-media`,
+          folder: `${folder}/${subfolder}`,
+          asset_folder: `${folder}/${subfolder}`,
           use_filename: false,
           unique_filename: true,
         },

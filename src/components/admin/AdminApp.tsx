@@ -157,6 +157,15 @@ type Property = {
   reviewReason?: string;
   createdAt: string;
 };
+type PropertyTypeMaster = {
+  _id: string;
+  name: string;
+  image?: string;
+  description: string;
+  commissionPercent: number;
+  status: "active" | "inactive";
+  sortOrder: number;
+};
 
 function Brand() {
   return (
@@ -2232,17 +2241,25 @@ function PropertiesView({ token }: { token: string }) {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [propertyTypes, setPropertyTypes] = useState<PropertyTypeMaster[]>([]);
+  const [typeForm, setTypeForm] = useState<Partial<PropertyTypeMaster> | null>(
+    null,
+  );
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const q = new URLSearchParams({ page: "1", limit: "100" });
       if (search) q.set("search", search);
       if (status) q.set("status", status);
-      const r = await api<ApiResponse<Property[]>>(
-        `/api/v1/admin/properties?${q}`,
-        token,
-      );
+      const [r, masters] = await Promise.all([
+        api<ApiResponse<Property[]>>(`/api/v1/admin/properties?${q}`, token),
+        api<ApiResponse<PropertyTypeMaster[]>>(
+          "/api/v1/admin/property-types",
+          token,
+        ),
+      ]);
       setProperties(r.data);
+      setPropertyTypes(masters.data);
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -2273,6 +2290,34 @@ function PropertiesView({ token }: { token: string }) {
       setError((e as Error).message);
     }
   }
+  async function saveType(event: FormEvent) {
+    event.preventDefault();
+    if (!typeForm) return;
+    try {
+      await api(
+        `/api/v1/admin/property-types${typeForm._id ? `/${typeForm._id}` : ""}`,
+        token,
+        {
+          method: typeForm._id ? "PATCH" : "POST",
+          body: JSON.stringify(typeForm),
+        },
+      );
+      setTypeForm(null);
+      await load();
+    } catch (reason) {
+      setError((reason as Error).message);
+    }
+  }
+  async function uploadTypeImage(file: File) {
+    const data = new FormData();
+    data.append("file", file);
+    const result = await api<ApiResponse<{ url: string }>>(
+      "/api/v1/admin/media/images",
+      token,
+      { method: "POST", body: data },
+    );
+    setTypeForm((value) => ({ ...value, image: result.data.url }));
+  }
   return (
     <>
       <PageHeader
@@ -2280,6 +2325,138 @@ function PropertiesView({ token }: { token: string }) {
         title="Properties"
         text="Review submissions and keep every published stay up to standard."
       />
+      <section className="admin-card" style={{ marginBottom: 24 }}>
+        <div className="section-heading">
+          <div>
+            <h2>Property type master</h2>
+            <p>
+              Controls the active types owners can select. Commission is
+              private.
+            </p>
+          </div>
+          <button
+            className="admin-primary compact"
+            onClick={() =>
+              setTypeForm({
+                name: "",
+                description: "",
+                commissionPercent: 0,
+                status: "active",
+                sortOrder: propertyTypes.length * 10,
+              })
+            }
+          >
+            <Plus /> Add type
+          </button>
+        </div>
+        <div className="domain-table">
+          {propertyTypes.map((item) => (
+            <div className="domain-row" key={item._id}>
+              {item.image ? (
+                <Image src={item.image} alt="" width={54} height={40} />
+              ) : (
+                <Building2 />
+              )}
+              <strong>{item.name}</strong>
+              <span>{item.commissionPercent}% commission</span>
+              <StatusBadge value={item.status} />
+              <button onClick={() => setTypeForm(item)}>Edit</button>
+            </div>
+          ))}
+        </div>
+      </section>
+      {typeForm && (
+        <form
+          className="admin-card account-form"
+          onSubmit={saveType}
+          style={{ marginBottom: 24 }}
+        >
+          <h2>{typeForm._id ? "Edit" : "Add"} property type</h2>
+          <div className="admin-grid-two">
+            <label>
+              Name
+              <input
+                required
+                value={typeForm.name || ""}
+                onChange={(e) =>
+                  setTypeForm({ ...typeForm, name: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              Commission %
+              <input
+                required
+                type="number"
+                min="0"
+                max="100"
+                value={typeForm.commissionPercent ?? 0}
+                onChange={(e) =>
+                  setTypeForm({
+                    ...typeForm,
+                    commissionPercent: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            <label>
+              Description
+              <input
+                value={typeForm.description || ""}
+                onChange={(e) =>
+                  setTypeForm({ ...typeForm, description: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              Status
+              <select
+                value={typeForm.status || "active"}
+                onChange={(e) =>
+                  setTypeForm({
+                    ...typeForm,
+                    status: e.target.value as "active" | "inactive",
+                  })
+                }
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+            <label>
+              Sort order
+              <input
+                type="number"
+                value={typeForm.sortOrder ?? 0}
+                onChange={(e) =>
+                  setTypeForm({
+                    ...typeForm,
+                    sortOrder: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            <label>
+              Image
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) =>
+                  e.target.files?.[0] && void uploadTypeImage(e.target.files[0])
+                }
+              />
+            </label>
+          </div>
+          <div className="dialog-actions">
+            <button type="button" onClick={() => setTypeForm(null)}>
+              Cancel
+            </button>
+            <button className="admin-primary compact">
+              Save property type
+            </button>
+          </div>
+        </form>
+      )}
       <Filters
         search={search}
         setSearch={setSearch}

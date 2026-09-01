@@ -28,7 +28,7 @@ export class PropertiesController {
     return { success: true, ...(await this.s.list(q)) };
   }
   @Get(':id') async get(@Param('id', MongoIdPipe) id: string) {
-    return { success: true, data: await this.s.get(id) };
+    return { success: true, data: await this.s.getAdminView(id) };
   }
   private result(
     id: string,

@@ -11,6 +11,7 @@ import {
   IsArray,
   IsNumber,
   IsBoolean,
+  IsObject,
 } from 'class-validator';
 import { PropertyStatus } from '../../common/enums/status.enum';
 export class PropertyQueryDto {
@@ -33,7 +34,9 @@ export class OwnerPropertyQueryDto {
 export class CreateOwnerPropertyDto {
   @IsOptional() @IsMongoId() siteId?: string;
   @IsString() @MaxLength(180) name: string;
-  @IsString() @MaxLength(80) propertyType: string;
+  @IsOptional() @IsMongoId() propertyTypeId?: string;
+  @IsOptional() @IsString() @MaxLength(80) propertyType?: string;
+  @IsOptional() @IsString() @MaxLength(180) displayName?: string;
   @IsOptional() @IsString() @MaxLength(3000) description?: string;
   @IsString() @MaxLength(500) address: string;
   @IsString() @MaxLength(120) city: string;
@@ -44,6 +47,15 @@ export class CreateOwnerPropertyDto {
   @IsOptional() @IsNumber() @Min(1) rooms?: number;
   @IsOptional() @IsNumber() @Min(1) maxGuests?: number;
   @IsOptional() @IsArray() @IsString({ each: true }) amenities?: string[];
+  @IsOptional() @IsObject() basicInfo?: Record<string, unknown>;
+  @IsOptional() @IsObject() locationDetails?: Record<string, unknown>;
+  @IsOptional() @IsArray() roomDetails?: Record<string, unknown>[];
+  @IsOptional() @IsArray() media?: Record<string, unknown>[];
+  @IsOptional() @IsArray() mealPlans?: Record<string, unknown>[];
+  @IsOptional() @IsObject() policies?: Record<string, unknown>;
+  @IsOptional() @IsObject() financeLegal?: Record<string, unknown>;
+  @IsOptional() @IsArray() documents?: Record<string, unknown>[];
+  @IsOptional() @IsObject() seo?: Record<string, unknown>;
   @IsOptional() @IsBoolean() submit?: boolean;
 }
 
