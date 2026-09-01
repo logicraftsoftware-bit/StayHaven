@@ -190,22 +190,24 @@ function Brand({ logo }: { logo?: string }) {
   return (
     <div className="admin-brand">
       <Image
-        src={logo || "/logo.png"}
+        src={logo || "/brand/guwahati-homestay-logo.jpeg"}
         alt="StayHaven"
         width={500}
         height={167}
         priority
         unoptimized={!!logo}
       />
-      <span>Super Admin</span>
+      <span>Admin Panel</span>
     </div>
   );
 }
 
 function Login({
   onLogin,
+  logo,
 }: {
   onLogin: (token: string, admin: Admin) => void;
+  logo?: string;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -236,7 +238,7 @@ function Login({
         <a href="/" className="back-link">
           <ChevronRight /> Back to website
         </a>
-        <Brand />
+        <Brand logo={logo} />
         <div className="story-copy">
           <span className="admin-kicker">STAYHAVEN NETWORK CONTROL CENTRE</span>
           <h1>
@@ -251,7 +253,7 @@ function Login({
           <div className="trust-row">
             <ShieldCheck />
             <div>
-              <strong>Super Admin access</strong>
+              <strong>Administrator access</strong>
               <span>Protected management portal</span>
             </div>
           </div>
@@ -264,7 +266,7 @@ function Login({
           </div>
           <span className="admin-kicker">WELCOME BACK</span>
           <h2>Sign in to admin</h2>
-          <p>Use your Super Admin credentials to continue.</p>
+          <p>Use your administrator credentials to continue.</p>
           {error && (
             <div className="admin-alert error">
               <CircleAlert />
@@ -3301,18 +3303,21 @@ function ProfileView({
   token,
   admin,
   setAdmin,
+  panelLogo,
+  setPanelLogo,
   section,
 }: {
   token: string;
   admin: Admin;
   setAdmin: (a: Admin) => void;
+  panelLogo: string;
+  setPanelLogo: (logo: string) => void;
   section: "profile" | "password";
 }) {
   const profileForm = useRef<HTMLFormElement>(null);
   const passwordForm = useRef<HTMLFormElement>(null);
   const [name, setName] = useState(admin.name);
   const [avatar, setAvatar] = useState(admin.avatar || "");
-  const [panelLogo, setPanelLogo] = useState(admin.panelLogo || "");
   const [uploading, setUploading] = useState<"avatar" | "logo" | "">("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -3334,9 +3339,19 @@ function ProfileView({
         body: JSON.stringify({
           name,
           avatar: avatar || undefined,
-          panelLogo: panelLogo || undefined,
         }),
       });
+      if (admin.role === "SUPER_ADMIN") {
+        const branding = await api<ApiResponse<{ panelLogo: string }>>(
+          "/api/v1/admin/settings/admin-branding",
+          token,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ panelLogo: panelLogo || undefined }),
+          },
+        );
+        setPanelLogo(branding.data.panelLogo || "");
+      }
       setAdmin(r.data);
       setMessage("Profile updated.");
       setError("");
@@ -3385,7 +3400,7 @@ function ProfileView({
       <PageHeader
         eyebrow="ADMINISTRATOR"
         title="Account settings"
-        text="Manage your profile and secure your Super Admin account."
+        text="Manage your profile and secure your administrator account."
       />
       {message && (
         <div className="admin-alert success">
@@ -3428,7 +3443,9 @@ function ProfileView({
               </span>
             )}
           </div>
-          <div className="account-upload-grid">
+          <div
+            className={`account-upload-grid ${admin.role !== "SUPER_ADMIN" ? "single" : ""}`}
+          >
             <label className="account-upload">
               <span>Profile photo</span>
               <div>
@@ -3461,41 +3478,45 @@ function ProfileView({
                 }
               />
             </label>
-            <label className="account-upload">
-              <span>Left panel logo</span>
-              <div>
-                {panelLogo ? (
-                  <Image
-                    src={panelLogo}
-                    alt="Panel logo preview"
-                    width={92}
-                    height={48}
-                    unoptimized
-                  />
-                ) : (
-                  <Image
-                    src="/logo.png"
-                    alt="Current logo"
-                    width={92}
-                    height={48}
-                  />
-                )}
-                <span>
-                  <strong>
-                    {uploading === "logo" ? "Uploading…" : "Upload panel logo"}
-                  </strong>
-                  <small>Shown above the left navigation menu</small>
-                </span>
-                <Upload />
-              </div>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(event) =>
-                  void uploadAsset("logo", event.target.files?.[0])
-                }
-              />
-            </label>
+            {admin.role === "SUPER_ADMIN" && (
+              <label className="account-upload">
+                <span>Global admin panel logo</span>
+                <div>
+                  {panelLogo ? (
+                    <Image
+                      src={panelLogo}
+                      alt="Panel logo preview"
+                      width={92}
+                      height={48}
+                      unoptimized
+                    />
+                  ) : (
+                    <Image
+                      src="/brand/guwahati-homestay-logo.jpeg"
+                      alt="Current logo"
+                      width={92}
+                      height={48}
+                    />
+                  )}
+                  <span>
+                    <strong>
+                      {uploading === "logo"
+                        ? "Uploading…"
+                        : "Upload panel logo"}
+                    </strong>
+                    <small>Shown for every admin account and login page</small>
+                  </span>
+                  <Upload />
+                </div>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    void uploadAsset("logo", event.target.files?.[0])
+                  }
+                />
+              </label>
+            )}
           </div>
           <label>
             Name
@@ -3677,6 +3698,7 @@ function ApiSettingsView({ token }: { token: string }) {
 export function AdminApp() {
   const [token, setToken] = useState("");
   const [admin, setAdmin] = useState<Admin | null>(null);
+  const [panelLogo, setPanelLogo] = useState("");
   const [view, setView] = useState<View>("dashboard");
   const [checking, setChecking] = useState(true);
   const [menu, setMenu] = useState(false);
@@ -3685,6 +3707,11 @@ export function AdminApp() {
     "profile",
   );
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    api<ApiResponse<{ panelLogo: string }>>("/api/v1/settings/admin-branding")
+      .then((result) => setPanelLogo(result.data.panelLogo || ""))
+      .catch(() => undefined);
+  }, []);
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY);
     if (!saved) {
@@ -3743,11 +3770,11 @@ export function AdminApp() {
   if (checking)
     return (
       <div className="admin-splash">
-        <Brand />
+        <Brand logo={panelLogo} />
         <LoaderCircle className="spin" />
       </div>
     );
-  if (!token || !admin) return <Login onLogin={login} />;
+  if (!token || !admin) return <Login onLogin={login} logo={panelLogo} />;
   const content =
     view === "dashboard" ? (
       <DashboardView token={token} go={setView} />
@@ -3768,6 +3795,8 @@ export function AdminApp() {
         token={token}
         admin={admin}
         setAdmin={setAdmin}
+        panelLogo={panelLogo}
+        setPanelLogo={setPanelLogo}
         section={profileSection}
       />
     );
@@ -3775,7 +3804,7 @@ export function AdminApp() {
     <div className="admin-shell">
       <aside className={menu ? "open" : ""}>
         <div className="sidebar-head">
-          <Brand logo={admin.panelLogo} />
+          <Brand logo={panelLogo} />
           <button onClick={() => setMenu(false)}>
             <X />
           </button>

@@ -14,7 +14,6 @@ import { AdminPermission } from '../../common/enums/admin-permission.enum';
 export class UpdateAdminDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(2) name?: string;
   @ApiPropertyOptional() @IsOptional() @IsUrl() avatar?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUrl() panelLogo?: string;
 }
 export class ChangePasswordDto {
   @IsString() @MinLength(8) currentPassword: string;

@@ -51,7 +51,6 @@ export class AuthService {
           permissions: admin.permissions || [],
           siteIds: admin.siteIds || [],
           avatar: admin.avatar,
-          panelLogo: admin.panelLogo,
         },
       },
     };
