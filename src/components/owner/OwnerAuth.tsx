@@ -26,6 +26,14 @@ export function OwnerAuth() {
   useEffect(() => {
     if (localStorage.getItem(OWNER_TOKEN_KEY)) router.replace("/owner");
   }, [router]);
+  useEffect(() => {
+    const selectRequestedMode = () => {
+      if (window.location.hash === "#create-account") setMode("register");
+    };
+    selectRequestedMode();
+    window.addEventListener("hashchange", selectRequestedMode);
+    return () => window.removeEventListener("hashchange", selectRequestedMode);
+  }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -50,13 +58,16 @@ export function OwnerAuth() {
   };
 
   return (
-    <section className="rounded-3xl border bg-white p-7 shadow-xl md:p-9">
+    <section
+      id="create-account"
+      className="owner-auth-card scroll-mt-6 rounded-3xl border bg-white p-7 shadow-xl md:p-9"
+    >
       <div className="flex items-center gap-3">
-        <span className="grid size-12 place-items-center rounded-xl bg-charcoal text-white">
+        <span className="owner-auth-icon grid size-12 place-items-center rounded-xl bg-charcoal text-white">
           <Building2 />
         </span>
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-maroon">
+          <p className="owner-auth-subtitle text-xs font-bold uppercase tracking-wider text-maroon">
             Global hotel owner account
           </p>
           <h2 className="font-display text-2xl font-bold">
@@ -144,14 +155,14 @@ export function OwnerAuth() {
             setMode(mode === "login" ? "register" : "login");
             setNotice("");
           }}
-          className="w-full text-sm font-bold text-maroon"
+          className="owner-auth-switch w-full text-sm font-bold text-maroon"
         >
           {mode === "login"
             ? "Create an owner account"
             : "Already registered? Login"}
         </button>
       </form>
-      <p className="mt-6 flex items-start gap-2 text-xs leading-5 text-slate-500">
+      <p className="owner-auth-note mt-6 flex items-start gap-2 text-xs leading-5 text-slate-500">
         <KeyRound className="mt-0.5 size-4 shrink-0 text-maroon" />
         One account works across every StayHaven marketplace and the future
         owner app.

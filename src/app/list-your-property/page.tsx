@@ -1,68 +1,99 @@
 import Link from "next/link";
-import { FileCheck2 } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Building2,
+  Download,
+  Users,
+} from "lucide-react";
 import { Brand } from "@/components/layout/Brand";
 import { OwnerAuth } from "@/components/owner/OwnerAuth";
-import { PageRenderer } from "@/components/page-builder/PageRenderer";
-import { getPublishedPage } from "@/lib/page-config";
-const steps = [
-  "Owner login",
-  "Add property",
-  "Property details",
-  "Rooms & pricing",
-  "Documents",
-  "Admin review",
+import styles from "./owner-portal.module.css";
+
+const benefits = [
+  {
+    value: "Free",
+    title: "Property registration",
+    text: "Create your owner account and submit your first property without a listing fee.",
+    icon: Building2,
+  },
+  {
+    value: "Direct",
+    title: "Owner control",
+    text: "Manage property details, rooms, pricing, photos and availability from one dashboard.",
+    icon: BadgeCheck,
+  },
+  {
+    value: "Local",
+    title: "Traveller reach",
+    text: "Connect with guests searching for trusted stays across Guwahati and the Northeast.",
+    icon: Users,
+  },
 ];
-export default async function ListYourProperty() {
-  const page = await getPublishedPage("list-your-property");
+
+export default function ListYourProperty() {
   return (
-    <>
-      <PageRenderer page={page} />
-      <main className="min-h-screen bg-[#faf8f7]">
-        <header className="border-b bg-white">
-          <div className="container flex h-18 items-center justify-between">
-            <Brand />
-            <Link href="/" className="text-sm font-bold text-maroon">
-              Back to website
-            </Link>
-          </div>
-        </header>
-        <div className="container grid gap-10 py-12 lg:grid-cols-[1.05fr_.95fr]">
-          <section className="self-center">
-            <p className="eyebrow">HOTEL OWNER PORTAL</p>
-            <h1 className="font-display mt-3 text-4xl font-bold text-charcoal md:text-5xl">
-              Manage properties across StayHaven
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <Brand />
+          <nav aria-label="Owner portal actions">
+            <a className={styles.downloadButton} href="#owner-app">
+              <Download />
+              Download App
+            </a>
+            <a className={styles.listButton} href="#create-account">
+              List New Property For Free
+              <ArrowRight />
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <section className={styles.hero}>
+        <div className={styles.heroInner}>
+          <div className={styles.heroCopy}>
+            <span>GUWAHATI HOMESTAY OWNER NETWORK</span>
+            <h1>
+              List your property for free and grow your hospitality business
             </h1>
-            <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
-              Login with a separate hotel-owner account. New owners can create
-              an account, then login to add and manage multiple properties.
+            <p>
+              Reach travellers looking for genuine hotels, homestays, villas,
+              resorts and guest houses across Guwahati and Northeast India.
             </p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              {steps.map((x, i) => (
-                <div
-                  className="flex items-center gap-3 rounded-xl border bg-white p-4"
-                  key={x}
-                >
-                  <span className="grid size-8 place-items-center rounded-full bg-red-50 text-sm font-black text-maroon">
-                    {i + 1}
-                  </span>
-                  <b className="text-sm">{x}</b>
-                </div>
-              ))}
+            <div className={styles.heroPoints}>
+              <strong>
+                <BadgeCheck /> Simple property onboarding
+              </strong>
+              <strong>
+                <BadgeCheck /> One dashboard for every listing
+              </strong>
+              <strong>
+                <BadgeCheck /> Review and publishing support
+              </strong>
             </div>
-            <div className="mt-7 rounded-2xl border border-red-100 bg-red-50 p-5">
-              <p className="flex items-center gap-2 font-bold text-maroon">
-                <FileCheck2 />
-                Approval required
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Each submitted property begins as <b>pending</b> and becomes
-                public only after administrator approval.
-              </p>
-            </div>
-          </section>
+          </div>
           <OwnerAuth />
         </div>
-      </main>
-    </>
+      </section>
+
+      <section className={styles.benefits} id="owner-app">
+        <div className={styles.benefitGrid}>
+          {benefits.map(({ value, title, text, icon: Icon }) => (
+            <article key={title}>
+              <div>
+                <Icon />
+                <strong>{value}</strong>
+              </div>
+              <h2>{title}</h2>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+        <p className={styles.backLink}>
+          Already exploring stays? <Link href="/">Back to website</Link>
+        </p>
+      </section>
+    </main>
   );
 }
