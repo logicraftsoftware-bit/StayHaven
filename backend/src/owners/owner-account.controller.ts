@@ -17,6 +17,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { SitesService } from '../sites/sites.service';
 import { requestHostname } from '../sites/utils/request-hostname';
 import {
+  ChangeOwnerPasswordDto,
   OwnerLoginDto,
   RegisterOwnerDto,
   UpdateOwnerProfileDto,
@@ -83,6 +84,15 @@ export class OwnerAccountController {
       success: true,
       data: await this.owners.updateProfile(req.user.sub, dto),
     };
+  }
+
+  @Patch('me/password')
+  async changePassword(
+    @Body() dto: ChangeOwnerPasswordDto,
+    @Req() req: { user: { sub: string } },
+  ) {
+    await this.owners.changePassword(req.user.sub, dto);
+    return { success: true, message: 'Password changed successfully' };
   }
 
   @Get('sites')

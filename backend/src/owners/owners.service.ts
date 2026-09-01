@@ -15,6 +15,7 @@ import { Owner } from './schemas/owner.schema';
 import * as bcrypt from 'bcrypt';
 import { SitesService } from '../sites/sites.service';
 import {
+  ChangeOwnerPasswordDto,
   OwnerLoginDto,
   RegisterOwnerDto,
   UpdateOwnerProfileDto,
@@ -71,7 +72,13 @@ export class OwnersService {
     else if (allowedSiteIds)
       pipeline.push({
         $match: {
-          properties: { $elemMatch: { siteId: { $in: allowedSiteIds.map((id) => new Types.ObjectId(id)) } } },
+          properties: {
+            $elemMatch: {
+              siteId: {
+                $in: allowedSiteIds.map((id) => new Types.ObjectId(id)),
+              },
+            },
+          },
         },
       });
     pipeline.push(
@@ -145,8 +152,23 @@ export class OwnersService {
     const match: Record<string, unknown> = status ? { status } : {};
     const result = await this.model.aggregate([
       { $match: match },
-      { $lookup: { from: 'gw_properties', localField: '_id', foreignField: 'ownerId', as: 'properties' } },
-      { $match: { properties: { $elemMatch: { siteId: { $in: siteIds.map((id) => new Types.ObjectId(id)) } } } } },
+      {
+        $lookup: {
+          from: 'gw_properties',
+          localField: '_id',
+          foreignField: 'ownerId',
+          as: 'properties',
+        },
+      },
+      {
+        $match: {
+          properties: {
+            $elemMatch: {
+              siteId: { $in: siteIds.map((id) => new Types.ObjectId(id)) },
+            },
+          },
+        },
+      },
       { $count: 'total' },
     ]);
     return result[0]?.total || 0;
@@ -248,6 +270,22 @@ export class OwnersService {
       entityId: owner._id,
     });
     return owner;
+  }
+
+  async changePassword(id: string, dto: ChangeOwnerPasswordDto) {
+    const owner = await this.model.findById(id).select('+passwordHash');
+    if (!owner) throw new NotFoundException('Owner not found');
+    if (!(await bcrypt.compare(dto.currentPassword, owner.passwordHash)))
+      throw new UnauthorizedException('Current password is incorrect');
+    owner.passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await owner.save();
+    await this.audit.record({
+      actorId: owner._id,
+      actorRole: Role.HOTEL_OWNER,
+      action: 'OWNER_PASSWORD_CHANGED',
+      entityType: 'OWNER',
+      entityId: owner._id,
+    });
   }
 
   availableSites() {

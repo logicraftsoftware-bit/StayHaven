@@ -26,3 +26,8 @@ export class UpdateOwnerProfileDto {
   @IsOptional() @IsString() @MaxLength(500) address?: string;
   @IsOptional() @IsString() @MaxLength(500) profileImage?: string;
 }
+
+export class ChangeOwnerPasswordDto {
+  @IsString() @MinLength(1) @MaxLength(128) currentPassword: string;
+  @IsString() @MinLength(8) @MaxLength(128) newPassword: string;
+}
