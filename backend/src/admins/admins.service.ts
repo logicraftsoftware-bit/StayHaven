@@ -70,7 +70,7 @@ export class AdminsService {
       throw new ForbiddenException(
         'You cannot grant a permission you do not have',
       );
-    if (actor.role !== Role.SUPER_ADMIN) {
+    if (actor.role !== Role.SUPER_ADMIN && actor.adminLevel !== 'MAIN_ADMIN') {
       const sites = new Set((actor.siteIds || []).map(String));
       if (siteIds.some((siteId) => !sites.has(siteId)))
         throw new ForbiddenException(
@@ -110,7 +110,7 @@ export class AdminsService {
     )
       throw new ForbiddenException('User management permission is required');
     return this.sites.list(
-      actor.role === Role.SUPER_ADMIN
+      actor.role === Role.SUPER_ADMIN || actor.adminLevel === 'MAIN_ADMIN'
         ? undefined
         : (actor.siteIds || []).map(String),
     );
@@ -121,6 +121,11 @@ export class AdminsService {
       throw new ForbiddenException(
         'Only the Super Admin can create a main admin',
       );
+    if (
+      dto.adminLevel === 'MAIN_ADMIN' &&
+      (await this.model.exists({ role: Role.ADMIN, adminLevel: 'MAIN_ADMIN' }))
+    )
+      throw new BadRequestException('Only one main admin can be created');
     if (
       dto.adminLevel !== 'MAIN_ADMIN' &&
       dto.permissions.includes(AdminPermission.MANAGE_USERS)
@@ -140,7 +145,10 @@ export class AdminsService {
       role: Role.ADMIN,
       adminLevel: dto.adminLevel,
       permissions: dto.permissions,
-      siteIds: dto.siteIds.map((id) => new Types.ObjectId(id)),
+      siteIds:
+        dto.adminLevel === 'MAIN_ADMIN'
+          ? []
+          : dto.siteIds.map((id) => new Types.ObjectId(id)),
       createdBy: actor._id,
       avatar: dto.avatar,
     });
@@ -167,6 +175,16 @@ export class AdminsService {
       throw new ForbiddenException(
         'Only the Super Admin can assign the main admin level',
       );
+    if (
+      dto.adminLevel === 'MAIN_ADMIN' &&
+      target.adminLevel !== 'MAIN_ADMIN' &&
+      (await this.model.exists({
+        role: Role.ADMIN,
+        adminLevel: 'MAIN_ADMIN',
+        _id: { $ne: target._id },
+      }))
+    )
+      throw new BadRequestException('Only one main admin can be created');
     const permissions =
       dto.permissions || (target.permissions as AdminPermission[]) || [];
     const siteIds = dto.siteIds || (target.siteIds || []).map(String);
@@ -182,7 +200,8 @@ export class AdminsService {
     if (dto.name !== undefined) target.name = dto.name;
     if (dto.adminLevel !== undefined) target.adminLevel = dto.adminLevel;
     if (dto.permissions !== undefined) target.permissions = dto.permissions;
-    if (dto.siteIds !== undefined)
+    if (dto.adminLevel === 'MAIN_ADMIN') target.siteIds = [];
+    else if (dto.siteIds !== undefined)
       target.siteIds = dto.siteIds.map((siteId) => new Types.ObjectId(siteId));
     if (dto.status !== undefined) target.status = dto.status;
     if (dto.avatar !== undefined) target.avatar = dto.avatar;

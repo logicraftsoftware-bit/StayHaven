@@ -24,8 +24,18 @@ import { PageConfigsService } from './page-configs.service';
 @Roles(Role.SUPER_ADMIN)
 export class PageConfigsController {
   constructor(private service: PageConfigsService) {}
-  private assertSite(user: { role: Role; siteIds?: string[] }, siteId: string) {
-    if (user.role !== Role.SUPER_ADMIN && !user.siteIds?.includes(siteId)) throw new ForbiddenException('This marketplace site is not assigned to your account');
+  private assertSite(
+    user: { role: Role; adminLevel?: string; siteIds?: string[] },
+    siteId: string,
+  ) {
+    if (
+      user.role !== Role.SUPER_ADMIN &&
+      user.adminLevel !== 'MAIN_ADMIN' &&
+      !user.siteIds?.includes(siteId)
+    )
+      throw new ForbiddenException(
+        'This marketplace site is not assigned to your account',
+      );
   }
   @Get(':page') async get(
     @Param('siteId', MongoIdPipe) siteId: string,

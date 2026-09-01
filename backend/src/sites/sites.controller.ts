@@ -30,15 +30,32 @@ import { SitesService } from './sites.service';
 @Roles(Role.SUPER_ADMIN)
 export class SitesController {
   constructor(private service: SitesService) {}
-  private scope(user: { role: Role; siteIds?: string[] }) { return user.role === Role.SUPER_ADMIN ? undefined : (user.siteIds || []); }
-  private assertSite(user: { role: Role; siteIds?: string[] }, siteId: string) {
-    if (user.role !== Role.SUPER_ADMIN && !user.siteIds?.includes(siteId)) throw new ForbiddenException('This marketplace site is not assigned to your account');
+  private scope(user: { role: Role; adminLevel?: string; siteIds?: string[] }) {
+    return user.role === Role.SUPER_ADMIN || user.adminLevel === 'MAIN_ADMIN'
+      ? undefined
+      : user.siteIds || [];
+  }
+  private assertSite(
+    user: { role: Role; adminLevel?: string; siteIds?: string[] },
+    siteId: string,
+  ) {
+    if (
+      user.role !== Role.SUPER_ADMIN &&
+      user.adminLevel !== 'MAIN_ADMIN' &&
+      !user.siteIds?.includes(siteId)
+    )
+      throw new ForbiddenException(
+        'This marketplace site is not assigned to your account',
+      );
   }
   @Post() async create(
     @Body() d: CreateSiteDto,
-    @Req() r: { user: { sub: string; role: Role } },
+    @Req() r: { user: { sub: string; role: Role; adminLevel?: string } },
   ) {
-    if (r.user.role !== Role.SUPER_ADMIN) throw new ForbiddenException('Only the Super Admin can create marketplace sites');
+    if (r.user.role !== Role.SUPER_ADMIN && r.user.adminLevel !== 'MAIN_ADMIN')
+      throw new ForbiddenException(
+        'Only the Super Admin or Main Admin can create marketplace sites',
+      );
     return {
       success: true,
       message: 'Site created',
@@ -48,7 +65,10 @@ export class SitesController {
   @Get() async list(@Req() r: { user: { role: Role; siteIds?: string[] } }) {
     return { success: true, data: await this.service.list(this.scope(r.user)) };
   }
-  @Get(':id') async get(@Param('id', MongoIdPipe) id: string, @Req() r: { user: { role: Role; siteIds?: string[] } }) {
+  @Get(':id') async get(
+    @Param('id', MongoIdPipe) id: string,
+    @Req() r: { user: { role: Role; siteIds?: string[] } },
+  ) {
     this.assertSite(r.user, id);
     return { success: true, data: await this.service.get(id) };
   }
@@ -74,7 +94,10 @@ export class SitesController {
       data: await this.service.status(id, d, r.user.sub),
     };
   }
-  @Get(':id/domains') async domains(@Param('id', MongoIdPipe) id: string, @Req() r: { user: { role: Role; siteIds?: string[] } }) {
+  @Get(':id/domains') async domains(
+    @Param('id', MongoIdPipe) id: string,
+    @Req() r: { user: { role: Role; siteIds?: string[] } },
+  ) {
     this.assertSite(r.user, id);
     return { success: true, data: await this.service.listDomains(id) };
   }

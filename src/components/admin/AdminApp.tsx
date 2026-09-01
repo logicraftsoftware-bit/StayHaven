@@ -2779,6 +2779,10 @@ function UsersView({ token, admin }: { token: string; admin: Admin }) {
   const [permissionValues, setPermissionValues] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const hasMainAdmin = users.some(
+    (user) =>
+      user.adminLevel === "MAIN_ADMIN" && (user._id || user.id) !== editingId,
+  );
   const ownPermissions =
     admin.role === "SUPER_ADMIN"
       ? adminPermissionOptions
@@ -3221,12 +3225,18 @@ function UsersView({ token, admin }: { token: string; admin: Admin }) {
                 <select
                   value={form.adminLevel}
                   onChange={(e) =>
-                    setForm({ ...form, adminLevel: e.target.value })
+                    setForm({
+                      ...form,
+                      adminLevel: e.target.value,
+                      siteIds:
+                        e.target.value === "MAIN_ADMIN" ? [] : form.siteIds,
+                    })
                   }
                 >
-                  {admin.role === "SUPER_ADMIN" && (
-                    <option value="MAIN_ADMIN">Main admin</option>
-                  )}
+                  {admin.role === "SUPER_ADMIN" &&
+                    (!hasMainAdmin || form.adminLevel === "MAIN_ADMIN") && (
+                      <option value="MAIN_ADMIN">Main admin</option>
+                    )}
                   <option value="BRANCH_ADMIN">Branch admin</option>
                   <option value="USER">User</option>
                 </select>
@@ -3246,25 +3256,27 @@ function UsersView({ token, admin }: { token: string; admin: Admin }) {
                 </label>
               )}
             </div>
-            <div className="user-access-section">
-              <h3>Assigned websites</h3>
-              <p>Select the branches this administrator can manage.</p>
-              <div className="access-options">
-                {sites.map((site) => (
-                  <label key={site._id}>
-                    <input
-                      type="checkbox"
-                      checked={form.siteIds.includes(site._id)}
-                      onChange={() => toggleSite(site._id)}
-                    />
-                    <span>
-                      <strong>{site.name}</strong>
-                      <small>{site.domain}</small>
-                    </span>
-                  </label>
-                ))}
+            {form.adminLevel !== "MAIN_ADMIN" && (
+              <div className="user-access-section">
+                <h3>Assigned websites</h3>
+                <p>Select the branches this administrator can manage.</p>
+                <div className="access-options">
+                  {sites.map((site) => (
+                    <label key={site._id}>
+                      <input
+                        type="checkbox"
+                        checked={form.siteIds.includes(site._id)}
+                        onChange={() => toggleSite(site._id)}
+                      />
+                      <span>
+                        <strong>{site.name}</strong>
+                        <small>{site.domain}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div className="modal-actions">
               <button
                 type="button"

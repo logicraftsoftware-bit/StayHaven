@@ -19,8 +19,17 @@ export class DashboardController {
     private owners: OwnersService,
     private sites: SitesService,
   ) {}
-  @Get() async dashboard(@Req() request: { user: { role: Role; siteIds?: string[] } }) {
-    const siteIds = request.user.role === Role.SUPER_ADMIN ? undefined : (request.user.siteIds || []);
+  @Get() async dashboard(
+    @Req()
+    request: {
+      user: { role: Role; adminLevel?: string; siteIds?: string[] };
+    },
+  ) {
+    const siteIds =
+      request.user.role === Role.SUPER_ADMIN ||
+      request.user.adminLevel === 'MAIN_ADMIN'
+        ? undefined
+        : request.user.siteIds || [];
     const [
       totalProperties,
       pendingProperties,
