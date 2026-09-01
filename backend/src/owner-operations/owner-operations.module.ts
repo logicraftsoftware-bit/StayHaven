@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { AuthModule } from '../auth/auth.module';
+import { OwnersModule } from '../owners/owners.module';
 import {
   Property,
   PropertySchema,
@@ -26,6 +27,7 @@ import { TeamMember, TeamMemberSchema } from './schemas/team-member.schema';
     ]),
     AuditLogsModule,
     AuthModule,
+    OwnersModule,
   ],
   controllers: [
     OwnerOperationsController,
