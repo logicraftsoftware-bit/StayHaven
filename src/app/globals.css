@@ -1034,6 +1034,7 @@ button {
 .property-type-modal-close svg { width: 20px; }
 .property-type-modal-body { padding: 26px 30px; }
 .property-type-modal-body label { display: grid; gap: 8px; font-size: 13px; font-weight: 800; }
+.property-type-form-error { grid-column: 1 / -1; margin: 0; }
 .property-type-modal-body input:not([type=file]), .property-type-modal-body select { width: 100%; border: 1px solid #cbd3dd; border-radius: 10px; padding: 13px; background: #fff; font: inherit; }
 .property-type-image-field { grid-column: 1 / -1; }
 .property-type-upload { position: relative; display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 16px; min-height: 100px; padding: 12px; border: 1px dashed #b8c3d4; border-radius: 13px; background: #f8fafc; }

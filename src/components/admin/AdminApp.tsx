@@ -2297,12 +2297,21 @@ function PropertiesView({ token }: { token: string }) {
     event.preventDefault();
     if (!typeForm || uploadingTypeImage) return;
     try {
+      setError("");
+      const payload = {
+        name: typeForm.name || "",
+        description: typeForm.description || "",
+        image: typeForm.image || undefined,
+        commissionPercent: Number(typeForm.commissionPercent ?? 0),
+        status: typeForm.status || "active",
+        sortOrder: Number(typeForm.sortOrder ?? 0),
+      };
       await api(
         `/api/v1/admin/property-types${typeForm._id ? `/${typeForm._id}` : ""}`,
         token,
         {
           method: typeForm._id ? "PATCH" : "POST",
-          body: JSON.stringify(typeForm),
+          body: JSON.stringify(payload),
         },
       );
       setTypeForm(null);
@@ -2426,6 +2435,11 @@ function PropertiesView({ token }: { token: string }) {
             <button type="button" className="property-type-modal-close" onClick={() => setTypeForm(null)} aria-label="Close"><X /></button>
           </header>
           <div className="property-type-modal-body admin-grid-two">
+            {error && (
+              <div className="admin-alert error property-type-form-error">
+                <CircleAlert /> {error}
+              </div>
+            )}
             <label>
               Name
               <input
