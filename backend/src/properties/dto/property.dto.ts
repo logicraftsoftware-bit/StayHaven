@@ -49,6 +49,7 @@ export class CreateOwnerPropertyDto {
   @IsOptional() @IsArray() @IsString({ each: true }) amenities?: string[];
   @IsOptional() @IsObject() basicInfo?: Record<string, unknown>;
   @IsOptional() @IsObject() locationDetails?: Record<string, unknown>;
+  @IsOptional() @IsObject() location?: Record<string, unknown>;
   @IsOptional() @IsArray() roomDetails?: Record<string, unknown>[];
   @IsOptional() @IsArray() media?: Record<string, unknown>[];
   @IsOptional() @IsArray() mealPlans?: Record<string, unknown>[];

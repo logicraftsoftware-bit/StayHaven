@@ -16,6 +16,7 @@ import { apiRequest, publicApiBase } from "@/lib/api-client";
 import { useSite } from "@/components/site/SiteProvider";
 import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 import { PropertyManager } from "./PropertyManager";
+import { LocationPicker } from "./LocationPicker";
 type Api<T> = { success: boolean; data: T; message?: string };
 type Site = {
   _id: string;
@@ -77,6 +78,7 @@ type Form = {
   amenities: string[];
   basicInfo: Record<string, unknown>;
   locationDetails: Record<string, unknown>;
+  location: { type: "Point"; coordinates: [number, number] };
   roomDetails: Room[];
   media: Media[];
   mealPlans: Array<Record<string, unknown>>;
@@ -114,6 +116,7 @@ const empty: Form = {
   amenities: [],
   basicInfo: {},
   locationDetails: {},
+  location: { type: "Point", coordinates: [91.7362, 26.1445] },
   roomDetails: [],
   media: [],
   mealPlans: [],
@@ -409,8 +412,8 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             </div>
           )}
           {step === 2 && (
-            <div className="wizard-grid">
-              <label className="wide">
+            <div className="property-location-step">
+              <label className="property-location-site">
                 Marketplace site
                 <select
                   value={form.siteId}
@@ -431,43 +434,50 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                   ))}
                 </select>
               </label>
-              <Field
-                label="Country"
-                value={form.country}
-                onChange={(v) => set("country", v)}
+              <LocationPicker
+                value={{
+                  ...form.locationDetails,
+                  latitude: form.location.coordinates[1],
+                  longitude: form.location.coordinates[0],
+                }}
+                address={form.address}
+                onChange={(patch) =>
+                  setForm((current) => ({
+                    ...current,
+                    address: patch.address ?? current.address,
+                    city: patch.city ?? current.city,
+                    state: patch.state ?? current.state,
+                    country: patch.country ?? current.country,
+                    location:
+                      patch.latitude !== undefined && patch.longitude !== undefined
+                        ? {
+                            type: "Point",
+                            coordinates: [patch.longitude, patch.latitude],
+                          }
+                        : current.location,
+                    locationDetails: {
+                      ...current.locationDetails,
+                      ...Object.fromEntries(
+                        Object.entries(patch).filter(
+                          ([key, value]) =>
+                            !["address", "city", "state", "country"].includes(key) &&
+                            value !== undefined,
+                        ),
+                      ),
+                    },
+                  }))
+                }
               />
-              <Field
-                label="State"
-                value={form.state}
-                onChange={(v) => set("state", v)}
-              />
-              <Field
-                label="City"
-                value={form.city}
-                onChange={(v) => set("city", v)}
-              />
-              <Field
-                label="Area"
-                value={String(form.locationDetails.area || "")}
-                onChange={(v) => setNested("locationDetails", "area", v)}
-              />
-              <label className="wide">
-                Full address
-                <textarea
-                  value={form.address}
-                  onChange={(e) => set("address", e.target.value)}
-                />
-              </label>
-              <Field
-                label="PIN / ZIP"
-                value={String(form.locationDetails.postalCode || "")}
-                onChange={(v) => setNested("locationDetails", "postalCode", v)}
-              />
-              <Field
-                label="Google Maps URL"
-                value={String(form.locationDetails.mapUrl || "")}
-                onChange={(v) => setNested("locationDetails", "mapUrl", v)}
-              />
+              <div className="property-location-address-grid wizard-grid">
+                <Field label="House / Building / Apartment No." value={String(form.locationDetails.house || "")} onChange={(v) => setNested("locationDetails", "house", v)} />
+                <Field label="Locality / Area / Street / Sector" value={String(form.locationDetails.area || "")} onChange={(v) => setNested("locationDetails", "area", v)} />
+                <Field label="PIN / ZIP" value={String(form.locationDetails.postalCode || "")} onChange={(v) => setNested("locationDetails", "postalCode", v)} />
+                <Field label="Country" value={form.country} onChange={(v) => set("country", v)} />
+                <Field label="State" value={form.state} onChange={(v) => set("state", v)} />
+                <Field label="City" value={form.city} onChange={(v) => set("city", v)} />
+                <label className="wide">Full address<textarea value={form.address} onChange={(e) => set("address", e.target.value)} /></label>
+                <label className="property-address-confirm wide"><input type="checkbox" required />I confirm this address matches the registration or ownership document.</label>
+              </div>
             </div>
           )}
           {step === 3 && (

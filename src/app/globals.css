@@ -1060,6 +1060,47 @@ button {
   .property-type-upload > svg { display: none; }
 }
 
+/* Owner onboarding location step */
+.property-location-step { display: grid; gap: 22px; }
+.property-location-site { display: grid; gap: 8px; font-size: 13px; font-weight: 800; }
+.property-location-site select { width: 100%; border: 1px solid #cbd3dd; border-radius: 10px; padding: 13px; background: #fff; font: inherit; }
+.property-location-picker { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(440px, 1.1fr); min-height: 460px; overflow: hidden; border: 1px solid #dfe3e8; border-radius: 14px; background: #fff; }
+.property-location-fields { position: relative; padding: 24px; border-right: 1px solid #e1e5ea; }
+.property-location-note { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 14px; padding: 11px 12px; border-left: 3px solid #315bd6; background: #f0f4ff; color: #344054; font-size: 12px; line-height: 1.45; }
+.property-location-note svg { flex: 0 0 16px; width: 16px; color: #315bd6; }
+.property-location-search { display: flex; align-items: center; gap: 9px; height: 46px; padding: 0 12px; border: 1px solid #98a7c0; border-radius: 7px; background: #fff; }
+.property-location-search:focus-within { border-color: #315bd6; box-shadow: 0 0 0 3px rgb(49 91 214 / 12%); }
+.property-location-search svg { width: 18px; color: #667085; }
+.property-location-search input { min-width: 0; flex: 1; outline: 0; font: inherit; }
+.property-location-search span { color: #667085; font-size: 11px; }
+.property-location-results { position: absolute; z-index: 500; left: 24px; right: 24px; max-height: 260px; overflow-y: auto; border: 1px solid #d7dce3; border-radius: 0 0 10px 10px; background: #fff; box-shadow: 0 16px 35px rgb(16 24 40 / 16%); }
+.property-location-results button { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 11px 13px; border-bottom: 1px solid #eef0f3; text-align: left; font-size: 12px; line-height: 1.4; }
+.property-location-results button:hover { background: #f5f7ff; }
+.property-location-results svg { flex: 0 0 17px; width: 17px; color: #667085; }
+.property-current-location { display: flex; align-items: center; gap: 7px; margin-top: 12px; color: #175cd3; font-size: 12px; font-weight: 800; }
+.property-current-location svg { width: 16px; }
+.property-location-message { margin-top: 10px; color: #067647; font-size: 12px; }
+.property-map-panel { position: relative; min-height: 460px; }
+.property-map-canvas { position: absolute; inset: 0; z-index: 1; background: #e8edf2; }
+.property-map-help { position: absolute; z-index: 400; left: 50%; bottom: 18px; display: flex; align-items: center; gap: 7px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 28px); padding: 9px 13px; border-radius: 999px; background: rgb(17 19 21 / 88%); color: #fff; font-size: 11px; font-weight: 800; box-shadow: 0 8px 25px rgb(0 0 0 / 22%); }
+.property-map-help svg { width: 16px; }
+.property-map-pin { background: transparent; border: 0; }
+.property-map-pin span { position: relative; display: block; width: 31px; height: 31px; border: 5px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #d92d20; box-shadow: 0 3px 10px rgb(0 0 0 / 35%); }
+.property-map-pin span::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #fff; }
+.property-location-address-grid { padding-top: 4px; }
+.property-address-confirm { display: flex !important; grid-template-columns: auto 1fr; align-items: flex-start; gap: 10px !important; color: #475467; font-weight: 600 !important; }
+.property-address-confirm input { margin-top: 2px; }
+@media (max-width: 900px) {
+  .property-location-picker { grid-template-columns: 1fr; }
+  .property-location-fields { border-right: 0; border-bottom: 1px solid #e1e5ea; }
+  .property-map-panel { min-height: 390px; }
+}
+@media (max-width: 600px) {
+  .property-location-fields { padding: 16px; }
+  .property-location-results { left: 16px; right: 16px; }
+  .property-location-address-grid { grid-template-columns: 1fr; }
+}
+
 /* Guwahati Homestay brand palette overrides; layout values intentionally unchanged. */
 .btn-primary {
   background: #111315;

@@ -285,6 +285,7 @@ export class PropertiesService {
       'amenities',
       'basicInfo',
       'locationDetails',
+      'location',
       'roomDetails',
       'media',
       'mealPlans',
