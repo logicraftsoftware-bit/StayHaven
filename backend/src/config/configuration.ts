@@ -17,4 +17,10 @@ export default () => ({
     .map((x) => x.trim())
     .filter(Boolean),
   uploadDir: resolve(process.env.UPLOAD_DIR || './uploads'),
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+    folder: process.env.CLOUDINARY_FOLDER || 'stayhaven',
+  },
 });

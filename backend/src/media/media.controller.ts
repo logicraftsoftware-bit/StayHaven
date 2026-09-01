@@ -6,16 +6,13 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
-import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { MediaService } from './media.service';
 
 const imageSignatures = [
   {
@@ -64,7 +61,7 @@ const videoSignatures = [
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN)
 export class MediaController {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly media: MediaService) {}
 
   @Post('images')
   @ApiConsumes('multipart/form-data')
@@ -89,17 +86,15 @@ export class MediaController {
     if (!format)
       throw new BadRequestException('Use a PNG, JPG, WEBP, GIF, or ICO image');
 
-    const directory = join(
-      this.config.getOrThrow<string>('uploadDir'),
-      'site-media',
+    const data = await this.media.upload(
+      file.buffer,
+      'image',
+      format.extension,
     );
-    await mkdir(directory, { recursive: true });
-    const filename = `${Date.now()}-${randomUUID()}.${format.extension}`;
-    await writeFile(join(directory, filename), file.buffer, { flag: 'wx' });
     return {
       success: true,
       message: 'Image uploaded successfully',
-      data: { url: `/api/uploads/site-media/${filename}` },
+      data,
     };
   }
 
@@ -125,17 +120,15 @@ export class MediaController {
     );
     if (!format) throw new BadRequestException('Use an MP4 or WEBM video');
 
-    const directory = join(
-      this.config.getOrThrow<string>('uploadDir'),
-      'site-media',
+    const data = await this.media.upload(
+      file.buffer,
+      'video',
+      format.extension,
     );
-    await mkdir(directory, { recursive: true });
-    const filename = `${Date.now()}-${randomUUID()}.${format.extension}`;
-    await writeFile(join(directory, filename), file.buffer, { flag: 'wx' });
     return {
       success: true,
       message: 'Video uploaded successfully',
-      data: { url: `/api/uploads/site-media/${filename}` },
+      data,
     };
   }
 }
