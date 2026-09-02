@@ -19,6 +19,7 @@ import { useSite } from "@/components/site/SiteProvider";
 import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 import { PropertyManager } from "./PropertyManager";
 import { PropertyMediaManager } from "./PropertyMediaManager";
+import { PropertyAmenities } from "./PropertyAmenities";
 import { LocationPicker } from "./LocationPicker";
 type Api<T> = { success: boolean; data: T; message?: string };
 type Site = {
@@ -581,23 +582,9 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             />
           )}
           {step === 5 && (
-            <ChoiceGrid
+            <PropertyAmenities
               values={form.amenities}
               onChange={(values) => set("amenities", values)}
-              options={[
-                "Wi-Fi",
-                "Parking",
-                "Swimming Pool",
-                "Restaurant",
-                "Room Service",
-                "Air Conditioning",
-                "Power Backup",
-                "Laundry",
-                "Garden",
-                "CCTV",
-                "Lift",
-                "Wheelchair Access",
-              ]}
             />
           )}
           {step === 6 && (
@@ -851,7 +838,7 @@ function YearField({
 function BuildingIcon() {
   return <div className="type-placeholder">⌂</div>;
 }
-function ChoiceGrid({
+export function ChoiceGrid({
   values,
   onChange,
   options,
