@@ -7,8 +7,10 @@ import {
   ImagePlus,
   Plus,
   Save,
+  Search,
   Send,
   Trash2,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -47,6 +49,8 @@ type Room = {
   smoking: boolean;
   baseRate: number;
   additionalSpaces: string;
+  bathroomSize: string;
+  bathroomAmenities: string[];
 };
 type Media = {
   id: string;
@@ -145,6 +149,8 @@ const room = (): Room => ({
   smoking: false,
   baseRate: 0,
   additionalSpaces: "",
+  bathroomSize: "",
+  bathroomAmenities: [],
 });
 export function PropertyWizard({ propertyId }: { propertyId?: string }) {
   const router = useRouter();
@@ -851,6 +857,134 @@ function ChoiceGrid({
     </div>
   );
 }
+const roomAmenityGroups = [
+  {
+    title: "Mandatory",
+    items: [
+      "TV",
+      "Balcony",
+      "Private Pool",
+      "Air Conditioning",
+      "Iron/Ironing Board",
+      "Mineral Water",
+      "Kettle",
+      "Wifi",
+      "Safe",
+      "Bathroom",
+      "Hairdryer",
+      "Hot & Cold Water",
+      "Toiletries",
+      "Towels",
+      "Peep Hole",
+      "Bathtub",
+      "Kitchen/Kitchenette",
+      "Power backup",
+      "Caretaker",
+    ],
+  },
+  {
+    title: "Popular with Guests",
+    items: [
+      "Heater",
+      "Housekeeping",
+      "In Room dining",
+      "Laundry Service",
+      "Room service",
+      "Smoking Room",
+      "Air Purifier",
+      "Interconnected Room",
+    ],
+  },
+  { title: "Basic Facilities", items: ["LAN"] },
+  { title: "Bathroom", items: ["Bidet", "Toilet with grab rails"] },
+  {
+    title: "General Services",
+    items: ["Cloak Room", "Specially abled assistance", "Butler Services"],
+  },
+  {
+    title: "Room Features",
+    items: [
+      "Closet",
+      "Blackout curtains",
+      "Center Table",
+      "Charging points",
+      "Couch",
+      "Fireplace",
+      "Mini Fridge",
+      "Sofa",
+      "Telephone",
+      "Work Desk",
+      "Pillow menu",
+      "Hypoallergenic Bedding",
+      "Seating Area",
+      "Chair",
+      "Fireplace Guard",
+      "Jaccuzi",
+      "Hot Water Bag",
+    ],
+  },
+  { title: "Common Area", items: ["Balcony/ Terrace"] },
+  { title: "Food and Drinks", items: ["Cake", "Fruit Basket", "Mini Bar"] },
+  { title: "Food and Drink", items: ["Kid's Menu"] },
+  { title: "Appliances", items: ["Coffee Machine"] },
+  { title: "Beds and Blanket", items: ["Blanket"] },
+  { title: "Safety and Security", items: ["Cupboards with locks"] },
+  { title: "Childcare", items: ["Child safety socket covers"] },
+  { title: "Other Facilities", items: ["Mosquito Net", "Newspaper", "Fan"] },
+];
+const bathroomAmenityGroups = [
+  {
+    title: "Bathroom Amenities",
+    items: [
+      "Bathtub",
+      "Toiletries",
+      "Towels",
+      "Shaving Mirror",
+      "Western Toilet Seat",
+      "Washing machine",
+      "Bubble kit",
+      "Dental Kit",
+      "Geyser/ Water Heater",
+      "Slipper",
+      "Shower Cap",
+    ],
+  },
+];
+const roomViews = [
+  "No View",
+  "Sea View",
+  "Valley View",
+  "Hill View",
+  "Pool View",
+  "Garden View",
+  "River View",
+  "Lake View",
+  "Palace View",
+  "Bay View",
+  "Jungle View",
+  "City View",
+  "Landmark View",
+  "Terrace View",
+  "Courtyard View",
+  "Desert View",
+  "Golf Course View",
+  "Mountain View",
+  "Ocean View",
+  "Backwater View",
+  "Harbor View",
+  "Inter-coastal View",
+  "Marina View",
+  "Temple View",
+  "Resort View",
+  "Monument View",
+  "Park View",
+  "Lagoon View",
+  "Forest View",
+  "Beach View",
+  "Airport View",
+  "Countryside View",
+];
+
 function Rooms({
   rooms,
   setRooms,
@@ -858,8 +992,17 @@ function Rooms({
   rooms: Room[];
   setRooms: (r: Room[]) => void;
 }) {
+  const [amenityDialog, setAmenityDialog] = useState<{
+    roomIndex: number;
+    kind: "room" | "bathroom";
+  } | null>(null);
   const update = (index: number, patch: Partial<Room>) =>
     setRooms(rooms.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  const activeRoom = amenityDialog ? rooms[amenityDialog.roomIndex] : undefined;
+  const selectedAmenities =
+    amenityDialog?.kind === "bathroom"
+      ? activeRoom?.bathroomAmenities || []
+      : activeRoom?.facilities || [];
   return (
     <div>
       <button className="add-row" onClick={() => setRooms([...rooms, room()])}>
@@ -881,6 +1024,13 @@ function Rooms({
               value={r.name}
               onChange={(v) => update(index, { name: v })}
             />
+            <label className="wide">
+              Description
+              <textarea
+                value={r.description}
+                onChange={(e) => update(index, { description: e.target.value })}
+              />
+            </label>
             <Field
               label="Base rate ₹ / night"
               type="number"
@@ -944,43 +1094,195 @@ function Rooms({
               }
             />
             <Field
-              label="Room size"
+              label="Room size (Sq. Ft.)"
+              type="number"
               value={r.size}
               onChange={(v) => update(index, { size: v })}
             />
-            <Field
-              label="View"
-              value={r.view}
-              onChange={(v) => update(index, { view: v })}
-            />
-            <label>
-              <input
-                type="checkbox"
-                checked={r.attachedBathroom}
-                onChange={(e) =>
-                  update(index, { attachedBathroom: e.target.checked })
+            <label className="room-amenity-field wide">
+              Room amenities (optional)
+              <button
+                type="button"
+                onClick={() =>
+                  setAmenityDialog({ roomIndex: index, kind: "room" })
                 }
-              />{" "}
-              Attached bathroom
+              >
+                <Plus /> Add amenities
+              </button>
+              {!!r.facilities.length && <span>{r.facilities.join(", ")}</span>}
             </label>
             <label>
-              <input
-                type="checkbox"
-                checked={r.kitchen}
-                onChange={(e) => update(index, { kitchen: e.target.checked })}
-              />{" "}
-              Kitchen
+              Room view (optional)
+              <select
+                value={r.view}
+                onChange={(e) => update(index, { view: e.target.value })}
+              >
+                <option value="">Select View</option>
+                {roomViews.map((view) => (
+                  <option key={view}>{view}</option>
+                ))}
+              </select>
             </label>
-            <label className="wide">
-              Description
-              <textarea
-                value={r.description}
-                onChange={(e) => update(index, { description: e.target.value })}
-              />
+            <label>
+              Floor level (optional)
+              <select
+                value={r.floor}
+                onChange={(e) => update(index, { floor: e.target.value })}
+              >
+                <option value="">Select floor</option>
+                <option>Ground Floor</option>
+                <option>Upper Floor</option>
+              </select>
+            </label>
+            <label>
+              Does the room have an attached bathroom?
+              <select
+                value={r.attachedBathroom ? "yes" : "no"}
+                onChange={(e) =>
+                  update(index, { attachedBathroom: e.target.value === "yes" })
+                }
+              >
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+            <Field
+              label="Bathroom size (Sq. Ft.) (optional)"
+              type="number"
+              value={r.bathroomSize || ""}
+              onChange={(v) => update(index, { bathroomSize: v })}
+            />
+            <label className="room-amenity-field wide">
+              Bathroom amenities (optional)
+              <button
+                type="button"
+                onClick={() =>
+                  setAmenityDialog({ roomIndex: index, kind: "bathroom" })
+                }
+              >
+                <Plus /> Add bathroom amenities
+              </button>
+              {!!r.bathroomAmenities?.length && (
+                <span>{r.bathroomAmenities.join(", ")}</span>
+              )}
             </label>
           </div>
         </article>
       ))}
+      {amenityDialog && activeRoom && (
+        <AmenityDialog
+          title={
+            amenityDialog.kind === "room"
+              ? "Add room amenities"
+              : "Add bathroom amenities"
+          }
+          groups={
+            amenityDialog.kind === "room"
+              ? roomAmenityGroups
+              : bathroomAmenityGroups
+          }
+          selected={selectedAmenities}
+          onChange={(values) =>
+            update(
+              amenityDialog.roomIndex,
+              amenityDialog.kind === "room"
+                ? { facilities: values }
+                : { bathroomAmenities: values },
+            )
+          }
+          onClose={() => setAmenityDialog(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AmenityDialog({
+  title,
+  groups,
+  selected,
+  onChange,
+  onClose,
+}: {
+  title: string;
+  groups: Array<{ title: string; items: string[] }>;
+  selected: string[];
+  onChange: (values: string[]) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const term = search.trim().toLowerCase();
+  const filtered = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.toLowerCase().includes(term)),
+    }))
+    .filter((group) => group.items.length);
+  const toggle = (item: string) =>
+    onChange(
+      selected.includes(item)
+        ? selected.filter((value) => value !== item)
+        : [...selected, item],
+    );
+  return (
+    <div
+      className="room-amenity-scrim"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section
+        className="room-amenity-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <header>
+          <div>
+            <span>ROOM CONFIGURATION</span>
+            <h2>{title}</h2>
+            <p>Select multiple options for this room.</p>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose}>
+            <X />
+          </button>
+        </header>
+        <label className="room-amenity-search">
+          <Search />
+          <input
+            autoFocus
+            placeholder="Search amenities"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <div className="room-amenity-groups">
+          {filtered.map((group) => (
+            <section key={group.title}>
+              <h3>{group.title}</h3>
+              <div>
+                {group.items.map((item) => (
+                  <label key={item}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(item)}
+                      onChange={() => toggle(item)}
+                    />
+                    <span>{item}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          ))}
+          {!filtered.length && (
+            <p className="room-amenity-empty">No amenities found.</p>
+          )}
+        </div>
+        <footer>
+          <span>{selected.length} selected</span>
+          <button type="button" className="btn-primary" onClick={onClose}>
+            Done
+          </button>
+        </footer>
+      </section>
     </div>
   );
 }
