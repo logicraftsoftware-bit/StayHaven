@@ -33,14 +33,14 @@ export class OwnerPropertyQueryDto {
 
 export class CreateOwnerPropertyDto {
   @IsOptional() @IsMongoId() siteId?: string;
-  @IsString() @MaxLength(180) name: string;
+  @IsOptional() @IsString() @MaxLength(180) name?: string;
   @IsOptional() @IsMongoId() propertyTypeId?: string;
   @IsOptional() @IsString() @MaxLength(80) propertyType?: string;
   @IsOptional() @IsString() @MaxLength(180) displayName?: string;
   @IsOptional() @IsString() @MaxLength(3000) description?: string;
-  @IsString() @MaxLength(500) address: string;
-  @IsString() @MaxLength(120) city: string;
-  @IsString() @MaxLength(120) state: string;
+  @IsOptional() @IsString() @MaxLength(500) address?: string;
+  @IsOptional() @IsString() @MaxLength(120) city?: string;
+  @IsOptional() @IsString() @MaxLength(120) state?: string;
   @IsOptional() @IsString() @MaxLength(120) country?: string;
   @IsOptional() @IsNumber() @Min(0) price?: number;
   @IsOptional() @IsNumber() @Min(0) taxes?: number;

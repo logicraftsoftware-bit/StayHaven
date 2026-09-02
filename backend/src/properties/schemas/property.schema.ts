@@ -7,16 +7,16 @@ export class Property {
   ownerId: Types.ObjectId;
   @Prop({ type: Types.ObjectId, required: true, index: true })
   siteId: Types.ObjectId;
-  @Prop({ required: true }) name: string;
+  @Prop({ default: '' }) name: string;
   @Prop({ required: true, index: true }) slug: string;
   @Prop({ required: true }) propertyType: string;
   @Prop({ type: Types.ObjectId, ref: 'PropertyType', index: true })
   propertyTypeId?: Types.ObjectId;
   @Prop() displayName?: string;
   @Prop() description?: string;
-  @Prop({ required: true }) address: string;
-  @Prop({ required: true }) city: string;
-  @Prop({ required: true }) state: string;
+  @Prop({ default: '' }) address: string;
+  @Prop({ default: '' }) city: string;
+  @Prop({ default: '' }) state: string;
   @Prop({ default: 'India' }) country: string;
   @Prop({
     type: { type: String, enum: ['Point'], default: 'Point' },

@@ -17,7 +17,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { Role } from '../common/enums/role.enum';
 import { PropertyStatus } from '../common/enums/status.enum';
 import { PropertyQueryDto } from './dto/property.dto';
-import { Property } from './schemas/property.schema';
+import { Property, PropertyDocument } from './schemas/property.schema';
 import { SitesService } from '../sites/sites.service';
 import { PropertyTypesService } from '../property-types/property-types.service';
 import {
@@ -60,7 +60,10 @@ export class PropertiesService {
     } = {};
     if (q.status) filter.status = q.status;
     if (q.siteId) filter.siteId = q.siteId;
-    else if (allowedSiteIds) filter.siteId = { $in: allowedSiteIds.map((id) => new Types.ObjectId(id)) };
+    else if (allowedSiteIds)
+      filter.siteId = {
+        $in: allowedSiteIds.map((id) => new Types.ObjectId(id)),
+      };
     if (q.ownerId) filter.ownerId = q.ownerId;
     if (q.search)
       filter.$or = [
@@ -133,7 +136,8 @@ export class PropertiesService {
   }
   count(status?: PropertyStatus, siteIds?: string[]) {
     const filter: Record<string, unknown> = status ? { status } : {};
-    if (siteIds) filter.siteId = { $in: siteIds.map((id) => new Types.ObjectId(id)) };
+    if (siteIds)
+      filter.siteId = { $in: siteIds.map((id) => new Types.ObjectId(id)) };
     return this.model.countDocuments(filter);
   }
 
@@ -195,6 +199,10 @@ export class PropertiesService {
 
   async getOwnerView(ownerId: string, id: string) {
     const property = await this.getOwner(ownerId, id);
+    return this.ownerViewValue(property);
+  }
+
+  private ownerViewValue(property: PropertyDocument) {
     const value = property.toObject() as unknown as Record<string, unknown>;
     value.financeLegal = this.decrypt(String(property.financeLegal || ''));
     return value;
@@ -222,7 +230,7 @@ export class PropertiesService {
     }
     if (!propertyType)
       throw new BadRequestException('Property type is required');
-    const slug = `${dto.name
+    const slug = `${(dto.name || 'draft-property')
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
@@ -246,7 +254,7 @@ export class PropertiesService {
     await this.auditOwner('PROPERTY_CREATED', property, ownerId, {
       submitted: Boolean(dto.submit),
     });
-    return property;
+    return this.ownerViewValue(property);
   }
 
   async updateOwner(ownerId: string, id: string, dto: UpdateOwnerPropertyDto) {
@@ -322,7 +330,7 @@ export class PropertiesService {
       siteChanged: oldSiteId !== String(property.siteId),
       submitted: Boolean(dto.submit),
     });
-    return property;
+    return this.ownerViewValue(property);
   }
 
   async deleteOwner(ownerId: string, id: string) {
