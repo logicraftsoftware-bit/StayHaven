@@ -59,6 +59,7 @@ type Media = {
   mediaType: "image" | "video";
   roomId?: string;
   category: string;
+  tags?: string[];
   caption: string;
   primary: boolean;
   sortOrder: number;
@@ -251,17 +252,17 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       token,
       { method: "POST", body },
     );
-    const item: Media = {
+    return {
       id: crypto.randomUUID(),
       ...result.data,
       mediaType: kind === "videos" ? "video" : "image",
       roomId: roomId || undefined,
       category: roomId ? "Room" : "Property",
+      tags: [],
       caption: "",
       primary: !form.media.length,
       sortOrder: form.media.length,
-    };
-    set("media", [...form.media, item]);
+    } satisfies Media;
   };
   const uploadDocument = async (file: File, documentType: string) => {
     const body = new FormData();
@@ -302,6 +303,28 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       ),
     [form],
   );
+  const goToNextStep = () => {
+    if (step === 4) {
+      const roomsWithoutPhotos = form.roomDetails.filter(
+        (roomItem) =>
+          !form.media.some(
+            (item) => item.mediaType === "image" && item.roomId === roomItem.id,
+          ),
+      );
+      if (roomsWithoutPhotos.length) {
+        setNotice("Add at least one photo for every room before continuing.");
+        return;
+      }
+      if (
+        !form.media.some((item) => item.mediaType === "image" && item.primary)
+      ) {
+        setNotice("Select one image as the main property cover photo.");
+        return;
+      }
+    }
+    setNotice("");
+    setStep(step + 1);
+  };
   if (form.status === "APPROVED" && !manageEdit)
     return (
       <PropertyManager
@@ -761,7 +784,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
               <Save /> Save Draft
             </button>
             {step < steps.length - 1 ? (
-              <button className="btn-primary" onClick={() => setStep(step + 1)}>
+              <button className="btn-primary" onClick={goToNextStep}>
                 Save & Next
               </button>
             ) : (
@@ -983,6 +1006,55 @@ const roomViews = [
   "Beach View",
   "Airport View",
   "Countryside View",
+];
+const mediaTagOptions = [
+  "Bathtub",
+  "Jacuzzi",
+  "Toiletries",
+  "Washroom",
+  "Balcony",
+  "Bed",
+  "Dining",
+  "Dining Area",
+  "Kitchenette",
+  "Living Area",
+  "Lobby/Common Area",
+  "Outside View",
+  "Play Area",
+  "Private Pool",
+  "Room",
+  "Study Area",
+  "View",
+  "Bar",
+  "Barbeque",
+  "Bonfire",
+  "Camp Site",
+  "Restaurant/cafe",
+  "Beverage Menu",
+  "Food Menu",
+  "Driver Room",
+  "Kitchen",
+  "Lounge",
+  "Parking",
+  "Activities & Experiences",
+  "Banquet",
+  "Club house",
+  "Conference Room",
+  "Elevator",
+  "Entrance",
+  "Facade",
+  "Garden",
+  "Golf Court",
+  "Gym",
+  "Menu",
+  "Others",
+  "Reception",
+  "Registration Certificate",
+  "Signature Amenity",
+  "Spa",
+  "Swimming Pool",
+  "Terrace",
+  "Food",
 ];
 
 function Rooms({
@@ -1294,31 +1366,154 @@ function MediaManager({
 }: {
   media: Media[];
   rooms: Room[];
-  upload: (f: File, roomId?: string) => Promise<void>;
+  upload: (f: File, roomId?: string) => Promise<Media>;
   setMedia: (m: Media[]) => void;
 }) {
   const [tag, setTag] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState<Record<string, string>>({});
+  const cover = media.find(
+    (item) => item.primary && item.mediaType === "image",
+  );
+  const uploadMany = async (files: FileList) => {
+    setUploading(true);
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map((file) => upload(file, tag)),
+      );
+      const firstImage = uploaded.findIndex(
+        (item) => item.mediaType === "image",
+      );
+      const hasCover = media.some((item) => item.primary);
+      setMedia([
+        ...media,
+        ...uploaded.map((item, index) => ({
+          ...item,
+          primary: !hasCover && index === firstImage,
+          sortOrder: media.length + index,
+        })),
+      ]);
+      setUploadOpen(false);
+    } finally {
+      setUploading(false);
+    }
+  };
   return (
-    <div>
-      <div className="media-upload">
-        <ImagePlus />
-        <b>Upload property or room media</b>
-        <select value={tag} onChange={(e) => setTag(e.target.value)}>
-          <option value="">Property photos/videos</option>
-          {rooms.map((r) => (
-            <option key={r.id} value={r.id}>
-              Room · {r.name || "Unnamed room"}
-            </option>
-          ))}
-        </select>
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
-          onChange={(e) =>
-            e.target.files?.[0] && void upload(e.target.files[0], tag)
-          }
-        />
-      </div>
+    <div className="property-media-manager">
+      <header className="property-media-heading">
+        <div>
+          <h2>Photos & Videos ({media.length})</h2>
+          <p>Upload, tag and assign media to your property and rooms.</p>
+        </div>
+        <button
+          className="btn-primary"
+          type="button"
+          onClick={() => setUploadOpen(true)}
+        >
+          <ImagePlus /> Upload Photos & Videos
+        </button>
+      </header>
+      {cover && (
+        <div className="property-cover-preview">
+          <img src={cover.url} alt="Property cover" />
+          <span>
+            Property cover photo
+            {cover.tags?.[0] ? ` (${cover.tags[0]})` : ""}
+          </span>
+        </div>
+      )}
+      {uploadOpen && (
+        <div className="media-upload-scrim">
+          <section className="media-upload-modal">
+            <header>
+              <h2>Upload Photos & Videos</h2>
+              <button
+                type="button"
+                onClick={() => setUploadOpen(false)}
+                disabled={uploading}
+              >
+                <X />
+              </button>
+            </header>
+            <div className="media-upload-modal-body">
+              <div
+                className="media-upload media-drop-zone"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (!uploading) void uploadMany(event.dataTransfer.files);
+                }}
+              >
+                <ImagePlus />
+                <b>Drag & drop files here or choose multiple files</b>
+                <select value={tag} onChange={(e) => setTag(e.target.value)}>
+                  <option value="">Property photos/videos</option>
+                  {rooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      Room · {r.name || "Unnamed room"}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
+                  multiple
+                  disabled={uploading}
+                  onChange={(e) =>
+                    e.target.files && void uploadMany(e.target.files)
+                  }
+                />
+              </div>
+              <aside>
+                <h3>Photo resolution rules</h3>
+                <ul>
+                  <li>JPG, PNG or WEBP, maximum 5 MB each.</li>
+                  <li>MP4 or WEBM video, maximum 25 MB each.</li>
+                  <li>Use landscape photos, ideally 1920 × 1080 px.</li>
+                  <li>Minimum recommended size: 1024 × 683 px.</li>
+                  <li>Use bright, clear photos without watermarks.</li>
+                  <li>Include at least one photo for every room.</li>
+                </ul>
+              </aside>
+            </div>
+          </section>
+        </div>
+      )}
+      <section className="room-media-coverage">
+        <h3>Photos assigned to rooms</h3>
+        <p>Every room needs at least one photo.</p>
+        <div>
+          {rooms.map((roomItem) => {
+            const count = media.filter(
+              (item) =>
+                item.roomId === roomItem.id && item.mediaType === "image",
+            ).length;
+            return (
+              <article
+                className={count ? "complete" : "missing"}
+                key={roomItem.id}
+              >
+                <b>{roomItem.name || "Unnamed room"}</b>
+                <small>
+                  {count
+                    ? `${count} photo${count > 1 ? "s" : ""}`
+                    : "Photo required"}
+                </small>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTag(roomItem.id);
+                    setUploadOpen(true);
+                  }}
+                >
+                  <Plus /> Add
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
       <div className="media-grid">
         {media.map((item, i) => (
           <article key={item.id}>
@@ -1327,6 +1522,103 @@ function MediaManager({
             ) : (
               <img src={item.url} alt="" />
             )}
+            <select
+              value={item.roomId || ""}
+              onChange={(event) =>
+                setMedia(
+                  media.map((entry) =>
+                    entry.id === item.id
+                      ? {
+                          ...entry,
+                          roomId: event.target.value || undefined,
+                          category: event.target.value ? "Room" : "Property",
+                        }
+                      : entry,
+                  ),
+                )
+              }
+            >
+              <option value="">Entire property</option>
+              {rooms.map((roomItem) => (
+                <option key={roomItem.id} value={roomItem.id}>
+                  {roomItem.name || "Unnamed room"}
+                </option>
+              ))}
+            </select>
+            <div className="media-tag-editor">
+              <label>
+                <Search />
+                <input
+                  placeholder="Search and select tags"
+                  value={tagSearch[item.id] || ""}
+                  onChange={(event) =>
+                    setTagSearch((current) => ({
+                      ...current,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              {!!tagSearch[item.id] && (
+                <div className="media-tag-results">
+                  {mediaTagOptions
+                    .filter((option) =>
+                      option
+                        .toLowerCase()
+                        .includes(tagSearch[item.id].toLowerCase()),
+                    )
+                    .map((option) => (
+                      <label key={option}>
+                        <input
+                          type="checkbox"
+                          checked={(item.tags || []).includes(option)}
+                          onChange={() =>
+                            setMedia(
+                              media.map((entry) =>
+                                entry.id === item.id
+                                  ? {
+                                      ...entry,
+                                      tags: (entry.tags || []).includes(option)
+                                        ? (entry.tags || []).filter(
+                                            (value) => value !== option,
+                                          )
+                                        : [...(entry.tags || []), option],
+                                    }
+                                  : entry,
+                              ),
+                            )
+                          }
+                        />
+                        {option}
+                      </label>
+                    ))}
+                </div>
+              )}
+              <div className="media-tag-chips">
+                {(item.tags || []).map((selectedTag) => (
+                  <button
+                    type="button"
+                    key={selectedTag}
+                    onClick={() =>
+                      setMedia(
+                        media.map((entry) =>
+                          entry.id === item.id
+                            ? {
+                                ...entry,
+                                tags: (entry.tags || []).filter(
+                                  (value) => value !== selectedTag,
+                                ),
+                              }
+                            : entry,
+                        ),
+                      )
+                    }
+                  >
+                    {selectedTag} <X />
+                  </button>
+                ))}
+              </div>
+            </div>
             <input
               placeholder="Caption"
               value={item.caption}
