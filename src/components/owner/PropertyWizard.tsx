@@ -40,11 +40,16 @@ type Master = {
 type Room = {
   id: string;
   name: string;
+  totalRooms: number;
   attachedBathroom: boolean;
   kitchen: boolean;
   beds: Array<{ type: string; quantity: number }>;
   baseAdults: number;
   maxAdults: number;
+  maxChildren: number;
+  additionalGuestsAllowed: boolean;
+  additionalAdultPrice: number;
+  additionalChildPrice: number;
   facilities: string[];
   description: string;
   size: string;
@@ -141,11 +146,16 @@ const empty: Form = {
 const room = (): Room => ({
   id: crypto.randomUUID(),
   name: "",
+  totalRooms: 1,
   attachedBathroom: true,
   kitchen: false,
   beds: [{ type: "Queen Bed", quantity: 1 }],
   baseAdults: 2,
   maxAdults: 2,
+  maxChildren: 0,
+  additionalGuestsAllowed: false,
+  additionalAdultPrice: 0,
+  additionalChildPrice: 0,
   facilities: [],
   description: "",
   size: "",
@@ -230,7 +240,11 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         ...form,
         _id: undefined,
         submit,
-        rooms: form.roomDetails.length || 1,
+        rooms:
+          form.roomDetails.reduce(
+            (total, roomItem) => total + Math.max(roomItem.totalRooms || 1, 1),
+            0,
+          ) || 1,
         price: roomRates.length ? Math.min(...roomRates) : form.price || 0,
       };
       const result = await apiRequest<Api<Form>>(
@@ -952,6 +966,14 @@ function Rooms({
               value={r.name}
               onChange={(v) => update(index, { name: v })}
             />
+            <Field
+              label="Total rooms"
+              type="number"
+              value={String(r.totalRooms ?? 1)}
+              onChange={(v) =>
+                update(index, { totalRooms: Math.max(Number(v), 1) })
+              }
+            />
             <label className="wide">
               Description
               <textarea
@@ -977,6 +999,52 @@ function Rooms({
               value={String(r.maxAdults)}
               onChange={(v) => update(index, { maxAdults: Number(v) })}
             />
+            <Field
+              label="Maximum children"
+              type="number"
+              value={String(r.maxChildren ?? 0)}
+              onChange={(v) =>
+                update(index, { maxChildren: Math.max(Number(v), 0) })
+              }
+            />
+            <label>
+              Are additional guests allowed?
+              <select
+                value={r.additionalGuestsAllowed ? "yes" : "no"}
+                onChange={(event) =>
+                  update(index, {
+                    additionalGuestsAllowed: event.target.value === "yes",
+                  })
+                }
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </label>
+            {r.additionalGuestsAllowed && (
+              <>
+                <Field
+                  label="Price per additional adult ₹"
+                  type="number"
+                  value={String(r.additionalAdultPrice ?? 0)}
+                  onChange={(v) =>
+                    update(index, {
+                      additionalAdultPrice: Math.max(Number(v), 0),
+                    })
+                  }
+                />
+                <Field
+                  label="Price per additional child ₹"
+                  type="number"
+                  value={String(r.additionalChildPrice ?? 0)}
+                  onChange={(v) =>
+                    update(index, {
+                      additionalChildPrice: Math.max(Number(v), 0),
+                    })
+                  }
+                />
+              </>
+            )}
             <label>
               Bed type
               <select
