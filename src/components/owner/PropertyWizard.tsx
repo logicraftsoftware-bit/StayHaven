@@ -21,6 +21,7 @@ import { PropertyManager } from "./PropertyManager";
 import { PropertyMediaManager } from "./PropertyMediaManager";
 import { PropertyAmenities } from "./PropertyAmenities";
 import { MealsPolicies } from "./MealsPolicies";
+import { FinanceLegal } from "./FinanceLegal";
 import { LocationPicker } from "./LocationPicker";
 type Api<T> = { success: boolean; data: T; message?: string };
 type Site = {
@@ -240,8 +241,10 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       setForm((v) => ({ ...v, ...result.data }));
       setNotice(submit ? "Property submitted for review." : "Draft saved.");
       if (submit) setTimeout(() => router.push("/owner"), 800);
+      return true;
     } catch (error) {
       setNotice((error as Error).message);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -306,7 +309,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       ),
     [form],
   );
-  const goToNextStep = () => {
+  const goToNextStep = async () => {
     if (step === 4) {
       const roomsWithoutPhotos = form.roomDetails.filter(
         (roomItem) =>
@@ -326,7 +329,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       }
     }
     setNotice("");
-    setStep(step + 1);
+    if (await save(false)) setStep(step + 1);
   };
   if (form.status === "APPROVED" && !manageEdit)
     return (
@@ -597,117 +600,28 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             />
           )}
           {step === 7 && (
-            <div className="wizard-grid">
-              <Field
-                label="Legal owner name"
-                value={String(form.financeLegal.legalName || "")}
-                onChange={(v) => setNested("financeLegal", "legalName", v)}
-              />
-              <Field
-                label="Ownership type"
-                value={String(form.financeLegal.ownershipType || "")}
-                onChange={(v) => setNested("financeLegal", "ownershipType", v)}
-              />
-              <Field
-                label="Bank name"
-                value={String(form.financeLegal.bankName || "")}
-                onChange={(v) => setNested("financeLegal", "bankName", v)}
-              />
-              <Field
-                label="Account holder"
-                value={String(form.financeLegal.accountHolder || "")}
-                onChange={(v) => setNested("financeLegal", "accountHolder", v)}
-              />
-              <Field
-                label="Account number"
-                value={String(form.financeLegal.accountNumber || "")}
-                onChange={(v) => setNested("financeLegal", "accountNumber", v)}
-              />
-              <Field
-                label="IFSC"
-                value={String(form.financeLegal.ifsc || "")}
-                onChange={(v) => setNested("financeLegal", "ifsc", v)}
-              />
-              <Field
-                label="SEO title"
-                value={String(form.seo.title || "")}
-                onChange={(v) => setNested("seo", "title", v)}
-              />
-              <Field
-                label="SEO description"
-                value={String(form.seo.description || "")}
-                onChange={(v) => setNested("seo", "description", v)}
-              />
-              <Field
-                label="SEO keywords (comma separated)"
-                value={String(form.seo.keywords || "")}
-                onChange={(v) => setNested("seo", "keywords", v)}
-              />
-              <label>
-                Legal document type
-                <select
-                  id="property-document-type"
-                  defaultValue="ownership-proof"
-                >
-                  <option value="ownership-proof">Ownership proof</option>
-                  <option value="identity-proof">Identity proof</option>
-                  <option value="tax-document">Tax document</option>
-                  <option value="bank-document">Bank document</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
-              <label className="wide media-upload">
-                Upload legal document (PDF or image, maximum 10 MB)
-                <input
-                  type="file"
-                  accept="application/pdf,image/png,image/jpeg,image/webp"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    const type = (
-                      document.getElementById(
-                        "property-document-type",
-                      ) as HTMLSelectElement | null
-                    )?.value;
-                    if (file) void uploadDocument(file, type || "other");
-                  }}
-                />
-              </label>
-              {form.documents.length > 0 && (
-                <div className="wide document-list">
-                  {form.documents.map((item, index) => (
-                    <div key={String(item.id || index)}>
-                      <a
-                        href={String(item.url)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {String(item.type || "Document")}
-                      </a>
-                      <span>
-                        {String(item.verificationStatus || "pending")}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          set(
-                            "documents",
-                            form.documents.filter(
-                              (_, itemIndex) => itemIndex !== index,
-                            ),
-                          )
-                        }
-                      >
-                        <Trash2 />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="wide secure-note">
-                Banking and identity information is private and never included
-                in public property APIs.
-              </div>
-            </div>
+            <FinanceLegal
+              values={form.financeLegal}
+              documents={form.documents}
+              propertyAddress={[
+                form.address,
+                form.city,
+                form.state,
+                String(form.locationDetails.pinCode || ""),
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              setValue={(field, value) =>
+                setNested("financeLegal", field, value)
+              }
+              uploadDocument={uploadDocument}
+              removeDocument={(index) =>
+                set(
+                  "documents",
+                  form.documents.filter((_, itemIndex) => itemIndex !== index),
+                )
+              }
+            />
           )}
         </div>
         {notice && <p className="owner-review-note">{notice}</p>}
@@ -722,7 +636,11 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
               <Save /> Save Draft
             </button>
             {step < steps.length - 1 ? (
-              <button className="btn-primary" onClick={goToNextStep}>
+              <button
+                className="btn-primary"
+                onClick={() => void goToNextStep()}
+                disabled={saving}
+              >
                 Save & Next
               </button>
             ) : (
