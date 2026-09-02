@@ -175,6 +175,21 @@ type Property = {
   status: Status;
   reviewReason?: string;
   createdAt: string;
+  displayName?: string;
+  description?: string;
+  country?: string;
+  price?: number;
+  rooms?: number;
+  maxGuests?: number;
+  amenities?: string[];
+  basicInfo?: Record<string, unknown>;
+  locationDetails?: Record<string, unknown>;
+  roomDetails?: Array<Record<string, unknown>>;
+  media?: Array<Record<string, unknown>>;
+  mealPlans?: Array<Record<string, unknown>>;
+  policies?: Record<string, unknown>;
+  financeLegal?: Record<string, unknown>;
+  documents?: Array<Record<string, unknown>>;
 };
 type PropertyTypeMaster = {
   _id: string;
@@ -2308,6 +2323,10 @@ function PropertiesView({ token }: { token: string }) {
   const [typeForm, setTypeForm] = useState<Partial<PropertyTypeMaster> | null>(
     null,
   );
+  const [reviewProperty, setReviewProperty] = useState<Property | null>(null);
+  const [reviewSection, setReviewSection] = useState("General details");
+  const [reviewNote, setReviewNote] = useState("");
+  const [loadingReview, setLoadingReview] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -2348,6 +2367,41 @@ function PropertiesView({ token }: { token: string }) {
         method: "PATCH",
         body: JSON.stringify(needsReason ? { reason } : {}),
       });
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  async function openReview(property: Property) {
+    setLoadingReview(true);
+    try {
+      const result = await api<ApiResponse<Property>>(
+        `/api/v1/admin/properties/${property._id}`,
+        token,
+      );
+      setReviewProperty(result.data);
+      setReviewNote("");
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingReview(false);
+    }
+  }
+  async function requestSelectedChanges() {
+    if (!reviewProperty || !reviewNote.trim()) return;
+    try {
+      await api(
+        `/api/v1/admin/properties/${reviewProperty._id}/request-changes`,
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            reason: `${reviewSection}: ${reviewNote.trim()}`,
+          }),
+        },
+      );
+      setReviewProperty(null);
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -2708,6 +2762,9 @@ function PropertiesView({ token }: { token: string }) {
                 )}
               </div>
               <div className="property-actions">
+                <button onClick={() => void openReview(property)}>
+                  {loadingReview ? "Loading…" : "View full details"}
+                </button>
                 {property.status === "PENDING" && (
                   <>
                     <button
@@ -2740,7 +2797,136 @@ function PropertiesView({ token }: { token: string }) {
           ))}
         </div>
       )}
+      {reviewProperty && (
+        <div className="admin-modal-backdrop">
+          <div className="admin-modal property-review-modal">
+            <button
+              className="modal-close"
+              onClick={() => setReviewProperty(null)}
+            >
+              <X />
+            </button>
+            <span className="admin-kicker">Full property verification</span>
+            <h2>{reviewProperty.displayName || reviewProperty.name}</h2>
+            <p>
+              {reviewProperty.propertyType} · {reviewProperty.address},{" "}
+              {reviewProperty.city}, {reviewProperty.state}
+            </p>
+            <div className="property-review-grid">
+              <ReviewBlock
+                title="Basic information"
+                value={{
+                  description: reviewProperty.description,
+                  ...reviewProperty.basicInfo,
+                }}
+              />
+              <ReviewBlock
+                title="Location"
+                value={reviewProperty.locationDetails}
+              />
+              <ReviewBlock
+                title="Rooms & pricing"
+                value={reviewProperty.roomDetails}
+              />
+              <ReviewBlock
+                title="Photos & videos"
+                value={reviewProperty.media}
+              />
+              <ReviewBlock title="Amenities" value={reviewProperty.amenities} />
+              <ReviewBlock
+                title="Meals & policies"
+                value={{
+                  mealPlans: reviewProperty.mealPlans,
+                  policies: reviewProperty.policies,
+                }}
+              />
+              <ReviewBlock
+                title="Finance & legal"
+                value={reviewProperty.financeLegal}
+                privateData
+              />
+              <ReviewBlock
+                title="Documents"
+                value={reviewProperty.documents}
+                privateData
+              />
+            </div>
+            {reviewProperty.status === "PENDING" && (
+              <div className="property-review-decision">
+                <h3>Verification decision</h3>
+                <select
+                  value={reviewSection}
+                  onChange={(event) => setReviewSection(event.target.value)}
+                >
+                  {[
+                    "General details",
+                    "Basic information",
+                    "Location",
+                    "Rooms & pricing",
+                    "Photos & videos",
+                    "Amenities",
+                    "Meals & policies",
+                    "Finance & legal",
+                    "Documents",
+                  ].map((section) => (
+                    <option key={section}>{section}</option>
+                  ))}
+                </select>
+                <textarea
+                  placeholder="Describe exactly what the property owner must correct or re-upload"
+                  value={reviewNote}
+                  onChange={(event) => setReviewNote(event.target.value)}
+                />
+                <div>
+                  <button
+                    onClick={() => void requestSelectedChanges()}
+                    disabled={!reviewNote.trim()}
+                  >
+                    Request changes
+                  </button>
+                  <button
+                    className="approve"
+                    onClick={() => {
+                      void review(reviewProperty, "approve");
+                      setReviewProperty(null);
+                    }}
+                  >
+                    <Check /> Approve and publish
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+function ReviewBlock({
+  title,
+  value,
+  privateData = false,
+}: {
+  title: string;
+  value: unknown;
+  privateData?: boolean;
+}) {
+  return (
+    <section className="property-review-block">
+      <header>
+        <h3>{title}</h3>
+        {privateData && <span>Private</span>}
+      </header>
+      <pre>
+        {value &&
+        (Array.isArray(value)
+          ? value.length
+          : Object.keys(value as object).length)
+          ? JSON.stringify(value, null, 2)
+          : "No information added"}
+      </pre>
+    </section>
   );
 }
 

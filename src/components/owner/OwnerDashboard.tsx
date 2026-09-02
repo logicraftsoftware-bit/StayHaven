@@ -302,7 +302,10 @@ export function OwnerDashboard() {
                         >
                           {property.status === "APPROVED"
                             ? "Manage Property"
-                            : "Continue Editing"}
+                            : property.status === "DRAFT" ||
+                                property.status === "CHANGES_REQUIRED"
+                              ? "Continue Editing"
+                              : "View Review Status"}
                         </button>
                       </footer>
                     </div>

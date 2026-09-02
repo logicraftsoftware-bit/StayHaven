@@ -237,8 +237,28 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         .map((roomItem) => roomItem.baseRate)
         .filter((rate) => rate > 0);
       const payload = {
-        ...form,
-        _id: undefined,
+        siteId: form.siteId,
+        propertyTypeId: form.propertyTypeId,
+        propertyType: form.propertyType,
+        name: form.name,
+        displayName: form.displayName,
+        description: form.description,
+        address: form.address,
+        city: form.city,
+        state: form.state,
+        country: form.country,
+        maxGuests: form.maxGuests,
+        amenities: form.amenities,
+        basicInfo: form.basicInfo,
+        locationDetails: form.locationDetails,
+        location: form.location,
+        roomDetails: form.roomDetails,
+        media: form.media,
+        mealPlans: form.mealPlans,
+        policies: form.policies,
+        financeLegal: form.financeLegal,
+        documents: form.documents,
+        seo: form.seo,
         submit,
         rooms:
           form.roomDetails.reduce(
@@ -354,6 +374,30 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         onBack={() => router.push("/owner")}
         onEdit={() => setManageEdit(true)}
       />
+    );
+  if (["PENDING", "REJECTED", "SUSPENDED"].includes(form.status || ""))
+    return (
+      <main className="property-wizard owner-review-locked">
+        <section>
+          <span className={`owner-status ${(form.status || "").toLowerCase()}`}>
+            {(form.status || "").replaceAll("_", " ")}
+          </span>
+          <h1>
+            {form.status === "PENDING"
+              ? "Property submitted for review"
+              : "Property editing is currently closed"}
+          </h1>
+          <p>
+            {form.status === "PENDING"
+              ? "The super admin is verifying the property details and documents. Editing will reopen if changes are requested."
+              : form.reviewReason ||
+                "Contact the administrator for more information about this listing."}
+          </p>
+          <button className="btn-primary" onClick={() => router.push("/owner")}>
+            <ArrowLeft /> Back to My Properties
+          </button>
+        </section>
+      </main>
     );
   return (
     <main className="property-wizard">

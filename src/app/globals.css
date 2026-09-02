@@ -4606,6 +4606,39 @@ button {
 .finance-legal > .secure-note {
   margin: 0;
 }
+.owner-review-locked {
+  display: grid;
+  min-height: calc(100vh - 86px);
+  place-items: center;
+  background: #f5f6f8;
+  padding: 30px;
+}
+.owner-review-locked > section {
+  width: min(620px, 100%);
+  border: 1px solid #dfe3e8;
+  border-radius: 18px;
+  background: #fff;
+  padding: 42px;
+  text-align: center;
+  box-shadow: 0 18px 50px #11131512;
+}
+.owner-review-locked h1 {
+  margin: 18px 0 10px;
+  font: 700 32px var(--font-display);
+}
+.owner-review-locked p {
+  color: #64748b;
+  line-height: 1.7;
+}
+.owner-review-locked .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.owner-review-locked .btn-primary svg {
+  width: 17px;
+}
 @media (max-width: 700px) {
   .finance-grid {
     grid-template-columns: 1fr;
