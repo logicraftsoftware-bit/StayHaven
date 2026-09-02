@@ -46,7 +46,14 @@ jobs:
           set -Eeuo pipefail
 
           APP_DIR=/var/www/guwahati-homestay
+          DEPLOY_LOCK=/tmp/guwahati-homestay-deploy.lock
           export NVM_DIR="$HOME/.nvm"
+
+          exec 9>"$DEPLOY_LOCK"
+          flock --wait 1200 9 || {
+            echo "Another deployment did not release the lock in time." >&2
+            exit 1
+          }
 
           if [ -s "$NVM_DIR/nvm.sh" ]; then
             . "$NVM_DIR/nvm.sh"
