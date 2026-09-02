@@ -18,6 +18,7 @@ import { apiRequest, publicApiBase } from "@/lib/api-client";
 import { useSite } from "@/components/site/SiteProvider";
 import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 import { PropertyManager } from "./PropertyManager";
+import { PropertyMediaManager } from "./PropertyMediaManager";
 import { LocationPicker } from "./LocationPicker";
 type Api<T> = { success: boolean; data: T; message?: string };
 type Site = {
@@ -572,7 +573,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             />
           )}
           {step === 4 && (
-            <MediaManager
+            <PropertyMediaManager
               media={form.media}
               rooms={form.roomDetails}
               upload={upload}
@@ -1358,7 +1359,7 @@ function AmenityDialog({
     </div>
   );
 }
-function MediaManager({
+export function MediaManager({
   media,
   rooms,
   upload,
