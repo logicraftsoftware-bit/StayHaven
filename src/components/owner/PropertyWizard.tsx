@@ -100,6 +100,10 @@ const steps = [
   "Meals & Policies",
   "Finance & Legal",
 ];
+const propertyYears = Array.from(
+  { length: new Date().getFullYear() - 1899 },
+  (_, index) => String(new Date().getFullYear() - index),
+);
 const empty: Form = {
   siteId: "",
   propertyTypeId: "",
@@ -372,22 +376,36 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
           {step === 1 && (
             <div className="wizard-grid">
               <Field
-                label="Property name"
-                value={form.name}
-                onChange={(v) => set("name", v)}
+                label="Property name (Display name)"
+                value={form.displayName || form.name}
+                onChange={(value) =>
+                  setForm((current) => ({
+                    ...current,
+                    name: value,
+                    displayName: value,
+                  }))
+                }
+              />
+              <YearField
+                label="When was the property built?"
+                value={String(form.basicInfo.builtYear || "")}
+                onChange={(value) => setNested("basicInfo", "builtYear", value)}
+              />
+              <YearField
+                label="Accepting bookings since"
+                value={String(form.basicInfo.acceptingBookingsSince || "")}
+                onChange={(value) =>
+                  setNested("basicInfo", "acceptingBookingsSince", value)
+                }
               />
               <Field
-                label="Display name"
-                value={form.displayName}
-                onChange={(v) => set("displayName", v)}
-              />
-              <Field
-                label="Contact person"
+                label="Contact person name"
                 value={String(form.basicInfo.contactPerson || "")}
                 onChange={(v) => setNested("basicInfo", "contactPerson", v)}
               />
               <Field
                 label="Phone"
+                type="tel"
                 value={String(form.basicInfo.phone || "")}
                 onChange={(v) => setNested("basicInfo", "phone", v)}
               />
@@ -398,9 +416,10 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                 onChange={(v) => setNested("basicInfo", "email", v)}
               />
               <Field
-                label="Website (optional)"
-                value={String(form.basicInfo.website || "")}
-                onChange={(v) => setNested("basicInfo", "website", v)}
+                label="Landline number (optional)"
+                type="tel"
+                value={String(form.basicInfo.landline || "")}
+                onChange={(v) => setNested("basicInfo", "landline", v)}
               />
               <label className="wide">
                 Description
@@ -449,7 +468,8 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                     state: patch.state ?? current.state,
                     country: patch.country ?? current.country,
                     location:
-                      patch.latitude !== undefined && patch.longitude !== undefined
+                      patch.latitude !== undefined &&
+                      patch.longitude !== undefined
                         ? {
                             type: "Point",
                             coordinates: [patch.longitude, patch.latitude],
@@ -460,8 +480,9 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                       ...Object.fromEntries(
                         Object.entries(patch).filter(
                           ([key, value]) =>
-                            !["address", "city", "state", "country"].includes(key) &&
-                            value !== undefined,
+                            !["address", "city", "state", "country"].includes(
+                              key,
+                            ) && value !== undefined,
                         ),
                       ),
                     },
@@ -469,14 +490,49 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                 }
               />
               <div className="property-location-address-grid wizard-grid">
-                <Field label="House / Building / Apartment No." value={String(form.locationDetails.house || "")} onChange={(v) => setNested("locationDetails", "house", v)} />
-                <Field label="Locality / Area / Street / Sector" value={String(form.locationDetails.area || "")} onChange={(v) => setNested("locationDetails", "area", v)} />
-                <Field label="PIN / ZIP" value={String(form.locationDetails.postalCode || "")} onChange={(v) => setNested("locationDetails", "postalCode", v)} />
-                <Field label="Country" value={form.country} onChange={(v) => set("country", v)} />
-                <Field label="State" value={form.state} onChange={(v) => set("state", v)} />
-                <Field label="City" value={form.city} onChange={(v) => set("city", v)} />
-                <label className="wide">Full address<textarea value={form.address} onChange={(e) => set("address", e.target.value)} /></label>
-                <label className="property-address-confirm wide"><input type="checkbox" required />I confirm this address matches the registration or ownership document.</label>
+                <Field
+                  label="House / Building / Apartment No."
+                  value={String(form.locationDetails.house || "")}
+                  onChange={(v) => setNested("locationDetails", "house", v)}
+                />
+                <Field
+                  label="Locality / Area / Street / Sector"
+                  value={String(form.locationDetails.area || "")}
+                  onChange={(v) => setNested("locationDetails", "area", v)}
+                />
+                <Field
+                  label="PIN / ZIP"
+                  value={String(form.locationDetails.postalCode || "")}
+                  onChange={(v) =>
+                    setNested("locationDetails", "postalCode", v)
+                  }
+                />
+                <Field
+                  label="Country"
+                  value={form.country}
+                  onChange={(v) => set("country", v)}
+                />
+                <Field
+                  label="State"
+                  value={form.state}
+                  onChange={(v) => set("state", v)}
+                />
+                <Field
+                  label="City"
+                  value={form.city}
+                  onChange={(v) => set("city", v)}
+                />
+                <label className="wide">
+                  Full address
+                  <textarea
+                    value={form.address}
+                    onChange={(e) => set("address", e.target.value)}
+                  />
+                </label>
+                <label className="property-address-confirm wide">
+                  <input type="checkbox" required />I confirm this address
+                  matches the registration or ownership document.
+                </label>
               </div>
             </div>
           )}
@@ -622,7 +678,10 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
               />
               <label>
                 Legal document type
-                <select id="property-document-type" defaultValue="ownership-proof">
+                <select
+                  id="property-document-type"
+                  defaultValue="ownership-proof"
+                >
                   <option value="ownership-proof">Ownership proof</option>
                   <option value="identity-proof">Identity proof</option>
                   <option value="tax-document">Tax document</option>
@@ -657,7 +716,9 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                       >
                         {String(item.type || "Document")}
                       </a>
-                      <span>{String(item.verificationStatus || "pending")}</span>
+                      <span>
+                        {String(item.verificationStatus || "pending")}
+                      </span>
                       <button
                         type="button"
                         onClick={() =>
@@ -731,6 +792,29 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+    </label>
+  );
+}
+function YearField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Select year</option>
+        {propertyYears.map((year) => (
+          <option key={year} value={year}>
+            {year}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
