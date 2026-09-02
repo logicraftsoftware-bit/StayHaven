@@ -20,6 +20,7 @@ import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 import { PropertyManager } from "./PropertyManager";
 import { PropertyMediaManager } from "./PropertyMediaManager";
 import { PropertyAmenities } from "./PropertyAmenities";
+import { MealsPolicies } from "./MealsPolicies";
 import { LocationPicker } from "./LocationPicker";
 type Api<T> = { success: boolean; data: T; message?: string };
 type Site = {
@@ -588,63 +589,12 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             />
           )}
           {step === 6 && (
-            <div className="wizard-grid">
-              <label>
-                Meal plan
-                <select
-                  value={String(form.mealPlans[0]?.name || "Room Only")}
-                  onChange={(e) =>
-                    set("mealPlans", [
-                      {
-                        name: e.target.value,
-                        included: e.target.value !== "Room Only",
-                      },
-                    ])
-                  }
-                >
-                  <option>Room Only</option>
-                  <option>Breakfast Included</option>
-                  <option>Breakfast + Dinner</option>
-                  <option>All Meals</option>
-                </select>
-              </label>
-              <Field
-                label="Check-in time"
-                type="time"
-                value={String(form.policies.checkIn || "14:00")}
-                onChange={(v) => setNested("policies", "checkIn", v)}
-              />
-              <Field
-                label="Check-out time"
-                type="time"
-                value={String(form.policies.checkOut || "11:00")}
-                onChange={(v) => setNested("policies", "checkOut", v)}
-              />
-              <Field
-                label="Cancellation policy"
-                value={String(form.policies.cancellation || "")}
-                onChange={(v) => setNested("policies", "cancellation", v)}
-              />
-              <Field
-                label="Child policy"
-                value={String(form.policies.child || "")}
-                onChange={(v) => setNested("policies", "child", v)}
-              />
-              <Field
-                label="Pet policy"
-                value={String(form.policies.pet || "")}
-                onChange={(v) => setNested("policies", "pet", v)}
-              />
-              <label className="wide">
-                Property rules
-                <textarea
-                  value={String(form.policies.rules || "")}
-                  onChange={(e) =>
-                    setNested("policies", "rules", e.target.value)
-                  }
-                />
-              </label>
-            </div>
+            <MealsPolicies
+              mealPlans={form.mealPlans}
+              setMealPlans={(plans) => set("mealPlans", plans)}
+              policies={form.policies}
+              setPolicy={(field, value) => setNested("policies", field, value)}
+            />
           )}
           {step === 7 && (
             <div className="wizard-grid">
