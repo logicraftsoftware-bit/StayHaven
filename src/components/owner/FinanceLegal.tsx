@@ -179,19 +179,18 @@ export function FinanceLegal({
           />
         </div>
         <div className="finance-grid">
-          {hasGstin ? (
+          {hasGstin && (
             <TextInput
               label="GSTIN"
               value={values.gstin}
               onChange={(value) => setValue("gstin", value.toUpperCase())}
             />
-          ) : (
-            <TextInput
-              label="PAN Number"
-              value={values.pan}
-              onChange={(value) => setValue("pan", value.toUpperCase())}
-            />
           )}
+          <TextInput
+            label="PAN Number"
+            value={values.pan}
+            onChange={(value) => setValue("pan", value.toUpperCase())}
+          />
         </div>
         <Check
           label="I accept the GST declaration and consent to verification."
