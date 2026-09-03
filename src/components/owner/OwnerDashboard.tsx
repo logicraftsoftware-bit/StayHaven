@@ -2,13 +2,17 @@
 /* Cloudinary URLs are already transformed/optimized by the media service. */
 /* eslint-disable @next/next/no-img-element */
 import {
+  ArrowUpDown,
   Building2,
+  CalendarDays,
   Check,
   ChevronDown,
+  Download,
   KeyRound,
   LoaderCircle,
   LogOut,
   Plus,
+  RefreshCw,
   UserRound,
   Users,
   X,
@@ -54,8 +58,20 @@ export function OwnerDashboard() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [owner, setOwner] = useState<Owner | null>(null);
   const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchBy, setSearchBy] = useState<"property" | "city">("property");
   const [tab, setTab] = useState<"live" | "progress">("live");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dateFrom, setDateFrom] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -73,6 +89,7 @@ export function OwnerDashboard() {
     setSites(s.data);
     setProperties(p.data);
     setOwner(account.data);
+    setLastUpdated(new Date());
   }, []);
   useEffect(() => {
     queueMicrotask(() => {
@@ -134,11 +151,67 @@ export function OwnerDashboard() {
         const siteId = typeof p.siteId === "string" ? p.siteId : p.siteId._id;
         return (
           (!filter || siteId === filter) &&
+          (!search.trim() ||
+            (searchBy === "property"
+              ? (p.displayName || p.name)
+                  .toLowerCase()
+                  .includes(search.trim().toLowerCase())
+              : p.city.toLowerCase().includes(search.trim().toLowerCase()))) &&
           (tab === "live" ? p.status === "APPROVED" : p.status !== "APPROVED")
         );
       }),
-    [filter, properties, tab],
+    [filter, properties, search, searchBy, tab],
   );
+  const refresh = async () => {
+    const token = localStorage.getItem(OWNER_TOKEN_KEY) || "";
+    setRefreshing(true);
+    try {
+      await load(token);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const downloadSummary = () => {
+    const rows = [
+      [
+        "Property",
+        "City",
+        "Status",
+        "Content score",
+        "Today's bookings",
+        "Today's check-ins",
+        "Staying today",
+        "Today's check-outs",
+        "Net bookings",
+        "Net earnings",
+      ],
+      ...visible.map((property) => [
+        property.displayName || property.name,
+        property.city,
+        property.status,
+        `${property.completeness || 0}/100`,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ]),
+    ];
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `property-booking-summary-${dateFrom}-${dateTo}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
   if (loading)
     return <div className="owner-loading">Opening owner dashboard…</div>;
   return (
@@ -249,105 +322,201 @@ export function OwnerDashboard() {
               {properties.filter((p) => p.status !== "APPROVED").length})
             </button>
           </div>
-          <div className="owner-toolbar">
-            <label>
-              Marketplace
+          <section className="owner-booking-summary">
+            <header className="owner-summary-head">
+              <div>
+                <h2>Booking Summary</h2>
+                <p>
+                  Today&apos;s bookings, pending tasks and business earnings at
+                  a glance.
+                </p>
+              </div>
+              <div className="owner-summary-actions">
+                <span>
+                  {lastUpdated
+                    ? `Last updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : "Not updated"}
+                </span>
+                <button onClick={() => void refresh()} disabled={refreshing}>
+                  <RefreshCw className={refreshing ? "owner-spin" : ""} />
+                  Refresh
+                </button>
+                <button className="download" onClick={downloadSummary}>
+                  <Download /> Download
+                </button>
+              </div>
+            </header>
+            <div className="owner-summary-filters">
+              <div className="owner-search-modes">
+                <strong>Filter and Search by:</strong>
+                <button
+                  className={searchBy === "property" ? "active" : ""}
+                  onClick={() => setSearchBy("property")}
+                >
+                  Property
+                </button>
+                <button
+                  className={searchBy === "city" ? "active" : ""}
+                  onClick={() => setSearchBy("city")}
+                >
+                  City
+                </button>
+              </div>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={`Search by ${searchBy}`}
+              />
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               >
-                <option value="">All sites</option>
+                <option value="">All marketplaces</option>
                 {sites.map((site) => (
                   <option key={site._id} value={site._id}>
                     {site.name}
                   </option>
                 ))}
               </select>
-            </label>
-            <span>Current website: {currentSite.name}</span>
-          </div>
-          {visible.length ? (
-            <div className="owner-property-grid">
-              {visible.map((property) => {
-                const site =
-                  typeof property.siteId === "string"
-                    ? sites.find((s) => s._id === property.siteId)
-                    : property.siteId;
-                const cover =
-                  property.media?.find((m) => m.primary)?.url ||
-                  property.media?.[0]?.url;
-                return (
-                  <article className="owner-property-card" key={property._id}>
-                    {cover ? (
-                      <img src={cover} alt="" />
-                    ) : (
-                      <div className="owner-property-placeholder">
-                        <Building2 />
-                      </div>
-                    )}
-                    <div>
-                      <span
-                        className={`owner-status ${property.status.toLowerCase()}`}
-                      >
-                        {property.status.replaceAll("_", " ")}
-                      </span>
-                      <h2>{property.displayName || property.name}</h2>
-                      <p>
-                        {property.propertyType} · {property.city},{" "}
-                        {property.state}
-                      </p>
-                      <small>{site?.name}</small>
-                      {property.reviewReason && (
-                        <div className="owner-review-note">
-                          <b>Admin note</b>
-                          {property.reviewReason}
-                        </div>
-                      )}
-                      <div className="owner-completion">
-                        <span
-                          style={{ width: `${property.completeness || 0}%` }}
-                        />
-                      </div>
-                      <footer>
-                        <small>{property.completeness || 0}% complete</small>
-                        <button
-                          onClick={() =>
-                            router.push(`/owner/properties/${property._id}`)
-                          }
-                        >
-                          {property.status === "APPROVED"
-                            ? "Manage Property"
-                            : property.status === "DRAFT" ||
-                                property.status === "CHANGES_REQUIRED"
-                              ? "Continue Editing"
-                              : "View Review Status"}
-                        </button>
-                      </footer>
-                    </div>
-                  </article>
-                );
-              })}
             </div>
-          ) : (
-            <div className="owner-empty">
-              <Building2 />
-              <h2>
-                {tab === "live"
-                  ? "No active properties yet"
-                  : "No properties in progress"}
-              </h2>
-              <p>
-                Start a complete listing and save it as a draft whenever you
-                need.
-              </p>
-              <button
-                className="btn-primary"
-                onClick={() => router.push("/owner/properties/new")}
-              >
-                <Plus /> List New Property
-              </button>
-            </div>
-          )}
+            {visible.length ? (
+              <div className="owner-summary-table-wrap">
+                <table className="owner-summary-table">
+                  <thead>
+                    <tr>
+                      <th>
+                        Property <ArrowUpDown />
+                      </th>
+                      <th>Content Score</th>
+                      <th>Today&apos;s Bookings</th>
+                      <th>Today&apos;s Check Ins</th>
+                      <th>Staying Today</th>
+                      <th>Today&apos;s Check Outs</th>
+                      <th className="owner-summary-range" colSpan={2}>
+                        <span>
+                          {dateFrom} – {dateTo}
+                        </span>
+                        <label>
+                          <CalendarDays /> Change dates
+                          <input
+                            type="date"
+                            value={dateFrom}
+                            max={dateTo}
+                            onChange={(event) =>
+                              setDateFrom(event.target.value)
+                            }
+                          />
+                          <input
+                            type="date"
+                            value={dateTo}
+                            min={dateFrom}
+                            onChange={(event) => setDateTo(event.target.value)}
+                          />
+                        </label>
+                      </th>
+                    </tr>
+                    <tr className="owner-summary-subhead">
+                      <th colSpan={6} />
+                      <th>Net Bookings</th>
+                      <th>Net Earnings</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((property) => {
+                      const site =
+                        typeof property.siteId === "string"
+                          ? sites.find((s) => s._id === property.siteId)
+                          : property.siteId;
+                      const cover =
+                        property.media?.find((media) => media.primary)?.url ||
+                        property.media?.[0]?.url;
+                      return (
+                        <tr key={property._id}>
+                          <td>
+                            <div className="owner-summary-property">
+                              {cover ? (
+                                <img src={cover} alt="" />
+                              ) : (
+                                <span>
+                                  <Building2 />
+                                </span>
+                              )}
+                              <div>
+                                <button
+                                  onClick={() =>
+                                    router.push(
+                                      `/owner/properties/${property._id}`,
+                                    )
+                                  }
+                                >
+                                  {property.displayName || property.name}
+                                </button>
+                                <small>
+                                  {property.propertyType} · {property.city}
+                                </small>
+                                <em>{site?.name || currentSite.name}</em>
+                              </div>
+                            </div>
+                            {property.reviewReason && (
+                              <div className="owner-review-note compact">
+                                <b>Admin note</b> {property.reviewReason}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <strong className="owner-content-score">
+                              {property.completeness || 0}/100
+                            </strong>
+                            <button
+                              className="owner-pending-task"
+                              onClick={() =>
+                                router.push(`/owner/properties/${property._id}`)
+                              }
+                            >
+                              {property.status === "CHANGES_REQUIRED"
+                                ? "1 pending task"
+                                : property.status === "APPROVED"
+                                  ? "No pending tasks"
+                                  : "Listing in progress"}
+                            </button>
+                          </td>
+                          <td>0</td>
+                          <td>0</td>
+                          <td>0</td>
+                          <td>0</td>
+                          <td>
+                            <strong>0</strong>
+                          </td>
+                          <td>
+                            <strong>₹0</strong>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="owner-empty">
+                <Building2 />
+                <h2>
+                  {tab === "live"
+                    ? "No active properties yet"
+                    : "No properties in progress"}
+                </h2>
+                <p>
+                  Start a complete listing and save it as a draft whenever you
+                  need.
+                </p>
+                <button
+                  className="btn-primary"
+                  onClick={() => router.push("/owner/properties/new")}
+                >
+                  <Plus /> List New Property
+                </button>
+              </div>
+            )}
+          </section>
         </section>
       </div>
       {passwordOpen && (

@@ -571,6 +571,212 @@
   padding: 10px;
   background: #fff;
 }
+.owner-booking-summary {
+  margin-top: 28px;
+}
+.owner-summary-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+.owner-summary-head h2 {
+  font: 700 26px var(--font-display);
+}
+.owner-summary-head p {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+}
+.owner-summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #64748b;
+  font-size: 11px;
+}
+.owner-summary-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b0d18;
+  font-weight: 800;
+}
+.owner-summary-actions button svg {
+  width: 15px;
+}
+.owner-summary-actions button.download {
+  border: 1px solid #8b0d18;
+  border-radius: 9px;
+  background: #fff;
+  padding: 10px 13px;
+}
+.owner-summary-filters {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) 220px;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.owner-search-modes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.owner-search-modes strong {
+  margin-right: 3px;
+  font-size: 13px;
+}
+.owner-search-modes button {
+  border: 1px solid #ccd3dd;
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 12px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 750;
+}
+.owner-search-modes button.active {
+  border-color: #8b0d18;
+  background: #fff7f7;
+  color: #8b0d18;
+}
+.owner-summary-filters > input,
+.owner-summary-filters > select {
+  height: 39px;
+  border: 1px solid #ccd3dd;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+  color: #475569;
+  font-size: 12px;
+}
+.owner-summary-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #d6dbe2;
+  border-radius: 14px;
+  background: #fff;
+}
+.owner-summary-table {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+}
+.owner-summary-table th {
+  height: 64px;
+  border-bottom: 1px solid #d6dbe2;
+  background: #f2f3f5;
+  padding: 10px 12px;
+  color: #344054;
+  font-size: 11px;
+  text-align: center;
+}
+.owner-summary-table th:first-child {
+  min-width: 285px;
+  text-align: left;
+}
+.owner-summary-table th svg {
+  display: inline;
+  width: 12px;
+  vertical-align: middle;
+}
+.owner-summary-table td {
+  border-bottom: 1px solid #e7e9ed;
+  padding: 16px 12px;
+  color: #475569;
+  font-size: 12px;
+  text-align: center;
+}
+.owner-summary-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.owner-summary-table td:first-child {
+  text-align: left;
+}
+.owner-summary-range {
+  min-width: 240px;
+}
+.owner-summary-range span {
+  display: block;
+  margin-bottom: 4px;
+  color: #1f2937;
+}
+.owner-summary-range label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #8b0d18;
+  cursor: pointer;
+}
+.owner-summary-range input {
+  width: 18px;
+  color: transparent;
+}
+.owner-summary-subhead th {
+  height: 40px;
+}
+.owner-summary-subhead th:first-child {
+  background: #f2f3f5;
+}
+.owner-summary-property {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.owner-summary-property > img,
+.owner-summary-property > span {
+  width: 62px;
+  height: 50px;
+  flex: none;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.owner-summary-property > span {
+  display: grid;
+  place-items: center;
+  background: #f1f3f5;
+}
+.owner-summary-property > span svg {
+  width: 22px;
+}
+.owner-summary-property > div {
+  display: grid;
+  gap: 2px;
+}
+.owner-summary-property button {
+  color: #0563d8;
+  font-weight: 850;
+  text-align: left;
+}
+.owner-summary-property small {
+  color: #475569;
+}
+.owner-summary-property em {
+  color: #8b0d18;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+.owner-content-score {
+  display: inline-flex;
+  border-radius: 6px;
+  background: #d1fae5;
+  padding: 4px 7px;
+  color: #047857;
+}
+.owner-pending-task {
+  display: block;
+  margin: 6px auto 0;
+  color: #0563d8;
+  font-size: 10px;
+}
+.owner-review-note.compact {
+  margin-top: 8px;
+  padding: 7px 9px;
+  font-size: 10px;
+}
 .owner-property-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
