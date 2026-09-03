@@ -5,6 +5,7 @@
 
 import Image from "next/image";
 import {
+  ArrowLeft,
   Building2,
   Check,
   ChevronDown,
@@ -2609,6 +2610,25 @@ function PropertiesView({
       setError((reason as Error).message);
     }
   }
+
+  if (!masterOnly && reviewProperty) {
+    return (
+      <PropertyReviewPage
+        property={reviewProperty}
+        selectedSections={reviewSections}
+        note={reviewNote}
+        onBack={() => setReviewProperty(null)}
+        onToggleSection={toggleReviewSection}
+        onNoteChange={setReviewNote}
+        onRequestChanges={() => void requestSelectedChanges()}
+        onApprove={() => {
+          void review(reviewProperty, "approve");
+          setReviewProperty(null);
+        }}
+      />
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -2951,119 +2971,123 @@ function PropertiesView({
               ))}
             </div>
           )}
-          {reviewProperty && (
-            <div className="admin-modal-backdrop">
-              <div className="admin-modal property-review-modal">
-                <button
-                  className="modal-close"
-                  onClick={() => setReviewProperty(null)}
-                >
-                  <X />
-                </button>
-                <span className="admin-kicker">Full property verification</span>
-                <h2>{reviewProperty.displayName || reviewProperty.name}</h2>
-                <p>
-                  {reviewProperty.propertyType} · {reviewProperty.address},{" "}
-                  {reviewProperty.city}, {reviewProperty.state}
-                </p>
-                <div className="property-review-grid">
-                  <ReviewBlock
-                    title="Basic information"
-                    onRequest={() => toggleReviewSection("Basic Info")}
-                    value={{
-                      description: reviewProperty.description,
-                      ...reviewProperty.basicInfo,
-                    }}
-                  />
-                  <ReviewBlock
-                    title="Location"
-                    value={reviewProperty.locationDetails}
-                    onRequest={() => toggleReviewSection("Location")}
-                  />
-                  <ReviewBlock
-                    title="Rooms & pricing"
-                    value={reviewProperty.roomDetails}
-                    onRequest={() => toggleReviewSection("Rooms & Spaces")}
-                  />
-                  <MediaReview
-                    value={reviewProperty.media}
-                    onRequest={() => toggleReviewSection("Photos & Videos")}
-                  />
-                  <ReviewBlock
-                    title="Amenities"
-                    value={reviewProperty.amenities}
-                    onRequest={() => toggleReviewSection("Amenities")}
-                  />
-                  <ReviewBlock
-                    title="Meals & policies"
-                    onRequest={() => toggleReviewSection("Meals & Policies")}
-                    value={{
-                      mealPlans: reviewProperty.mealPlans,
-                      policies: reviewProperty.policies,
-                    }}
-                  />
-                  <ReviewBlock
-                    title="Finance & legal"
-                    value={reviewProperty.financeLegal}
-                    privateData
-                    onRequest={() => toggleReviewSection("Finance & Legal")}
-                  />
-                  <DocumentReview
-                    value={reviewProperty.documents}
-                    onRequest={() => toggleReviewSection("Finance & Legal")}
-                  />
-                </div>
-                {["PENDING", "APPROVED"].includes(reviewProperty.status) && (
-                  <div className="property-review-decision">
-                    <h3>Verification decision</h3>
-                    <p>
-                      Select every owner edit window that must reopen. All other
-                      steps will remain locked.
-                    </p>
-                    <div className="review-section-picker">
-                      {stepsForReview.map((section) => (
-                        <label key={section}>
-                          <input
-                            type="checkbox"
-                            checked={reviewSections.includes(section)}
-                            onChange={() => toggleReviewSection(section)}
-                          />
-                          {section}
-                        </label>
-                      ))}
-                    </div>
-                    <textarea
-                      placeholder="Describe exactly what the property owner must correct or re-upload"
-                      value={reviewNote}
-                      onChange={(event) => setReviewNote(event.target.value)}
-                    />
-                    <div>
-                      <button
-                        onClick={() => void requestSelectedChanges()}
-                        disabled={!reviewNote.trim() || !reviewSections.length}
-                      >
-                        Request changes
-                      </button>
-                      {reviewProperty.status === "PENDING" && (
-                        <button
-                          className="approve"
-                          onClick={() => {
-                            void review(reviewProperty, "approve");
-                            setReviewProperty(null);
-                          }}
-                        >
-                          <Check /> Approve and publish
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </>
       )}
     </>
+  );
+}
+
+function PropertyReviewPage({
+  property,
+  selectedSections,
+  note,
+  onBack,
+  onToggleSection,
+  onNoteChange,
+  onRequestChanges,
+  onApprove,
+}: {
+  property: Property;
+  selectedSections: string[];
+  note: string;
+  onBack: () => void;
+  onToggleSection: (section: string) => void;
+  onNoteChange: (note: string) => void;
+  onRequestChanges: () => void;
+  onApprove: () => void;
+}) {
+  return (
+    <section className="property-review-page">
+      <button className="property-review-back" type="button" onClick={onBack}>
+        <ArrowLeft /> Back to properties
+      </button>
+      <PageHeader
+        eyebrow="FULL PROPERTY VERIFICATION"
+        title={property.displayName || property.name}
+        text={`${property.propertyType} · ${property.address}, ${property.city}, ${property.state}`}
+      />
+      <div className="property-review-grid">
+        <ReviewBlock
+          title="Basic information"
+          onRequest={() => onToggleSection("Basic Info")}
+          value={{ description: property.description, ...property.basicInfo }}
+        />
+        <ReviewBlock
+          title="Location"
+          value={property.locationDetails}
+          onRequest={() => onToggleSection("Location")}
+        />
+        <ReviewBlock
+          title="Rooms & pricing"
+          value={property.roomDetails}
+          onRequest={() => onToggleSection("Rooms & Spaces")}
+        />
+        <MediaReview
+          value={property.media}
+          onRequest={() => onToggleSection("Photos & Videos")}
+        />
+        <ReviewBlock
+          title="Amenities"
+          value={property.amenities}
+          onRequest={() => onToggleSection("Amenities")}
+        />
+        <ReviewBlock
+          title="Meals & policies"
+          onRequest={() => onToggleSection("Meals & Policies")}
+          value={{ mealPlans: property.mealPlans, policies: property.policies }}
+        />
+        <ReviewBlock
+          title="Finance & legal"
+          value={property.financeLegal}
+          privateData
+          onRequest={() => onToggleSection("Finance & Legal")}
+        />
+        <DocumentReview
+          value={property.documents}
+          onRequest={() => onToggleSection("Finance & Legal")}
+        />
+      </div>
+      {["PENDING", "APPROVED"].includes(property.status) && (
+        <div className="property-review-decision">
+          <h3>Verification decision</h3>
+          <p>
+            Select every owner edit window that must reopen. All other steps
+            will remain locked.
+          </p>
+          <div className="review-section-picker">
+            {stepsForReview.map((section) => (
+              <label key={section}>
+                <input
+                  type="checkbox"
+                  checked={selectedSections.includes(section)}
+                  onChange={() => onToggleSection(section)}
+                />
+                {section}
+              </label>
+            ))}
+          </div>
+          <textarea
+            placeholder="Describe exactly what the property owner must correct or re-upload"
+            value={note}
+            onChange={(event) => onNoteChange(event.target.value)}
+          />
+          <div>
+            <button
+              type="button"
+              onClick={onRequestChanges}
+              disabled={!note.trim() || !selectedSections.length}
+            >
+              Request changes
+            </button>
+            {property.status === "PENDING" && (
+              <button type="button" className="approve" onClick={onApprove}>
+                <Check /> Approve and publish
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
