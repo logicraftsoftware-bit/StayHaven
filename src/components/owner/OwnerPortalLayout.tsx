@@ -55,10 +55,12 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   const currentProperty = properties.find(
     (property) => property._id === propertyId,
   );
-  const filteredProperties = properties.filter((property) =>
-    `${property.displayName || property.name} ${property.city || ""}`
-      .toLowerCase()
-      .includes(propertySearch.trim().toLowerCase()),
+  const filteredProperties = properties.filter(
+    (property) =>
+      property.status === "APPROVED" &&
+      `${property.displayName || property.name} ${property.city || ""}`
+        .toLowerCase()
+        .includes(propertySearch.trim().toLowerCase()),
   );
 
   useEffect(() => {
