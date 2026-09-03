@@ -1068,19 +1068,38 @@
 }
 .owner-tabs {
   display: flex;
-  gap: 28px;
+  gap: 34px;
   margin-top: 36px;
   border-bottom: 1px solid #d7dce3;
 }
 .owner-tabs button {
-  padding: 14px 2px;
+  position: relative;
+  padding: 15px 2px 17px;
   font-weight: 800;
   color: #64748b;
-  border-bottom: 3px solid transparent;
+  border-bottom: 0;
+  transition: color 0.18s ease;
+}
+.owner-tabs button::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  border-radius: 0;
+  background: transparent;
+  transform: scaleX(0.35);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
 }
 .owner-tabs button.active {
   color: #8b0d18;
-  border-color: #8b0d18;
+}
+.owner-tabs button.active::after {
+  background: #8b0d18;
+  transform: scaleX(1);
 }
 .owner-toolbar {
   display: flex;
@@ -1394,6 +1413,156 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 22px;
+}
+.owner-progress-list {
+  overflow: hidden;
+  border: 1px solid #dfe3e8;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 9px 30px rgba(16, 24, 40, 0.045);
+}
+.owner-progress-list-head {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.25fr) minmax(190px, 0.9fr) minmax(
+      220px,
+      0.8fr
+    ) 150px;
+  gap: 20px;
+  padding: 17px 22px;
+  border-bottom: 1px solid #dfe3e8;
+  background: #f3f4f6;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+}
+.owner-progress-list .owner-progress-card {
+  display: grid;
+  grid-template-columns: 102px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin: 0;
+  padding: 22px;
+  border: 0;
+  border-bottom: 1px solid #e7eaf0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.owner-progress-list .owner-progress-card:last-child {
+  border-bottom: 0;
+}
+.owner-progress-list .owner-progress-card:hover {
+  transform: none;
+  background: #fffafa;
+  box-shadow: none;
+}
+.owner-progress-list .owner-progress-cover {
+  height: 78px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.owner-progress-list .owner-progress-cover > em {
+  display: none;
+}
+.owner-progress-list .owner-progress-card-body {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.2fr) minmax(220px, 0.9fr) minmax(
+      220px,
+      0.8fr
+    );
+  align-items: center;
+  column-gap: 28px;
+  padding: 0;
+}
+.owner-progress-list .owner-progress-card-body > small,
+.owner-progress-list .owner-progress-card-body > h3,
+.owner-progress-list .owner-progress-card-body > p {
+  grid-column: 1;
+}
+.owner-progress-list .owner-progress-card-body > h3 {
+  grid-row: 1;
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+.owner-progress-list .owner-progress-card-body > small {
+  grid-row: 2;
+}
+.owner-progress-list .owner-progress-card-body > p {
+  grid-row: 3;
+}
+.owner-progress-list .owner-progress-label {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0 0 7px;
+}
+.owner-progress-list .owner-progress-bar {
+  grid-column: 2;
+  grid-row: 2;
+}
+.owner-progress-list .owner-progress-alert {
+  grid-column: 2;
+  grid-row: 3;
+  margin-top: 7px;
+  padding: 7px 9px;
+}
+.owner-progress-list .owner-progress-card footer {
+  grid-column: 3;
+  grid-row: 1 / 4;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  justify-content: flex-end;
+}
+.owner-progress-list .owner-progress-card footer > span {
+  display: none;
+}
+.owner-progress-list .owner-progress-card footer button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #e0b1b5;
+  border-radius: 9px;
+  background: #fff;
+}
+@media (max-width: 980px) {
+  .owner-progress-list-head {
+    display: none;
+  }
+  .owner-progress-list .owner-progress-card-body {
+    grid-template-columns: 1fr auto;
+  }
+  .owner-progress-list .owner-progress-label,
+  .owner-progress-list .owner-progress-bar,
+  .owner-progress-list .owner-progress-alert {
+    grid-column: 1;
+  }
+  .owner-progress-list .owner-progress-card footer {
+    grid-column: 2;
+  }
+}
+@media (max-width: 620px) {
+  .owner-tabs {
+    gap: 22px;
+    overflow-x: auto;
+  }
+  .owner-tabs button {
+    flex: 0 0 auto;
+    font-size: 13px;
+  }
+  .owner-progress-list .owner-progress-card {
+    grid-template-columns: 72px 1fr;
+    padding: 16px;
+  }
+  .owner-progress-list .owner-progress-cover {
+    height: 64px;
+  }
+  .owner-progress-list .owner-progress-card-body {
+    grid-template-columns: 1fr;
+  }
+  .owner-progress-list .owner-progress-card footer {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+    margin-top: 13px;
+  }
 }
 .owner-progress-card {
   overflow: hidden;

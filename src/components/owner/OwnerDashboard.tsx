@@ -601,7 +601,13 @@ export function OwnerDashboard() {
                 </select>
               </div>
               {visible.length ? (
-                <div className="owner-progress-grid">
+                <div className="owner-progress-list">
+                  <div className="owner-progress-list-head">
+                    <span>Property</span>
+                    <span>Status</span>
+                    <span>Completion</span>
+                    <span>Action</span>
+                  </div>
                   {visible.map((property) => {
                     const site =
                       typeof property.siteId === "string"
