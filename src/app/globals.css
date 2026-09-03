@@ -4772,6 +4772,15 @@ button {
   margin: 0 !important;
   max-width: 1500px;
 }
+.owner-nested-workspace:has(.manager-shell) {
+  grid-template-columns: 1fr;
+}
+.owner-nested-workspace:has(.manager-shell) > .owner-sidebar {
+  display: none;
+}
+.owner-portal-content > .manager-shell {
+  min-height: calc(100vh - 86px);
+}
 @media (max-width: 900px) {
   .owner-nested-workspace {
     display: block;
