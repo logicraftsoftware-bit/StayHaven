@@ -16,8 +16,13 @@ import {
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { Role } from '../common/enums/role.enum';
 import { PropertyStatus } from '../common/enums/status.enum';
-import { PropertyQueryDto } from './dto/property.dto';
+import {
+  AvailabilityQueryDto,
+  PropertyQueryDto,
+  PublicPropertyQueryDto,
+} from './dto/property.dto';
 import { Property, PropertyDocument } from './schemas/property.schema';
+import { RoomInventory } from './schemas/room-inventory.schema';
 import { SitesService } from '../sites/sites.service';
 import { PropertyTypesService } from '../property-types/property-types.service';
 import {
@@ -72,6 +77,9 @@ export class PropertiesService {
     private sites: SitesService,
     private propertyTypes: PropertyTypesService,
     @Optional() private config?: ConfigService,
+    @Optional()
+    @InjectModel(RoomInventory.name)
+    private inventory?: Model<RoomInventory>,
   ) {}
   async list(q: PropertyQueryDto, allowedSiteIds?: string[]) {
     const filter: {
@@ -231,18 +239,76 @@ export class PropertiesService {
     return this.model.countDocuments(filter);
   }
 
-  listPublic(siteId: string) {
-    return this.model
-      .find({
-        siteId: new Types.ObjectId(siteId),
-        status: PropertyStatus.APPROVED,
-        active: { $ne: false },
-      })
-      .select(
-        'name displayName slug propertyType propertyTypeId description address city state country location status price amenities media roomDetails policies mealPlans seo',
-      )
-      .sort({ createdAt: -1 })
-      .lean();
+  async listPublic(siteId: string, query: PublicPropertyQueryDto) {
+    const filter: Record<string, unknown> = {
+      siteId: new Types.ObjectId(siteId),
+      status: PropertyStatus.APPROVED,
+      active: { $ne: false },
+      name: { $ne: '' },
+      slug: { $ne: '' },
+    };
+    if (query.keyword)
+      filter.$or = [
+        { name: { $regex: query.keyword, $options: 'i' } },
+        { displayName: { $regex: query.keyword, $options: 'i' } },
+        { city: { $regex: query.keyword, $options: 'i' } },
+        { address: { $regex: query.keyword, $options: 'i' } },
+      ];
+    if (query.city)
+      filter.city = {
+        $regex: `^${this.escapeRegex(query.city)}$`,
+        $options: 'i',
+      };
+    if (query.type && query.type !== 'all')
+      filter.propertyType = {
+        $regex: `^${this.escapeRegex(query.type.replace(/-/g, ' '))}$`,
+        $options: 'i',
+      };
+    if (query.minPrice !== undefined || query.maxPrice !== undefined)
+      filter.price = {
+        ...(query.minPrice !== undefined ? { $gte: query.minPrice } : {}),
+        ...(query.maxPrice !== undefined ? { $lte: query.maxPrice } : {}),
+      };
+    if (query.guests)
+      filter.$and = [
+        {
+          $or: [
+            { maxGuests: { $gte: query.guests } },
+            { 'roomDetails.maxAdults': { $gte: query.guests } },
+          ],
+        },
+      ];
+    const amenities = query.amenities
+      ?.split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (amenities?.length)
+      filter.amenities = {
+        $all: amenities.map(
+          (item) => new RegExp(`^${this.escapeRegex(item)}$`, 'i'),
+        ),
+      };
+    const projection =
+      'name displayName slug propertyType propertyTypeId description address city state country location price rooms maxGuests amenities media roomDetails policies mealPlans seo';
+    const [data, total] = await Promise.all([
+      this.model
+        .find(filter)
+        .select(projection)
+        .sort({ createdAt: -1 })
+        .skip((query.page - 1) * query.limit)
+        .limit(query.limit)
+        .lean(),
+      this.model.countDocuments(filter),
+    ]);
+    return {
+      data,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+      },
+    };
   }
 
   async getPublicBySlug(siteId: string, slug: string) {
@@ -254,11 +320,92 @@ export class PropertiesService {
         active: { $ne: false },
       })
       .select(
-        'name displayName slug propertyType propertyTypeId description address city state country location status price amenities media roomDetails policies mealPlans seo',
+        'name displayName slug propertyType propertyTypeId description address city state country location price rooms maxGuests amenities media roomDetails policies mealPlans seo basicInfo locationDetails',
       )
       .lean();
     if (!property) throw new NotFoundException('Property not found');
     return property;
+  }
+
+  async publicAvailability(
+    siteId: string,
+    slug: string,
+    query: AvailabilityQueryDto,
+  ) {
+    const checkIn = new Date(`${query.checkIn}T00:00:00.000Z`);
+    const checkOut = new Date(`${query.checkOut}T00:00:00.000Z`);
+    if (
+      Number.isNaN(checkIn.valueOf()) ||
+      Number.isNaN(checkOut.valueOf()) ||
+      checkOut <= checkIn
+    )
+      throw new BadRequestException('Check-out must be after check-in');
+    const nights = Math.round(
+      (checkOut.valueOf() - checkIn.valueOf()) / 86400000,
+    );
+    if (nights > 60)
+      throw new BadRequestException('Date range cannot exceed 60 nights');
+    const property = (await this.getPublicBySlug(siteId, slug)) as {
+      _id: Types.ObjectId;
+      roomDetails?: Record<string, unknown>[];
+    };
+    const rows = this.inventory
+      ? await this.inventory
+          .find({
+            propertyId: property._id,
+            date: { $gte: checkIn, $lt: checkOut },
+          })
+          .lean()
+      : [];
+    if (!rows.length)
+      return {
+        status: 'NOT_CONFIGURED',
+        message: 'Online availability is not configured for these dates.',
+        checkIn: query.checkIn,
+        checkOut: query.checkOut,
+        guests: query.guests,
+        rooms: [],
+      };
+    const byRoom = new Map<string, typeof rows>();
+    for (const row of rows)
+      byRoom.set(row.roomId, [...(byRoom.get(row.roomId) || []), row]);
+    const rooms = (property.roomDetails || []).map((room, index) => {
+      const rawRoomId = room.id || room._id;
+      const roomId =
+        typeof rawRoomId === 'string' || typeof rawRoomId === 'number'
+          ? String(rawRoomId)
+          : String(index);
+      const dates = byRoom.get(roomId) || [];
+      const configured = dates.length === nights;
+      const available =
+        configured && dates.every((day) => day.available - day.blocked > 0);
+      return {
+        roomId,
+        status: configured
+          ? available
+            ? 'AVAILABLE'
+            : 'UNAVAILABLE'
+          : 'NOT_CONFIGURED',
+        availableInventory: available
+          ? Math.min(...dates.map((day) => day.available - day.blocked))
+          : 0,
+        totalRate: configured
+          ? dates.reduce((sum, day) => sum + day.rate, 0)
+          : null,
+      };
+    });
+    return {
+      status: 'CONFIGURED',
+      checkIn: query.checkIn,
+      checkOut: query.checkOut,
+      guests: query.guests,
+      nights,
+      rooms,
+    };
+  }
+
+  private escapeRegex(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   async listOwner(ownerId: string, query: OwnerPropertyQueryDto) {

@@ -12,6 +12,7 @@ import {
   IsNumber,
   IsBoolean,
   IsObject,
+  IsInt,
 } from 'class-validator';
 import { PropertyStatus } from '../../common/enums/status.enum';
 export class PropertyQueryDto {
@@ -21,6 +22,23 @@ export class PropertyQueryDto {
   @IsOptional() @IsMongoId() siteId?: string;
   @IsOptional() @IsMongoId() ownerId?: string;
   @IsOptional() @IsString() search?: string;
+}
+export class PublicPropertyQueryDto {
+  @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @Type(() => Number) @IsInt() @Min(1) @Max(48) limit = 12;
+  @IsOptional() @IsString() @MaxLength(120) keyword?: string;
+  @IsOptional() @IsString() @MaxLength(120) city?: string;
+  @IsOptional() @IsString() @MaxLength(80) type?: string;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) minPrice?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) maxPrice?: number;
+  @IsOptional() @IsString() @MaxLength(500) amenities?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(30) guests?: number;
+}
+
+export class AvailabilityQueryDto {
+  @IsString() checkIn: string;
+  @IsString() checkOut: string;
+  @Type(() => Number) @IsInt() @Min(1) @Max(30) guests = 1;
 }
 export class ReviewReasonDto {
   @IsString() reason: string;

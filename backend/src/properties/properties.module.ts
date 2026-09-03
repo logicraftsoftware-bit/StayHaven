@@ -9,10 +9,15 @@ import { PublicPropertiesController } from './public-properties.controller';
 import { OwnerPropertiesController } from './owner-properties.controller';
 import { OwnersModule } from '../owners/owners.module';
 import { PropertyTypesModule } from '../property-types/property-types.module';
+import {
+  RoomInventory,
+  RoomInventorySchema,
+} from './schemas/room-inventory.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Property.name, schema: PropertySchema },
+      { name: RoomInventory.name, schema: RoomInventorySchema },
     ]),
     AuditLogsModule,
     SitesModule,

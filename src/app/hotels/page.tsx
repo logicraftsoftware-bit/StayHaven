@@ -3,7 +3,7 @@ import { Shell } from "@/components/layout/Shell";
 import { PageRenderer } from "@/components/page-builder/PageRenderer";
 import { Results } from "@/components/search/Results";
 import { getPublishedPage } from "@/lib/page-config";
-type Params = { destination?: string; type?: string };
+type Params = { destination?: string; type?: string; keyword?: string; minPrice?: string; maxPrice?: string; page?: string };
 const routePage = (p: Params) =>
   p.type === "villa"
     ? "villas"
@@ -38,7 +38,7 @@ export default async function HotelsPage({
   return (
     <Shell>
       <PageRenderer page={page} />
-      <Results destination={p.destination} type={p.type} />
+      <Results destination={p.destination} type={p.type} keyword={p.keyword} minPrice={p.minPrice} maxPrice={p.maxPrice} page={p.page} />
     </Shell>
   );
 }
