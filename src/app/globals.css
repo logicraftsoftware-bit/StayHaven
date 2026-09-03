@@ -4738,6 +4738,13 @@ button {
 .owner-dashboard-shell .owner-workspace {
   min-height: calc(100vh - 86px);
 }
+.owner-dashboard-shell > .owner-workspace > .owner-sidebar {
+  position: sticky;
+  top: 86px;
+  height: calc(100vh - 86px);
+  align-self: start;
+  overflow: hidden;
+}
 .owner-dashboard-shell .owner-sidebar button:last-child {
   margin-top: 0;
 }
@@ -4781,6 +4788,13 @@ button {
 .owner-portal-content > .manager-shell {
   min-height: calc(100vh - 86px);
 }
+.owner-portal-content > .manager-shell > aside {
+  position: sticky;
+  top: 86px;
+  height: calc(100vh - 86px);
+  align-self: start;
+  overflow: hidden;
+}
 @media (max-width: 900px) {
   .owner-nested-workspace {
     display: block;
@@ -4791,6 +4805,14 @@ button {
     height: auto;
     overflow: visible;
     z-index: 20;
+  }
+  .owner-dashboard-shell > .owner-workspace > .owner-sidebar,
+  .owner-portal-content > .manager-shell > aside {
+    position: sticky;
+    top: 72px;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
   .owner-portal-content > .property-wizard > header {
     padding: 0 15px;
