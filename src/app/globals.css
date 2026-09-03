@@ -1341,20 +1341,39 @@
   align-items: center;
   gap: 11px;
 }
-.owner-summary-property > img,
-.owner-summary-property > span {
+.owner-summary-property-image-link,
+.owner-summary-property-image-link > img,
+.owner-summary-property-image-link > span {
   width: 70px;
   height: 58px;
   flex: none;
   border-radius: 10px;
   object-fit: cover;
 }
-.owner-summary-property > span {
+.owner-summary-property-image-link {
+  display: block;
+  overflow: hidden;
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+.owner-summary-property-image-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 17px rgba(16, 24, 40, 0.2);
+}
+.owner-summary-property-image-link:focus-visible {
+  outline: 3px solid rgba(139, 13, 24, 0.25);
+  outline-offset: 2px;
+}
+.owner-summary-property-image-link > img {
+  display: block;
+}
+.owner-summary-property-image-link > span {
   display: grid;
   place-items: center;
   background: #f1f3f5;
 }
-.owner-summary-property > span svg {
+.owner-summary-property-image-link > span svg {
   width: 22px;
 }
 .owner-summary-property > div {
@@ -1423,10 +1442,9 @@
 }
 .owner-progress-list-head {
   display: grid;
-  grid-template-columns: minmax(300px, 1.25fr) minmax(190px, 0.9fr) minmax(
-      220px,
-      0.8fr
-    ) 150px;
+  grid-template-columns:
+    minmax(300px, 1.25fr) minmax(190px, 0.9fr) minmax(220px, 0.8fr)
+    150px;
   gap: 20px;
   padding: 17px 22px;
   border-bottom: 1px solid #dfe3e8;

@@ -420,13 +420,23 @@ export function OwnerDashboard() {
                             <tr key={property._id}>
                               <td>
                                 <div className="owner-summary-property">
-                                  {cover ? (
-                                    <img src={cover} alt="" />
-                                  ) : (
-                                    <span>
-                                      <Building2 />
-                                    </span>
-                                  )}
+                                  <button
+                                    className="owner-summary-property-image-link"
+                                    aria-label={`Manage ${property.displayName || property.name}`}
+                                    onClick={() =>
+                                      router.push(
+                                        `/owner/properties/${property._id}`,
+                                      )
+                                    }
+                                  >
+                                    {cover ? (
+                                      <img src={cover} alt="" />
+                                    ) : (
+                                      <span>
+                                        <Building2 />
+                                      </span>
+                                    )}
+                                  </button>
                                   <div>
                                     <button
                                       onClick={() =>
