@@ -102,6 +102,7 @@ type Form = {
   seo: Record<string, unknown>;
   status?: string;
   reviewReason?: string;
+  reviewSections?: string[];
   completeness?: number;
 };
 const steps = [
@@ -196,7 +197,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         ]);
         setSites(siteResult.data);
         setTypes(typeResult.data);
-        if (existing)
+        if (existing) {
           setForm({
             ...empty,
             ...existing.data,
@@ -205,7 +206,16 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
                 ? (existing.data.siteId as unknown as Site)._id
                 : existing.data.siteId,
           });
-        else if (siteResult.data[0]) {
+          if (
+            existing.data.status === "CHANGES_REQUIRED" &&
+            existing.data.reviewSections?.length
+          ) {
+            const firstRequested = steps.findIndex((label) =>
+              existing.data.reviewSections?.includes(label),
+            );
+            if (firstRequested >= 0) setStep(firstRequested);
+          }
+        } else if (siteResult.data[0]) {
           const defaultSite =
             siteResult.data.find(
               (site) => site._id === (currentSite.id || currentSite._id),
@@ -236,7 +246,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       const roomRates = form.roomDetails
         .map((roomItem) => roomItem.baseRate)
         .filter((rate) => rate > 0);
-      const payload = {
+      const fullPayload = {
         siteId: form.siteId,
         propertyTypeId: form.propertyTypeId,
         propertyType: form.propertyType,
@@ -267,6 +277,33 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
           ) || 1,
         price: roomRates.length ? Math.min(...roomRates) : form.price || 0,
       };
+      const fieldsByStep: Record<string, Array<keyof typeof fullPayload>> = {
+        "Property Type": ["propertyTypeId", "propertyType"],
+        "Basic Info": ["name", "displayName", "description", "basicInfo"],
+        Location: [
+          "siteId",
+          "address",
+          "city",
+          "state",
+          "country",
+          "locationDetails",
+          "location",
+        ],
+        "Rooms & Spaces": ["roomDetails", "rooms", "maxGuests", "price"],
+        "Photos & Videos": ["media"],
+        Amenities: ["amenities"],
+        "Meals & Policies": ["mealPlans", "policies"],
+        "Finance & Legal": ["financeLegal", "documents", "seo"],
+      };
+      const payload: Partial<typeof fullPayload> =
+        form.status === "CHANGES_REQUIRED" && form.reviewSections?.length
+          ? Object.fromEntries(
+              form.reviewSections
+                .flatMap((section) => fieldsByStep[section] || [])
+                .map((key) => [key, fullPayload[key]]),
+            )
+          : fullPayload;
+      payload.submit = submit;
       const result = await apiRequest<Api<Form>>(
         `/api/v1/owner/properties${form._id ? `/${form._id}` : ""}`,
         token,
@@ -343,6 +380,20 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       ),
     [form],
   );
+  const requestedStepIndexes = useMemo(
+    () =>
+      steps
+        .map((label, index) =>
+          form.reviewSections?.includes(label) ? index : -1,
+        )
+        .filter((index) => index >= 0),
+    [form.reviewSections],
+  );
+  const restrictedReview =
+    form.status === "CHANGES_REQUIRED" && requestedStepIndexes.length > 0;
+  const lastRequestedStep = restrictedReview
+    ? requestedStepIndexes.at(-1)
+    : steps.length - 1;
   const goToNextStep = async () => {
     if (step === 4) {
       const roomsWithoutPhotos = form.roomDetails.filter(
@@ -363,7 +414,14 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
       }
     }
     setNotice("");
-    if (await save(false)) setStep(step + 1);
+    if (await save(false)) {
+      const nextRequested = requestedStepIndexes.find((index) => index > step);
+      setStep(
+        restrictedReview && nextRequested !== undefined
+          ? nextRequested
+          : step + 1,
+      );
+    }
   };
   if (form.status === "APPROVED" && !manageEdit)
     return (
@@ -419,6 +477,11 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
           <button
             key={label}
             className={index === step ? "active" : index < step ? "done" : ""}
+            disabled={
+              form.status === "CHANGES_REQUIRED" &&
+              Boolean(form.reviewSections?.length) &&
+              !form.reviewSections?.includes(label)
+            }
             onClick={() => setStep(index)}
           >
             <i>{index < step ? <Check /> : index + 1}</i>
@@ -434,7 +497,12 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
           <h1>{steps[step]}</h1>
           {form.reviewReason && (
             <p className="owner-review-note">
-              <b>Changes requested:</b> {form.reviewReason}
+              <b>Update request:</b> {form.reviewReason}
+              {form.reviewSections?.length ? (
+                <span>
+                  You can edit only: {form.reviewSections.join(", ")}.
+                </span>
+              ) : null}
             </p>
           )}
         </div>
@@ -685,7 +753,15 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         {notice && <p className="owner-review-note">{notice}</p>}
         <footer>
           <button
-            onClick={() => (step ? setStep(step - 1) : router.push("/owner"))}
+            onClick={() => {
+              const previousRequested = [...requestedStepIndexes]
+                .reverse()
+                .find((index) => index < step);
+              if (restrictedReview && previousRequested !== undefined)
+                setStep(previousRequested);
+              else if (restrictedReview || !step) router.push("/owner");
+              else setStep(step - 1);
+            }}
           >
             <ArrowLeft /> Previous
           </button>
@@ -693,7 +769,7 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             <button onClick={() => void save(false)} disabled={saving}>
               <Save /> Save Draft
             </button>
-            {step < steps.length - 1 ? (
+            {step !== lastRequestedStep ? (
               <button
                 className="btn-primary"
                 onClick={() => void goToNextStep()}

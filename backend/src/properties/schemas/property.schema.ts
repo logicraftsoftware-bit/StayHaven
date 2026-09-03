@@ -31,6 +31,7 @@ export class Property {
   })
   status: PropertyStatus;
   @Prop() reviewReason?: string;
+  @Prop({ type: [String], default: [] }) reviewSections: string[];
   @Prop({ default: true, index: true }) active: boolean;
   @Prop({ min: 0 }) price?: number;
   @Prop({ min: 0 }) taxes?: number;

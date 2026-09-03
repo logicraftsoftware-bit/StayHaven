@@ -218,6 +218,21 @@ export function OwnerDashboard() {
               <Plus /> List New Property
             </button>
           </header>
+          {properties.some(
+            (property) => property.status === "CHANGES_REQUIRED",
+          ) && (
+            <div className="owner-update-notification">
+              <span>!</span>
+              <div>
+                <strong>Property update requested</strong>
+                <p>
+                  The administrator has sent correction instructions. Open the
+                  affected property to review the message, update the unlocked
+                  sections and resubmit it.
+                </p>
+              </div>
+            </div>
+          )}
           <div className="owner-tabs">
             <button
               className={tab === "live" ? "active" : ""}

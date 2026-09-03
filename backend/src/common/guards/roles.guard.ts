@@ -8,7 +8,8 @@ const routePermissions: Array<[RegExp, AdminPermission]> = [
   [/\/admin\/dashboard/, AdminPermission.VIEW_DASHBOARD],
   [/\/admin\/sites\/[^/]+\/pages/, AdminPermission.MANAGE_PAGES],
   [/\/admin\/sites/, AdminPermission.MANAGE_SITES],
-  [/\/admin\/properties|\/admin\/property-types/, AdminPermission.MANAGE_PROPERTIES],
+  [/\/admin\/property-types/, AdminPermission.MANAGE_ROOM_TYPES],
+  [/\/admin\/properties/, AdminPermission.MANAGE_PROPERTIES],
   [/\/admin\/owners|\/admin\/support/, AdminPermission.MANAGE_OWNERS],
   [/\/admin\/settings/, AdminPermission.MANAGE_API_SETTINGS],
   [/\/admin\/media/, AdminPermission.MANAGE_PROPERTIES],
@@ -29,9 +30,17 @@ export class RolesGuard implements CanActivate {
     const user = request.user;
     if (!user) return false;
     if (roles.includes(user.role)) return true;
-    if (user.role !== Role.ADMIN || !roles.includes(Role.SUPER_ADMIN)) return false;
+    if (user.role !== Role.ADMIN || !roles.includes(Role.SUPER_ADMIN))
+      return false;
     const url = request.originalUrl || '';
-    const required = routePermissions.find(([pattern]) => pattern.test(url))?.[1];
+    if (/\/admin\/media/.test(url))
+      return Boolean(
+        user.permissions?.includes(AdminPermission.MANAGE_PROPERTIES) ||
+        user.permissions?.includes(AdminPermission.MANAGE_ROOM_TYPES),
+      );
+    const required = routePermissions.find(([pattern]) =>
+      pattern.test(url),
+    )?.[1];
     return !!required && !!user.permissions?.includes(required);
   }
 }

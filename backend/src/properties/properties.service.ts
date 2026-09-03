@@ -32,7 +32,10 @@ const transitions: Record<PropertyStatus, PropertyStatus[]> = {
     PropertyStatus.REJECTED,
     PropertyStatus.CHANGES_REQUIRED,
   ],
-  [PropertyStatus.APPROVED]: [PropertyStatus.SUSPENDED],
+  [PropertyStatus.APPROVED]: [
+    PropertyStatus.SUSPENDED,
+    PropertyStatus.CHANGES_REQUIRED,
+  ],
   [PropertyStatus.REJECTED]: [PropertyStatus.PENDING],
   [PropertyStatus.CHANGES_REQUIRED]: [PropertyStatus.PENDING],
   [PropertyStatus.SUSPENDED]: [PropertyStatus.APPROVED],
@@ -104,6 +107,7 @@ export class PropertiesService {
     status: PropertyStatus,
     actor: string,
     reason?: string,
+    sections?: string[],
   ) {
     const p = await this.get(id);
     if (!transitions[p.status].includes(status))
@@ -112,9 +116,17 @@ export class PropertiesService {
       );
     p.status = status;
     p.reviewReason = reason;
+    p.reviewSections =
+      status === PropertyStatus.CHANGES_REQUIRED ? sections || [] : [];
     p.reviewHistory = [
       ...(p.reviewHistory || []),
-      { status, reason: reason || '', actorId: actor, createdAt: new Date() },
+      {
+        status,
+        reason: reason || '',
+        sections: sections || [],
+        actorId: actor,
+        createdAt: new Date(),
+      },
     ];
     await p.save();
     const actions = {
@@ -130,7 +142,7 @@ export class PropertiesService {
       entityType: 'PROPERTY',
       entityId: p._id,
       siteId: p.siteId,
-      metadata: reason ? { reason } : {},
+      metadata: reason ? { reason, sections: sections || [] } : {},
     });
     return p;
   }
@@ -271,6 +283,8 @@ export class PropertiesService {
         'Property cannot be edited in its current status',
       );
     const oldSiteId = String(property.siteId);
+    if (property.status === PropertyStatus.CHANGES_REQUIRED)
+      this.assertRequestedSections(property, dto);
     if (dto.siteId) {
       await this.sites.getActive(dto.siteId);
       property.siteId = new Types.ObjectId(dto.siteId);
@@ -316,6 +330,7 @@ export class PropertiesService {
       this.assertComplete(property);
       property.status = PropertyStatus.PENDING;
       property.reviewReason = undefined;
+      property.reviewSections = [];
       property.reviewHistory = [
         ...(property.reviewHistory || []),
         {
@@ -331,6 +346,45 @@ export class PropertiesService {
       submitted: Boolean(dto.submit),
     });
     return this.ownerViewValue(property);
+  }
+
+  private assertRequestedSections(
+    property: PropertyDocument,
+    dto: UpdateOwnerPropertyDto,
+  ) {
+    const requested = property.reviewSections || [];
+    if (!requested.length) return;
+    const sectionFields: Record<string, string[]> = {
+      'Property Type': ['propertyTypeId', 'propertyType'],
+      'Basic Info': ['name', 'displayName', 'description', 'basicInfo'],
+      Location: [
+        'siteId',
+        'address',
+        'city',
+        'state',
+        'country',
+        'locationDetails',
+        'location',
+      ],
+      'Rooms & Spaces': ['roomDetails', 'rooms', 'maxGuests', 'price'],
+      'Photos & Videos': ['media'],
+      Amenities: ['amenities'],
+      'Meals & Policies': ['mealPlans', 'policies'],
+      'Finance & Legal': ['financeLegal', 'documents', 'seo'],
+    };
+    const allowed = new Set(
+      requested.flatMap((name) => sectionFields[name] || []),
+    );
+    const submitted = Object.keys(dto).filter(
+      (key) =>
+        key !== 'submit' &&
+        dto[key as keyof UpdateOwnerPropertyDto] !== undefined,
+    );
+    const blocked = submitted.filter((key) => !allowed.has(key));
+    if (blocked.length)
+      throw new BadRequestException(
+        `Only requested sections can be edited: ${requested.join(', ')}`,
+      );
   }
 
   async deleteOwner(ownerId: string, id: string) {

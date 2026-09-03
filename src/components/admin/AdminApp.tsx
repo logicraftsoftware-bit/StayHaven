@@ -58,6 +58,7 @@ type View =
   | "pages"
   | "owners"
   | "properties"
+  | "room-types"
   | "api-settings"
   | "users"
   | "profile";
@@ -175,6 +176,7 @@ type Property = {
   address: string;
   status: Status;
   reviewReason?: string;
+  reviewSections?: string[];
   createdAt: string;
   displayName?: string;
   description?: string;
@@ -349,6 +351,12 @@ const nav: {
     label: "Properties",
     icon: Building2,
     permission: "MANAGE_PROPERTIES",
+  },
+  {
+    id: "room-types",
+    label: "Room type master",
+    icon: LayoutDashboard,
+    permission: "MANAGE_ROOM_TYPES",
   },
   {
     id: "owners",
@@ -2150,6 +2158,106 @@ function OwnersView({ token }: { token: string }) {
       setError((e as Error).message);
     }
   }
+  if (selected)
+    return (
+      <section className="owner-admin-detail-page">
+        <PageHeader
+          eyebrow="PROPERTY OWNER"
+          title={selected.name}
+          text="Owner profile, marketplace access, properties and recent activity."
+          action={
+            <button
+              className="admin-secondary-button"
+              onClick={() => setSelected(null)}
+            >
+              Back to owners
+            </button>
+          }
+        />
+        <div className="owner-detail-summary admin-card">
+          <div className="owner-detail-avatar">
+            {selected.name.slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <span>Contact information</span>
+            <h2>{selected.name}</h2>
+            <a href={`mailto:${selected.email}`}>{selected.email}</a>
+            <a href={`tel:${selected.phone}`}>{selected.phone}</a>
+          </div>
+          <div>
+            <span>Account status</span>
+            <StatusBadge value={selected.status} />
+            <small>
+              Joined {new Date(selected.createdAt).toLocaleDateString()}
+            </small>
+          </div>
+          <div>
+            <span>Marketplaces</span>
+            <strong>
+              {selected.sites?.map((site) => site.name).join(", ") || "None"}
+            </strong>
+          </div>
+        </div>
+        <div className="owner-detail-grid">
+          <section className="admin-card owner-property-panel">
+            <header>
+              <div>
+                <h2>Properties</h2>
+                <p>{selected.properties?.length || 0} linked properties</p>
+              </div>
+            </header>
+            <div className="owner-linked-properties">
+              {selected.properties?.length ? (
+                selected.properties.map((property) => (
+                  <article key={property._id}>
+                    <Building2 />
+                    <div>
+                      <button
+                        className="owner-property-link"
+                        onClick={() =>
+                          window.open(`/hotels/${property.slug}`, "_blank")
+                        }
+                      >
+                        {property.displayName ||
+                          property.name ||
+                          "Untitled property"}
+                      </button>
+                      <small>
+                        {property.propertyType} · {property.city},{" "}
+                        {property.state}
+                      </small>
+                    </div>
+                    <StatusBadge value={property.status} />
+                  </article>
+                ))
+              ) : (
+                <p>No properties linked to this owner.</p>
+              )}
+            </div>
+          </section>
+          <section className="admin-card owner-activity-panel">
+            <h2>Recent activity</h2>
+            <div>
+              {selected.auditHistory?.length ? (
+                selected.auditHistory.slice(0, 10).map((event) => (
+                  <article key={event._id}>
+                    <i />
+                    <span>
+                      <strong>{reviewLabel(event.action)}</strong>
+                      <small>
+                        {new Date(event.createdAt).toLocaleString()}
+                      </small>
+                    </span>
+                  </article>
+                ))
+              ) : (
+                <p>No recent activity.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      </section>
+    );
   return (
     <>
       <PageHeader
@@ -2175,9 +2283,9 @@ function OwnersView({ token }: { token: string }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="admin-eyebrow">GLOBAL OWNER</p>
-              <h2>{selected.name}</h2>
+              <h2>{(selected as Owner).name}</h2>
               <p>
-                {selected.email} · {selected.phone}
+                {(selected as Owner).email} · {(selected as Owner).phone}
               </p>
             </div>
             <button
@@ -2190,18 +2298,22 @@ function OwnersView({ token }: { token: string }) {
           <div className="mt-6 grid gap-5 md:grid-cols-3">
             <div>
               <strong>Properties</strong>
-              <p>{selected.properties?.length ?? 0} across all sites</p>
+              <p>
+                {(selected as Owner).properties?.length ?? 0} across all sites
+              </p>
             </div>
             <div>
               <strong>Marketplaces</strong>
               <p>
-                {selected.sites?.map((site) => site.name).join(", ") || "None"}
+                {(selected as Owner).sites
+                  ?.map((site) => site.name)
+                  .join(", ") || "None"}
               </p>
             </div>
             <div>
               <strong>Recent activity</strong>
               <p>
-                {selected.auditHistory
+                {(selected as Owner).auditHistory
                   ?.slice(0, 4)
                   .map((event) => event.action.replaceAll("_", " "))
                   .join(", ") || "No activity"}
@@ -2242,7 +2354,14 @@ function OwnersView({ token }: { token: string }) {
                     <span>{owner.email}</span>
                   </td>
                   <td>{owner.phone}</td>
-                  <td>{owner.propertyCount ?? 0}</td>
+                  <td>
+                    <button
+                      className="owner-property-count-link"
+                      onClick={() => void inspect(owner)}
+                    >
+                      {owner.propertyCount ?? 0} properties
+                    </button>
+                  </td>
                   <td>{owner.siteIds?.length ?? 0}</td>
                   <td>
                     <StatusBadge value={owner.status} />
@@ -2313,7 +2432,13 @@ function Filters({
   );
 }
 
-function PropertiesView({ token }: { token: string }) {
+function PropertiesView({
+  token,
+  masterOnly = false,
+}: {
+  token: string;
+  masterOnly?: boolean;
+}) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -2325,7 +2450,7 @@ function PropertiesView({ token }: { token: string }) {
     null,
   );
   const [reviewProperty, setReviewProperty] = useState<Property | null>(null);
-  const [reviewSection, setReviewSection] = useState("General details");
+  const [reviewSections, setReviewSections] = useState<string[]>([]);
   const [reviewNote, setReviewNote] = useState("");
   const [loadingReview, setLoadingReview] = useState(false);
   const load = useCallback(async () => {
@@ -2334,22 +2459,26 @@ function PropertiesView({ token }: { token: string }) {
       const q = new URLSearchParams({ page: "1", limit: "100" });
       if (search) q.set("search", search);
       if (status) q.set("status", status);
-      const [r, masters] = await Promise.all([
-        api<ApiResponse<Property[]>>(`/api/v1/admin/properties?${q}`, token),
-        api<ApiResponse<PropertyTypeMaster[]>>(
+      if (masterOnly) {
+        const masters = await api<ApiResponse<PropertyTypeMaster[]>>(
           "/api/v1/admin/property-types",
           token,
-        ),
-      ]);
-      setProperties(r.data);
-      setPropertyTypes(masters.data);
+        );
+        setPropertyTypes(masters.data);
+      } else {
+        const result = await api<ApiResponse<Property[]>>(
+          `/api/v1/admin/properties?${q}`,
+          token,
+        );
+        setProperties(result.data);
+      }
       setError("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [search, status, token]);
+  }, [masterOnly, search, status, token]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), 250);
     return () => clearTimeout(timer);
@@ -2381,7 +2510,10 @@ function PropertiesView({ token }: { token: string }) {
         token,
       );
       setReviewProperty(result.data);
-      setReviewNote("");
+      setReviewSections([]);
+      setReviewNote(
+        "Please review and update the selected sections, then resubmit the property for verification.",
+      );
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -2389,8 +2521,15 @@ function PropertiesView({ token }: { token: string }) {
       setLoadingReview(false);
     }
   }
+  function toggleReviewSection(section: string) {
+    setReviewSections((current) =>
+      current.includes(section)
+        ? current.filter((item) => item !== section)
+        : [...current, section],
+    );
+  }
   async function requestSelectedChanges() {
-    if (!reviewProperty || !reviewNote.trim()) return;
+    if (!reviewProperty || !reviewNote.trim() || !reviewSections.length) return;
     try {
       await api(
         `/api/v1/admin/properties/${reviewProperty._id}/request-changes`,
@@ -2398,7 +2537,8 @@ function PropertiesView({ token }: { token: string }) {
         {
           method: "PATCH",
           body: JSON.stringify({
-            reason: `${reviewSection}: ${reviewNote.trim()}`,
+            reason: reviewNote.trim(),
+            sections: reviewSections,
           }),
         },
       );
@@ -2472,100 +2612,106 @@ function PropertiesView({ token }: { token: string }) {
   return (
     <>
       <PageHeader
-        eyebrow="QUALITY CONTROL"
-        title="Properties"
-        text="Review submissions and keep every published stay up to standard."
+        eyebrow={masterOnly ? "CATALOG MANAGEMENT" : "QUALITY CONTROL"}
+        title={masterOnly ? "Room type master" : "Properties"}
+        text={
+          masterOnly
+            ? "Manage the accommodation types owners can select."
+            : "Review submissions and keep every published stay up to standard."
+        }
       />
-      <section className="admin-card property-master-card">
-        <div className="property-master-heading">
-          <div>
-            <h2>Property type master</h2>
-            <p>
-              Controls the active types owners can select. Commission is
-              private.
-            </p>
+      {masterOnly && (
+        <section className="admin-card property-master-card">
+          <div className="property-master-heading">
+            <div>
+              <h2>Property type master</h2>
+              <p>
+                Controls the active types owners can select. Commission is
+                private.
+              </p>
+            </div>
+            <button
+              className="admin-primary compact"
+              onClick={() =>
+                setTypeForm({
+                  name: "",
+                  description: "",
+                  commissionPercent: 0,
+                  status: "active",
+                  sortOrder: propertyTypes.length * 10,
+                })
+              }
+            >
+              <Plus /> Add Property Type
+            </button>
           </div>
-          <button
-            className="admin-primary compact"
-            onClick={() =>
-              setTypeForm({
-                name: "",
-                description: "",
-                commissionPercent: 0,
-                status: "active",
-                sortOrder: propertyTypes.length * 10,
-              })
-            }
-          >
-            <Plus /> Add Property Type
-          </button>
-        </div>
-        <div className="property-master-table-wrap">
-          <table className="property-master-table">
-            <thead>
-              <tr>
-                <th>Image</th>
-                <th>Property type</th>
-                <th>Description</th>
-                <th>Commission</th>
-                <th>Status</th>
-                <th>Order</th>
-                <th className="actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {propertyTypes.map((item) => (
-                <tr key={item._id}>
-                  <td>
-                    <span className="property-type-thumbnail">
-                      {item.image ? (
-                        // Cloudinary and legacy API-hosted images are both supported.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={`${item.image.startsWith("/") ? publicApiBase : ""}${item.image}`}
-                          alt={`${item.name} property type`}
-                        />
-                      ) : (
-                        <Building2 />
-                      )}
-                    </span>
-                  </td>
-                  <td>
-                    <strong>{item.name}</strong>
-                  </td>
-                  <td>
-                    <span className="table-muted">
-                      {item.description || "—"}
-                    </span>
-                  </td>
-                  <td>{item.commissionPercent}%</td>
-                  <td>
-                    <StatusBadge value={item.status} />
-                  </td>
-                  <td>{item.sortOrder}</td>
-                  <td className="actions">
-                    <div className="table-action-buttons">
-                      <button
-                        className="edit"
-                        onClick={() => setTypeForm(item)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="delete"
-                        onClick={() => void deleteType(item)}
-                        aria-label={`Delete ${item.name}`}
-                      >
-                        <Trash2 />
-                      </button>
-                    </div>
-                  </td>
+          <div className="property-master-table-wrap">
+            <table className="property-master-table">
+              <thead>
+                <tr>
+                  <th>Image</th>
+                  <th>Property type</th>
+                  <th>Description</th>
+                  <th>Commission</th>
+                  <th>Status</th>
+                  <th>Order</th>
+                  <th className="actions">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {propertyTypes.map((item) => (
+                  <tr key={item._id}>
+                    <td>
+                      <span className="property-type-thumbnail">
+                        {item.image ? (
+                          // Cloudinary and legacy API-hosted images are both supported.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={`${item.image.startsWith("/") ? publicApiBase : ""}${item.image}`}
+                            alt={`${item.name} property type`}
+                          />
+                        ) : (
+                          <Building2 />
+                        )}
+                      </span>
+                    </td>
+                    <td>
+                      <strong>{item.name}</strong>
+                    </td>
+                    <td>
+                      <span className="table-muted">
+                        {item.description || "—"}
+                      </span>
+                    </td>
+                    <td>{item.commissionPercent}%</td>
+                    <td>
+                      <StatusBadge value={item.status} />
+                    </td>
+                    <td>{item.sortOrder}</td>
+                    <td className="actions">
+                      <div className="table-action-buttons">
+                        <button
+                          className="edit"
+                          onClick={() => setTypeForm(item)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="delete"
+                          onClick={() => void deleteType(item)}
+                          aria-label={`Delete ${item.name}`}
+                        >
+                          <Trash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {typeForm && (
         <div
           className="property-type-modal-backdrop"
@@ -2712,205 +2858,249 @@ function PropertiesView({ token }: { token: string }) {
           </form>
         </div>
       )}
-      <Filters
-        search={search}
-        setSearch={setSearch}
-        status={status}
-        setStatus={setStatus}
-        options={[
-          "DRAFT",
-          "PENDING",
-          "APPROVED",
-          "REJECTED",
-          "CHANGES_REQUIRED",
-          "SUSPENDED",
-        ]}
-      />
-      {error && (
-        <div className="admin-alert error">
-          <CircleAlert />
-          {error}
-        </div>
-      )}
-      {loading ? (
-        <div className="admin-loading">
-          <LoaderCircle className="spin" /> Loading properties…
-        </div>
-      ) : properties.length === 0 ? (
-        <Empty
-          icon={<Building2 />}
-          title="No properties found"
-          text="Submitted properties will appear here for review."
-        />
-      ) : (
-        <div className="property-list">
-          {properties.map((property) => (
-            <article className="property-row" key={property._id}>
-              <div className="property-symbol">
-                <Building2 />
-              </div>
-              <div className="property-main">
-                <div>
-                  <StatusBadge value={property.status} />
-                  <span>{property.propertyType}</span>
-                </div>
-                <h2>{property.name}</h2>
-                <p>
-                  {property.address}, {property.city}, {property.state}
-                </p>
-                {property.reviewReason && (
-                  <small>Last note: {property.reviewReason}</small>
-                )}
-              </div>
-              <div className="property-actions">
-                <button onClick={() => void openReview(property)}>
-                  {loadingReview ? "Loading…" : "View full details"}
-                </button>
-                {property.status === "PENDING" && (
-                  <>
-                    <button
-                      className="approve"
-                      onClick={() => review(property, "approve")}
-                    >
-                      <Check /> Approve
-                    </button>
-                    <button onClick={() => review(property, "request-changes")}>
-                      Request changes
-                    </button>
-                    <button
-                      className="danger"
-                      onClick={() => review(property, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-                {property.status === "APPROVED" && (
-                  <button
-                    className="danger"
-                    onClick={() => review(property, "suspend")}
-                  >
-                    Suspend
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-      {reviewProperty && (
-        <div className="admin-modal-backdrop">
-          <div className="admin-modal property-review-modal">
-            <button
-              className="modal-close"
-              onClick={() => setReviewProperty(null)}
-            >
-              <X />
-            </button>
-            <span className="admin-kicker">Full property verification</span>
-            <h2>{reviewProperty.displayName || reviewProperty.name}</h2>
-            <p>
-              {reviewProperty.propertyType} · {reviewProperty.address},{" "}
-              {reviewProperty.city}, {reviewProperty.state}
-            </p>
-            <div className="property-review-grid">
-              <ReviewBlock
-                title="Basic information"
-                value={{
-                  description: reviewProperty.description,
-                  ...reviewProperty.basicInfo,
-                }}
-              />
-              <ReviewBlock
-                title="Location"
-                value={reviewProperty.locationDetails}
-              />
-              <ReviewBlock
-                title="Rooms & pricing"
-                value={reviewProperty.roomDetails}
-              />
-              <MediaReview value={reviewProperty.media} />
-              <ReviewBlock title="Amenities" value={reviewProperty.amenities} />
-              <ReviewBlock
-                title="Meals & policies"
-                value={{
-                  mealPlans: reviewProperty.mealPlans,
-                  policies: reviewProperty.policies,
-                }}
-              />
-              <ReviewBlock
-                title="Finance & legal"
-                value={reviewProperty.financeLegal}
-                privateData
-              />
-              <DocumentReview value={reviewProperty.documents} />
+      {!masterOnly && (
+        <>
+          <Filters
+            search={search}
+            setSearch={setSearch}
+            status={status}
+            setStatus={setStatus}
+            options={[
+              "DRAFT",
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "CHANGES_REQUIRED",
+              "SUSPENDED",
+            ]}
+          />
+          {error && (
+            <div className="admin-alert error">
+              <CircleAlert />
+              {error}
             </div>
-            {reviewProperty.status === "PENDING" && (
-              <div className="property-review-decision">
-                <h3>Verification decision</h3>
-                <select
-                  value={reviewSection}
-                  onChange={(event) => setReviewSection(event.target.value)}
+          )}
+          {loading ? (
+            <div className="admin-loading">
+              <LoaderCircle className="spin" /> Loading properties…
+            </div>
+          ) : properties.length === 0 ? (
+            <Empty
+              icon={<Building2 />}
+              title="No properties found"
+              text="Submitted properties will appear here for review."
+            />
+          ) : (
+            <div className="property-list">
+              {properties.map((property) => (
+                <article className="property-row" key={property._id}>
+                  <div className="property-symbol">
+                    <Building2 />
+                  </div>
+                  <div className="property-main">
+                    <div>
+                      <StatusBadge value={property.status} />
+                      <span>{property.propertyType}</span>
+                    </div>
+                    <h2>{property.name}</h2>
+                    <p>
+                      {property.address}, {property.city}, {property.state}
+                    </p>
+                    {property.reviewReason && (
+                      <small>Last note: {property.reviewReason}</small>
+                    )}
+                  </div>
+                  <div className="property-actions">
+                    <button onClick={() => void openReview(property)}>
+                      {loadingReview ? "Loading…" : "View full details"}
+                    </button>
+                    {property.status === "PENDING" && (
+                      <>
+                        <button
+                          className="approve"
+                          onClick={() => review(property, "approve")}
+                        >
+                          <Check /> Approve
+                        </button>
+                        <button onClick={() => void openReview(property)}>
+                          Request update
+                        </button>
+                        <button
+                          className="danger"
+                          onClick={() => review(property, "reject")}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {property.status === "APPROVED" && (
+                      <>
+                        <button onClick={() => void openReview(property)}>
+                          Request update
+                        </button>
+                        <button
+                          className="danger"
+                          onClick={() => review(property, "suspend")}
+                        >
+                          Suspend
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          {reviewProperty && (
+            <div className="admin-modal-backdrop">
+              <div className="admin-modal property-review-modal">
+                <button
+                  className="modal-close"
+                  onClick={() => setReviewProperty(null)}
                 >
-                  {[
-                    "General details",
-                    "Basic information",
-                    "Location",
-                    "Rooms & pricing",
-                    "Photos & videos",
-                    "Amenities",
-                    "Meals & policies",
-                    "Finance & legal",
-                    "Documents",
-                  ].map((section) => (
-                    <option key={section}>{section}</option>
-                  ))}
-                </select>
-                <textarea
-                  placeholder="Describe exactly what the property owner must correct or re-upload"
-                  value={reviewNote}
-                  onChange={(event) => setReviewNote(event.target.value)}
-                />
-                <div>
-                  <button
-                    onClick={() => void requestSelectedChanges()}
-                    disabled={!reviewNote.trim()}
-                  >
-                    Request changes
-                  </button>
-                  <button
-                    className="approve"
-                    onClick={() => {
-                      void review(reviewProperty, "approve");
-                      setReviewProperty(null);
+                  <X />
+                </button>
+                <span className="admin-kicker">Full property verification</span>
+                <h2>{reviewProperty.displayName || reviewProperty.name}</h2>
+                <p>
+                  {reviewProperty.propertyType} · {reviewProperty.address},{" "}
+                  {reviewProperty.city}, {reviewProperty.state}
+                </p>
+                <div className="property-review-grid">
+                  <ReviewBlock
+                    title="Basic information"
+                    onRequest={() => toggleReviewSection("Basic Info")}
+                    value={{
+                      description: reviewProperty.description,
+                      ...reviewProperty.basicInfo,
                     }}
-                  >
-                    <Check /> Approve and publish
-                  </button>
+                  />
+                  <ReviewBlock
+                    title="Location"
+                    value={reviewProperty.locationDetails}
+                    onRequest={() => toggleReviewSection("Location")}
+                  />
+                  <ReviewBlock
+                    title="Rooms & pricing"
+                    value={reviewProperty.roomDetails}
+                    onRequest={() => toggleReviewSection("Rooms & Spaces")}
+                  />
+                  <MediaReview
+                    value={reviewProperty.media}
+                    onRequest={() => toggleReviewSection("Photos & Videos")}
+                  />
+                  <ReviewBlock
+                    title="Amenities"
+                    value={reviewProperty.amenities}
+                    onRequest={() => toggleReviewSection("Amenities")}
+                  />
+                  <ReviewBlock
+                    title="Meals & policies"
+                    onRequest={() => toggleReviewSection("Meals & Policies")}
+                    value={{
+                      mealPlans: reviewProperty.mealPlans,
+                      policies: reviewProperty.policies,
+                    }}
+                  />
+                  <ReviewBlock
+                    title="Finance & legal"
+                    value={reviewProperty.financeLegal}
+                    privateData
+                    onRequest={() => toggleReviewSection("Finance & Legal")}
+                  />
+                  <DocumentReview
+                    value={reviewProperty.documents}
+                    onRequest={() => toggleReviewSection("Finance & Legal")}
+                  />
                 </div>
+                {["PENDING", "APPROVED"].includes(reviewProperty.status) && (
+                  <div className="property-review-decision">
+                    <h3>Verification decision</h3>
+                    <p>
+                      Select every owner edit window that must reopen. All other
+                      steps will remain locked.
+                    </p>
+                    <div className="review-section-picker">
+                      {stepsForReview.map((section) => (
+                        <label key={section}>
+                          <input
+                            type="checkbox"
+                            checked={reviewSections.includes(section)}
+                            onChange={() => toggleReviewSection(section)}
+                          />
+                          {section}
+                        </label>
+                      ))}
+                    </div>
+                    <textarea
+                      placeholder="Describe exactly what the property owner must correct or re-upload"
+                      value={reviewNote}
+                      onChange={(event) => setReviewNote(event.target.value)}
+                    />
+                    <div>
+                      <button
+                        onClick={() => void requestSelectedChanges()}
+                        disabled={!reviewNote.trim() || !reviewSections.length}
+                      >
+                        Request changes
+                      </button>
+                      {reviewProperty.status === "PENDING" && (
+                        <button
+                          className="approve"
+                          onClick={() => {
+                            void review(reviewProperty, "approve");
+                            setReviewProperty(null);
+                          }}
+                        >
+                          <Check /> Approve and publish
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
     </>
   );
 }
 
+const stepsForReview = [
+  "Property Type",
+  "Basic Info",
+  "Location",
+  "Rooms & Spaces",
+  "Photos & Videos",
+  "Amenities",
+  "Meals & Policies",
+  "Finance & Legal",
+];
+
 function ReviewBlock({
   title,
   value,
   privateData = false,
+  onRequest,
 }: {
   title: string;
   value: unknown;
   privateData?: boolean;
+  onRequest?: () => void;
 }) {
   return (
     <section className="property-review-block">
       <header>
         <h3>{title}</h3>
-        {privateData && <span>Private</span>}
+        <div className="review-block-actions">
+          {privateData && <span>Private</span>}
+          {onRequest && (
+            <button type="button" onClick={onRequest}>
+              Request update
+            </button>
+          )}
+        </div>
       </header>
       <div className="property-review-values">
         <HumanValue value={value} />
@@ -3003,7 +3193,13 @@ function HumanValue({ value }: { value: unknown }) {
   );
 }
 
-function MediaReview({ value }: { value: unknown }) {
+function MediaReview({
+  value,
+  onRequest,
+}: {
+  value: unknown;
+  onRequest?: () => void;
+}) {
   const media = Array.isArray(value)
     ? (value as Array<Record<string, unknown>>)
     : [];
@@ -3011,7 +3207,10 @@ function MediaReview({ value }: { value: unknown }) {
     <section className="property-review-block review-wide">
       <header>
         <h3>Photos & videos</h3>
-        <small>{media.length} files</small>
+        <div className="review-block-actions">
+          <small>{media.length} files</small>
+          {onRequest && <button onClick={onRequest}>Request update</button>}
+        </div>
       </header>
       {media.length ? (
         <div className="property-review-media">
@@ -3053,7 +3252,13 @@ function MediaReview({ value }: { value: unknown }) {
   );
 }
 
-function DocumentReview({ value }: { value: unknown }) {
+function DocumentReview({
+  value,
+  onRequest,
+}: {
+  value: unknown;
+  onRequest?: () => void;
+}) {
   const documents = Array.isArray(value)
     ? (value as Array<Record<string, unknown>>)
     : [];
@@ -3061,7 +3266,10 @@ function DocumentReview({ value }: { value: unknown }) {
     <section className="property-review-block review-wide">
       <header>
         <h3>Documents</h3>
-        <span>Private</span>
+        <div className="review-block-actions">
+          <span>Private</span>
+          {onRequest && <button onClick={onRequest}>Request update</button>}
+        </div>
       </header>
       {documents.length ? (
         <div className="property-review-documents">
@@ -3105,6 +3313,11 @@ const adminPermissionOptions = [
   ["MANAGE_SITES", "Sites", "Create and configure marketplace sites"],
   ["MANAGE_PAGES", "Page builder", "Edit and publish site pages"],
   ["MANAGE_PROPERTIES", "Properties", "Review properties and property types"],
+  [
+    "MANAGE_ROOM_TYPES",
+    "Room type master",
+    "Manage selectable accommodation types",
+  ],
   ["MANAGE_OWNERS", "Property owners", "View and manage owner accounts"],
   [
     "MANAGE_API_SETTINGS",
@@ -4142,6 +4355,8 @@ export function AdminApp() {
       <OwnersView token={token} />
     ) : view === "properties" ? (
       <PropertiesView token={token} />
+    ) : view === "room-types" ? (
+      <PropertiesView token={token} masterOnly />
     ) : view === "api-settings" ? (
       <ApiSettingsView token={token} />
     ) : view === "users" ? (

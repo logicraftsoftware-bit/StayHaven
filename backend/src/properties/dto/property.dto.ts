@@ -24,6 +24,7 @@ export class PropertyQueryDto {
 }
 export class ReviewReasonDto {
   @IsString() reason: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) sections?: string[];
 }
 
 export class OwnerPropertyQueryDto {

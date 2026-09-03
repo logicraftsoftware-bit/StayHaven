@@ -641,6 +641,39 @@
   color: #9f1239;
   font-size: 12px;
 }
+.owner-review-note span {
+  display: block;
+  margin-top: 6px;
+  font-weight: 700;
+}
+.owner-update-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+  border: 1px solid #f0c2c6;
+  border-left: 4px solid #a20e19;
+  border-radius: 12px;
+  background: #fff7f7;
+  padding: 14px 16px;
+  color: #4b1620;
+}
+.owner-update-notification > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #a20e19;
+  color: #fff;
+  font-weight: 900;
+}
+.owner-update-notification p {
+  margin-top: 3px;
+  color: #6b3b43;
+  font-size: 12px;
+}
 .owner-completion {
   height: 6px;
   background: #edf0f3;
@@ -754,6 +787,10 @@
 }
 .property-wizard > nav button.active {
   color: #8b0d18;
+}
+.property-wizard > nav button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 .property-wizard > nav button.active:after {
   background: #8b0d18;

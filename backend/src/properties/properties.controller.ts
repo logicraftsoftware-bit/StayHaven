@@ -63,12 +63,13 @@ export class PropertiesController {
     status: PropertyStatus,
     user: { sub: string; role: Role; siteIds?: string[] },
     reason?: string,
+    sections?: string[],
   ) {
     return this.s
       .getAdminView(id)
       .then((property) => {
         this.assertSite(user, property.siteId);
-        return this.s.transition(id, status, user.sub, reason);
+        return this.s.transition(id, status, user.sub, reason, sections);
       })
       .then((data) => ({
         success: true,
@@ -94,7 +95,13 @@ export class PropertiesController {
     @Body() d: ReviewReasonDto,
     @Req() r: { user: { sub: string; role: Role; siteIds?: string[] } },
   ) {
-    return this.result(id, PropertyStatus.CHANGES_REQUIRED, r.user, d.reason);
+    return this.result(
+      id,
+      PropertyStatus.CHANGES_REQUIRED,
+      r.user,
+      d.reason,
+      d.sections,
+    );
   }
   @Patch(':id/suspend') suspend(
     @Param('id', MongoIdPipe) id: string,
