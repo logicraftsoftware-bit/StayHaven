@@ -182,6 +182,7 @@ type Property = {
   pendingUpdateStatus?: "DRAFT" | "PENDING" | "CHANGES_REQUIRED";
   pendingReviewSections?: string[];
   pendingReviewReason?: string;
+  reviewHistory?: Array<Record<string, unknown>>;
   createdAt: string;
   displayName?: string;
   description?: string;
@@ -3024,6 +3025,7 @@ function PropertyReviewPage({
         <ReviewBlock
           title="Property type"
           highlighted={changedSections.includes("Property Type")}
+          previousValue={{ propertyType: property.propertyType }}
           onRequest={() => onToggleSection("Property Type")}
           value={{
             propertyType: field("propertyType", property.propertyType),
@@ -3032,6 +3034,12 @@ function PropertyReviewPage({
         <ReviewBlock
           title="Basic information"
           highlighted={changedSections.includes("Basic Info")}
+          previousValue={{
+            name: property.name,
+            displayName: property.displayName,
+            description: property.description,
+            ...property.basicInfo,
+          }}
           onRequest={() => onToggleSection("Basic Info")}
           value={{
             name: field("name", property.name),
@@ -3043,6 +3051,13 @@ function PropertyReviewPage({
         <ReviewBlock
           title="Location"
           highlighted={changedSections.includes("Location")}
+          previousValue={{
+            address: property.address,
+            city: property.city,
+            state: property.state,
+            country: property.country,
+            ...property.locationDetails,
+          }}
           value={{
             address: field("address", property.address),
             city: field("city", property.city),
@@ -3055,6 +3070,12 @@ function PropertyReviewPage({
         <ReviewBlock
           title="Rooms & pricing"
           highlighted={changedSections.includes("Rooms & Spaces")}
+          previousValue={{
+            rooms: property.rooms,
+            maxGuests: property.maxGuests,
+            price: property.price,
+            roomDetails: property.roomDetails,
+          }}
           value={{
             rooms: field("rooms", property.rooms),
             maxGuests: field("maxGuests", property.maxGuests),
@@ -3065,18 +3086,24 @@ function PropertyReviewPage({
         />
         <MediaReview
           value={field("media", property.media)}
+          previousValue={property.media}
           highlighted={changedSections.includes("Photos & Videos")}
           onRequest={() => onToggleSection("Photos & Videos")}
         />
         <ReviewBlock
           title="Amenities"
           highlighted={changedSections.includes("Amenities")}
+          previousValue={property.amenities}
           value={field("amenities", property.amenities)}
           onRequest={() => onToggleSection("Amenities")}
         />
         <ReviewBlock
           title="Meals & policies"
           highlighted={changedSections.includes("Meals & Policies")}
+          previousValue={{
+            mealPlans: property.mealPlans,
+            policies: property.policies,
+          }}
           onRequest={() => onToggleSection("Meals & Policies")}
           value={{
             mealPlans: field("mealPlans", property.mealPlans),
@@ -3086,16 +3113,47 @@ function PropertyReviewPage({
         <ReviewBlock
           title="Finance & legal"
           highlighted={changedSections.includes("Finance & Legal")}
+          previousValue={property.financeLegal}
           value={field("financeLegal", property.financeLegal)}
           privateData
           onRequest={() => onToggleSection("Finance & Legal")}
         />
         <DocumentReview
           value={field("documents", property.documents)}
+          previousValue={property.documents}
           highlighted={changedSections.includes("Finance & Legal")}
           onRequest={() => onToggleSection("Finance & Legal")}
         />
       </div>
+      {property.reviewHistory?.some((entry) => entry.approvedValues) && (
+        <section className="property-review-history">
+          <h2>Approved update history</h2>
+          <p>Previous and published values retained for the audit log.</p>
+          {[...property.reviewHistory]
+            .reverse()
+            .filter((entry) => entry.approvedValues)
+            .map((entry, index) => (
+              <article key={`${String(entry.createdAt)}-${index}`}>
+                <header>
+                  <strong>{String(entry.reason || "Update approved")}</strong>
+                  <span>
+                    {new Date(String(entry.createdAt)).toLocaleString()}
+                  </span>
+                </header>
+                <div className="review-comparison">
+                  <section>
+                    <b>Previous details</b>
+                    <HumanValue value={entry.previousValues} />
+                  </section>
+                  <section>
+                    <b>Approved details</b>
+                    <HumanValue value={entry.approvedValues} />
+                  </section>
+                </div>
+              </article>
+            ))}
+        </section>
+      )}
       {["PENDING", "APPROVED"].includes(property.status) && (
         <div className="property-review-decision">
           <h3>Verification decision</h3>
@@ -3158,12 +3216,14 @@ function ReviewBlock({
   privateData = false,
   onRequest,
   highlighted = false,
+  previousValue,
 }: {
   title: string;
   value: unknown;
   privateData?: boolean;
   onRequest?: () => void;
   highlighted?: boolean;
+  previousValue?: unknown;
 }) {
   return (
     <section
@@ -3181,9 +3241,22 @@ function ReviewBlock({
           )}
         </div>
       </header>
-      <div className="property-review-values">
-        <HumanValue value={value} />
-      </div>
+      {highlighted ? (
+        <div className="review-comparison">
+          <section>
+            <b>Previous live details</b>
+            <HumanValue value={previousValue} />
+          </section>
+          <section>
+            <b>Updated details</b>
+            <HumanValue value={value} />
+          </section>
+        </div>
+      ) : (
+        <div className="property-review-values">
+          <HumanValue value={value} />
+        </div>
+      )}
     </section>
   );
 }
@@ -3274,10 +3347,12 @@ function HumanValue({ value }: { value: unknown }) {
 
 function MediaReview({
   value,
+  previousValue,
   onRequest,
   highlighted = false,
 }: {
   value: unknown;
+  previousValue?: unknown;
   onRequest?: () => void;
   highlighted?: boolean;
 }) {
@@ -3296,6 +3371,18 @@ function MediaReview({
           {onRequest && <button onClick={onRequest}>Request update</button>}
         </div>
       </header>
+      {highlighted && (
+        <div className="review-comparison">
+          <section>
+            <b>Previous live media</b>
+            <HumanValue value={previousValue} />
+          </section>
+          <section>
+            <b>Updated media</b>
+            <HumanValue value={value} />
+          </section>
+        </div>
+      )}
       {media.length ? (
         <div className="property-review-media">
           {media.map((item, index) => {
@@ -3338,10 +3425,12 @@ function MediaReview({
 
 function DocumentReview({
   value,
+  previousValue,
   onRequest,
   highlighted = false,
 }: {
   value: unknown;
+  previousValue?: unknown;
   onRequest?: () => void;
   highlighted?: boolean;
 }) {
@@ -3360,6 +3449,18 @@ function DocumentReview({
           {onRequest && <button onClick={onRequest}>Request update</button>}
         </div>
       </header>
+      {highlighted && (
+        <div className="review-comparison">
+          <section>
+            <b>Previous live documents</b>
+            <HumanValue value={previousValue} />
+          </section>
+          <section>
+            <b>Updated documents</b>
+            <HumanValue value={value} />
+          </section>
+        </div>
+      )}
       {documents.length ? (
         <div className="property-review-documents">
           {documents.map((document, index) => (

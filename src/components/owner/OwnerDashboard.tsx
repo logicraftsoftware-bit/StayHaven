@@ -42,6 +42,7 @@ type Property = {
   reviewReason?: string;
   pendingUpdateStatus?: "DRAFT" | "PENDING" | "CHANGES_REQUIRED";
   pendingReviewReason?: string;
+  pendingReviewSections?: string[];
   completeness?: number;
   media?: Array<{ url: string; primary?: boolean }>;
 };
@@ -464,6 +465,12 @@ export function OwnerDashboard() {
                                         ? "No pending tasks"
                                         : "Listing in progress"}
                               </button>
+                              {property.pendingReviewSections?.length ? (
+                                <small className="owner-pending-sections">
+                                  Pending:{" "}
+                                  {property.pendingReviewSections.join(", ")}
+                                </small>
+                              ) : null}
                             </td>
                             <td>0</td>
                             <td>0</td>

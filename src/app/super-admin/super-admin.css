@@ -1416,6 +1416,68 @@
 .property-review-block.updated > header {
   background: #fffbeb;
 }
+.review-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px;
+}
+.review-comparison > section {
+  min-width: 0;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  background: #fff;
+  padding: 13px;
+  color: #475569;
+  font-size: 11px;
+}
+.review-comparison > section:last-child {
+  border-color: #e9a90b;
+  background: #fffdf5;
+}
+.review-comparison > section > b {
+  display: block;
+  margin-bottom: 10px;
+  color: #101828;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.property-review-history {
+  margin-top: 20px;
+  border: 1px solid var(--admin-line);
+  border-radius: 13px;
+  background: #fff;
+  padding: 18px;
+}
+.property-review-history > h2 {
+  font: 700 19px var(--font-lora);
+}
+.property-review-history > p {
+  margin: 4px 0 15px;
+  color: #667085;
+  font-size: 11px;
+}
+.property-review-history > article {
+  margin-top: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 11px;
+}
+.property-review-history > article > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e4e7ec;
+  padding: 11px 14px;
+}
+.property-review-history > article > header span {
+  color: #667085;
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  .review-comparison {
+    grid-template-columns: 1fr;
+  }
+}
 .property-review-block h3,
 .property-review-decision h3 {
   font-family: var(--font-lora);

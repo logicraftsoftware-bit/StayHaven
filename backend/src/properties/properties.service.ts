@@ -133,6 +133,13 @@ export class PropertiesService {
       p.status === PropertyStatus.APPROVED &&
       Boolean(Object.keys(p.pendingChanges || {}).length);
     if (hasLiveRevision && status === PropertyStatus.APPROVED) {
+      const proposed = this.pendingViewValue(p.pendingChanges || {});
+      const liveValue = p.toObject() as unknown as Record<string, unknown>;
+      liveValue.financeLegal = this.decrypt(String(p.financeLegal || ''));
+      const previous = Object.fromEntries(
+        Object.keys(proposed).map((key) => [key, liveValue[key]]),
+      );
+      const approvedSections = [...(p.pendingReviewSections || [])];
       for (const [key, value] of Object.entries(p.pendingChanges || {}))
         (p as unknown as Record<string, unknown>)[key] = value;
       p.completeness = this.completeness(p);
@@ -145,6 +152,9 @@ export class PropertiesService {
         {
           status: PropertyStatus.APPROVED,
           reason: 'Live property revision approved',
+          sections: approvedSections,
+          previousSnapshot: this.encrypt(previous),
+          approvedSnapshot: this.encrypt(proposed),
           actorId: actor,
           createdAt: new Date(),
         },
@@ -288,6 +298,12 @@ export class PropertiesService {
     const pending = this.pendingViewValue(property.pendingChanges || {});
     Object.assign(value, pending);
     value.pendingChanges = pending;
+    value.reviewHistory = (property.reviewHistory || []).map((entry) => {
+      const { previousSnapshot, approvedSnapshot, ...safeEntry } = entry;
+      void previousSnapshot;
+      void approvedSnapshot;
+      return safeEntry;
+    });
     return value;
   }
 
@@ -296,6 +312,19 @@ export class PropertiesService {
     const value = property.toObject() as unknown as Record<string, unknown>;
     value.financeLegal = this.decrypt(String(property.financeLegal || ''));
     value.pendingChanges = this.pendingViewValue(property.pendingChanges || {});
+    value.reviewHistory = (property.reviewHistory || []).map((entry) => ({
+      ...entry,
+      previousValues:
+        typeof entry.previousSnapshot === 'string'
+          ? this.decrypt(entry.previousSnapshot)
+          : undefined,
+      approvedValues:
+        typeof entry.approvedSnapshot === 'string'
+          ? this.decrypt(entry.approvedSnapshot)
+          : undefined,
+      previousSnapshot: undefined,
+      approvedSnapshot: undefined,
+    }));
     return value;
   }
 
