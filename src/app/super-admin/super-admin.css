@@ -1557,6 +1557,87 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Consistent, readable typography across the complete administration panel. */
+.admin-shell {
+  font-size: 14px;
+}
+.admin-shell nav button,
+.admin-shell button,
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea {
+  font-size: 13px;
+}
+.admin-shell nav button {
+  font-size: 14px;
+}
+.admin-shell :is(p, td, dd, label) {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.admin-shell :is(small, .table-muted) {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.admin-shell th {
+  font-size: 12px;
+}
+.admin-shell :is(.admin-kicker, .page-eyebrow) {
+  font-size: 12px;
+}
+.admin-shell :is(.status-badge, .pending-revision-badge) {
+  font-size: 11px;
+}
+.property-review-block h3,
+.property-review-decision h3 {
+  font-size: 18px;
+}
+.property-review-values,
+.review-comparison > section {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.review-details dt,
+.review-details dd {
+  font-size: 13px;
+}
+.review-details dt {
+  font-weight: 800;
+}
+.review-details > div {
+  padding: 12px 0;
+}
+.review-chips > span,
+.review-answer,
+.review-object-list > article > strong,
+.property-review-media strong,
+.property-review-media small,
+.property-review-documents strong,
+.property-review-documents small,
+.review-section-picker label,
+.review-block-actions button,
+.review-block-actions strong,
+.property-review-block > header small {
+  font-size: 12px;
+}
+.property-review-block > header {
+  padding: 15px 17px;
+}
+.property-review-values,
+.property-review-media,
+.property-review-documents,
+.review-comparison {
+  padding: 17px;
+}
+.property-review-history > p,
+.property-review-history > article > header span,
+.update-log-empty p {
+  font-size: 13px;
+}
+.update-log-sections span {
+  font-size: 11px !important;
+}
 .property-review-block h3,
 .property-review-decision h3 {
   font-family: var(--font-lora);
@@ -3184,4 +3265,19 @@
 }
 .account-upload-grid.single {
   grid-template-columns: 1fr;
+}
+
+/* Keep feature-specific rules from reducing admin text below the readable scale. */
+.admin-shell :is(p, label, td, dd, input, select, textarea, button) {
+  font-size: 13px;
+}
+.admin-shell :is(small, em) {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.admin-shell th {
+  font-size: 12px;
+}
+.admin-shell nav button {
+  font-size: 14px;
 }
