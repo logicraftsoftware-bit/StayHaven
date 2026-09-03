@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleAlert,
   ExternalLink,
+  FileText,
   Globe2,
   Home,
   ImagePlus,
@@ -2828,10 +2829,7 @@ function PropertiesView({ token }: { token: string }) {
                 title="Rooms & pricing"
                 value={reviewProperty.roomDetails}
               />
-              <ReviewBlock
-                title="Photos & videos"
-                value={reviewProperty.media}
-              />
+              <MediaReview value={reviewProperty.media} />
               <ReviewBlock title="Amenities" value={reviewProperty.amenities} />
               <ReviewBlock
                 title="Meals & policies"
@@ -2845,11 +2843,7 @@ function PropertiesView({ token }: { token: string }) {
                 value={reviewProperty.financeLegal}
                 privateData
               />
-              <ReviewBlock
-                title="Documents"
-                value={reviewProperty.documents}
-                privateData
-              />
+              <DocumentReview value={reviewProperty.documents} />
             </div>
             {reviewProperty.status === "PENDING" && (
               <div className="property-review-decision">
@@ -2918,14 +2912,190 @@ function ReviewBlock({
         <h3>{title}</h3>
         {privateData && <span>Private</span>}
       </header>
-      <pre>
-        {value &&
-        (Array.isArray(value)
-          ? value.length
-          : Object.keys(value as object).length)
-          ? JSON.stringify(value, null, 2)
-          : "No information added"}
-      </pre>
+      <div className="property-review-values">
+        <HumanValue value={value} />
+      </div>
+    </section>
+  );
+}
+
+const hiddenReviewFields = new Set([
+  "_id",
+  "id",
+  "__v",
+  "publicId",
+  "storage",
+  "createdAt",
+  "updatedAt",
+]);
+
+function hasReviewValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
+}
+
+function reviewLabel(key: string) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function HumanValue({ value }: { value: unknown }) {
+  if (!hasReviewValue(value)) return <em>Not provided</em>;
+
+  if (typeof value === "boolean") {
+    return (
+      <span className={value ? "review-answer yes" : "review-answer no"}>
+        {value ? "Yes" : "No"}
+      </span>
+    );
+  }
+
+  if (typeof value !== "object") return <span>{String(value)}</span>;
+
+  if (Array.isArray(value)) {
+    if (value.every((item) => typeof item !== "object" || item === null)) {
+      return (
+        <div className="review-chips">
+          {value.map((item, index) => (
+            <span key={`${String(item)}-${index}`}>{String(item)}</span>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="review-object-list">
+        {value.map((item, index) => (
+          <article key={index}>
+            <strong>{`Item ${index + 1}`}</strong>
+            <HumanValue value={item} />
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    ([key, item]) => !hiddenReviewFields.has(key) && hasReviewValue(item),
+  );
+  if (!entries.length) return <em>Not provided</em>;
+
+  return (
+    <dl className="review-details">
+      {entries.map(([key, item]) => (
+        <div key={key}>
+          <dt>{reviewLabel(key)}</dt>
+          <dd>
+            {key.toLowerCase().includes("url") && typeof item === "string" ? (
+              <a href={item} target="_blank" rel="noreferrer">
+                Open file <ExternalLink />
+              </a>
+            ) : (
+              <HumanValue value={item} />
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function MediaReview({ value }: { value: unknown }) {
+  const media = Array.isArray(value)
+    ? (value as Array<Record<string, unknown>>)
+    : [];
+  return (
+    <section className="property-review-block review-wide">
+      <header>
+        <h3>Photos & videos</h3>
+        <small>{media.length} files</small>
+      </header>
+      {media.length ? (
+        <div className="property-review-media">
+          {media.map((item, index) => {
+            const url = String(item.url || "");
+            const isVideo = item.mediaType === "video";
+            return (
+              <article key={String(item.id || item._id || index)}>
+                {isVideo ? (
+                  <video src={url} controls preload="metadata" />
+                ) : (
+                  <Image
+                    src={url}
+                    alt={String(item.caption || `Property photo ${index + 1}`)}
+                    width={420}
+                    height={260}
+                    unoptimized
+                  />
+                )}
+                <div>
+                  <strong>
+                    {String(item.category || `Photo ${index + 1}`)}
+                  </strong>
+                  {item.primary === true && <span>Cover photo</span>}
+                  {Array.isArray(item.tags) && item.tags.length > 0 && (
+                    <small>{item.tags.join(" · ")}</small>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="property-review-values">
+          <em>No photos or videos uploaded</em>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DocumentReview({ value }: { value: unknown }) {
+  const documents = Array.isArray(value)
+    ? (value as Array<Record<string, unknown>>)
+    : [];
+  return (
+    <section className="property-review-block review-wide">
+      <header>
+        <h3>Documents</h3>
+        <span>Private</span>
+      </header>
+      {documents.length ? (
+        <div className="property-review-documents">
+          {documents.map((document, index) => (
+            <a
+              key={String(document.id || document._id || index)}
+              href={String(document.url || "#")}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <FileText />
+              <span>
+                <strong>
+                  {reviewLabel(
+                    String(document.type || `Document ${index + 1}`),
+                  )}
+                </strong>
+                <small>
+                  {reviewLabel(
+                    String(
+                      document.verificationStatus || "Pending verification",
+                    ),
+                  )}
+                </small>
+              </span>
+              <ExternalLink />
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div className="property-review-values">
+          <em>No documents uploaded</em>
+        </div>
+      )}
     </section>
   );
 }
