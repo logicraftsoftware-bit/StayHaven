@@ -4788,6 +4788,9 @@ button {
 .owner-portal-content > .manager-shell {
   min-height: calc(100vh - 86px);
 }
+.owner-portal-content:has(> .manager-shell) {
+  overflow: visible;
+}
 .owner-portal-content > .manager-shell > aside {
   position: sticky;
   top: 86px;
