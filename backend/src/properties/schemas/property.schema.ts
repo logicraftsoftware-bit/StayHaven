@@ -32,6 +32,12 @@ export class Property {
   status: PropertyStatus;
   @Prop() reviewReason?: string;
   @Prop({ type: [String], default: [] }) reviewSections: string[];
+  @Prop({ type: Object, default: {}, select: false })
+  pendingChanges: Record<string, unknown>;
+  @Prop({ type: String, enum: ['DRAFT', 'PENDING', 'CHANGES_REQUIRED'] })
+  pendingUpdateStatus?: 'DRAFT' | 'PENDING' | 'CHANGES_REQUIRED';
+  @Prop({ type: [String], default: [] }) pendingReviewSections: string[];
+  @Prop() pendingReviewReason?: string;
   @Prop({ default: true, index: true }) active: boolean;
   @Prop({ min: 0 }) price?: number;
   @Prop({ min: 0 }) taxes?: number;

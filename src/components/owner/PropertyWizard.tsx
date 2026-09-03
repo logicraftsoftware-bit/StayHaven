@@ -103,6 +103,9 @@ type Form = {
   status?: string;
   reviewReason?: string;
   reviewSections?: string[];
+  pendingUpdateStatus?: "DRAFT" | "PENDING" | "CHANGES_REQUIRED";
+  pendingReviewReason?: string;
+  pendingReviewSections?: string[];
   completeness?: number;
 };
 const steps = [
@@ -198,20 +201,28 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         setSites(siteResult.data);
         setTypes(typeResult.data);
         if (existing) {
-          setForm({
+          const loaded = {
             ...empty,
             ...existing.data,
+            reviewReason:
+              existing.data.pendingReviewReason || existing.data.reviewReason,
+            reviewSections:
+              existing.data.pendingUpdateStatus === "CHANGES_REQUIRED"
+                ? existing.data.pendingReviewSections
+                : existing.data.reviewSections,
             siteId:
               typeof existing.data.siteId === "object"
                 ? (existing.data.siteId as unknown as Site)._id
                 : existing.data.siteId,
-          });
+          };
+          setForm(loaded);
           if (
-            existing.data.status === "CHANGES_REQUIRED" &&
-            existing.data.reviewSections?.length
+            (existing.data.status === "CHANGES_REQUIRED" ||
+              existing.data.pendingUpdateStatus === "CHANGES_REQUIRED") &&
+            loaded.reviewSections?.length
           ) {
             const firstRequested = steps.findIndex((label) =>
-              existing.data.reviewSections?.includes(label),
+              loaded.reviewSections?.includes(label),
             );
             if (firstRequested >= 0) setStep(firstRequested);
           }
@@ -296,7 +307,9 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
         "Finance & Legal": ["financeLegal", "documents", "seo"],
       };
       const payload: Partial<typeof fullPayload> =
-        form.status === "CHANGES_REQUIRED" && form.reviewSections?.length
+        (form.status === "CHANGES_REQUIRED" ||
+          form.pendingUpdateStatus === "CHANGES_REQUIRED") &&
+        form.reviewSections?.length
           ? Object.fromEntries(
               form.reviewSections
                 .flatMap((section) => fieldsByStep[section] || [])
@@ -390,7 +403,9 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
     [form.reviewSections],
   );
   const restrictedReview =
-    form.status === "CHANGES_REQUIRED" && requestedStepIndexes.length > 0;
+    (form.status === "CHANGES_REQUIRED" ||
+      form.pendingUpdateStatus === "CHANGES_REQUIRED") &&
+    requestedStepIndexes.length > 0;
   const lastRequestedStep = restrictedReview
     ? requestedStepIndexes.at(-1)
     : steps.length - 1;
@@ -478,7 +493,8 @@ export function PropertyWizard({ propertyId }: { propertyId?: string }) {
             key={label}
             className={index === step ? "active" : index < step ? "done" : ""}
             disabled={
-              form.status === "CHANGES_REQUIRED" &&
+              (form.status === "CHANGES_REQUIRED" ||
+                form.pendingUpdateStatus === "CHANGES_REQUIRED") &&
               Boolean(form.reviewSections?.length) &&
               !form.reviewSections?.includes(label)
             }

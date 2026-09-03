@@ -1399,6 +1399,23 @@
   font-size: 8px;
   font-weight: 850;
 }
+.review-block-actions strong,
+.pending-revision-badge {
+  border-radius: 999px;
+  background: #fff4d6;
+  padding: 5px 8px;
+  color: #9a6700;
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.property-review-block.updated {
+  border: 2px solid #e9a90b;
+  box-shadow: 0 0 0 3px #fff7dc;
+}
+.property-review-block.updated > header {
+  background: #fffbeb;
+}
 .property-review-block h3,
 .property-review-decision h3 {
   font-family: var(--font-lora);

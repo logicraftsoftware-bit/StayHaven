@@ -45,6 +45,25 @@ type OwnerSummaryRow = {
   _id: { status: PropertyStatus; siteId: Types.ObjectId };
   count: number;
 };
+const sectionFields: Record<string, string[]> = {
+  'Property Type': ['propertyTypeId', 'propertyType'],
+  'Basic Info': ['name', 'displayName', 'description', 'basicInfo'],
+  Location: [
+    'siteId',
+    'address',
+    'city',
+    'state',
+    'country',
+    'locationDetails',
+    'location',
+  ],
+  'Rooms & Spaces': ['roomDetails', 'rooms', 'maxGuests', 'price', 'taxes'],
+  'Photos & Videos': ['media'],
+  Amenities: ['amenities'],
+  'Meals & Policies': ['mealPlans', 'policies'],
+  'Finance & Legal': ['financeLegal', 'documents', 'seo'],
+};
+const ownerEditableFields = [...new Set(Object.values(sectionFields).flat())];
 @Injectable()
 export class PropertiesService {
   constructor(
@@ -97,7 +116,7 @@ export class PropertiesService {
     const query = this.model.findById(id);
     const p =
       typeof (query as unknown as { select?: unknown }).select === 'function'
-        ? await query.select('+financeLegal +documents')
+        ? await query.select('+financeLegal +documents +pendingChanges')
         : await query;
     if (!p) throw new NotFoundException('Property not found');
     return p;
@@ -110,6 +129,55 @@ export class PropertiesService {
     sections?: string[],
   ) {
     const p = await this.get(id);
+    const hasLiveRevision =
+      p.status === PropertyStatus.APPROVED &&
+      Boolean(Object.keys(p.pendingChanges || {}).length);
+    if (hasLiveRevision && status === PropertyStatus.APPROVED) {
+      for (const [key, value] of Object.entries(p.pendingChanges || {}))
+        (p as unknown as Record<string, unknown>)[key] = value;
+      p.completeness = this.completeness(p);
+      p.pendingChanges = {};
+      p.pendingUpdateStatus = undefined;
+      p.pendingReviewSections = [];
+      p.pendingReviewReason = undefined;
+      p.reviewHistory = [
+        ...(p.reviewHistory || []),
+        {
+          status: PropertyStatus.APPROVED,
+          reason: 'Live property revision approved',
+          actorId: actor,
+          createdAt: new Date(),
+        },
+      ];
+      await p.save();
+      await this.audit.record({
+        actorId: new Types.ObjectId(actor),
+        actorRole: Role.SUPER_ADMIN,
+        action: 'PROPERTY_LIVE_UPDATE_APPROVED',
+        entityType: 'PROPERTY',
+        entityId: p._id,
+        siteId: p.siteId,
+      });
+      return p;
+    }
+    if (hasLiveRevision && status === PropertyStatus.CHANGES_REQUIRED) {
+      p.pendingUpdateStatus = 'CHANGES_REQUIRED';
+      p.pendingReviewReason = reason;
+      p.pendingReviewSections = sections?.length
+        ? sections
+        : p.pendingReviewSections;
+      await p.save();
+      await this.audit.record({
+        actorId: new Types.ObjectId(actor),
+        actorRole: Role.SUPER_ADMIN,
+        action: 'PROPERTY_LIVE_UPDATE_CHANGES_REQUESTED',
+        entityType: 'PROPERTY',
+        entityId: p._id,
+        siteId: p.siteId,
+        metadata: { reason: reason || '', sections: sections || [] },
+      });
+      return p;
+    }
     if (!transitions[p.status].includes(status))
       throw new BadRequestException(
         `Invalid transition from ${p.status} to ${status}`,
@@ -203,7 +271,7 @@ export class PropertiesService {
     });
     const property =
       typeof (query as unknown as { select?: unknown }).select === 'function'
-        ? await query.select('+financeLegal +documents')
+        ? await query.select('+financeLegal +documents +pendingChanges')
         : await query;
     if (!property) throw new NotFoundException('Property not found');
     return property;
@@ -217,6 +285,9 @@ export class PropertiesService {
   private ownerViewValue(property: PropertyDocument) {
     const value = property.toObject() as unknown as Record<string, unknown>;
     value.financeLegal = this.decrypt(String(property.financeLegal || ''));
+    const pending = this.pendingViewValue(property.pendingChanges || {});
+    Object.assign(value, pending);
+    value.pendingChanges = pending;
     return value;
   }
 
@@ -224,6 +295,7 @@ export class PropertiesService {
     const property = await this.get(id);
     const value = property.toObject() as unknown as Record<string, unknown>;
     value.financeLegal = this.decrypt(String(property.financeLegal || ''));
+    value.pendingChanges = this.pendingViewValue(property.pendingChanges || {});
     return value;
   }
 
@@ -282,6 +354,8 @@ export class PropertiesService {
       throw new BadRequestException(
         'Property cannot be edited in its current status',
       );
+    if (property.status === PropertyStatus.APPROVED)
+      return this.updateApprovedProperty(property, ownerId, dto);
     const oldSiteId = String(property.siteId);
     if (property.status === PropertyStatus.CHANGES_REQUIRED)
       this.assertRequestedSections(property, dto);
@@ -294,38 +368,13 @@ export class PropertiesService {
       property.propertyTypeId = new Types.ObjectId(dto.propertyTypeId);
       property.propertyType = master.name;
     }
-    const allowed = [
-      'name',
-      'propertyType',
-      'displayName',
-      'description',
-      'address',
-      'city',
-      'state',
-      'country',
-      'price',
-      'taxes',
-      'rooms',
-      'maxGuests',
-      'amenities',
-      'basicInfo',
-      'locationDetails',
-      'location',
-      'roomDetails',
-      'media',
-      'mealPlans',
-      'policies',
-      'documents',
-      'seo',
-    ] as const;
-    for (const key of allowed)
-      if (dto[key] !== undefined)
-        (property as unknown as Record<string, unknown>)[key] = dto[key];
+    const updates = dto as unknown as Record<string, unknown>;
+    for (const key of ownerEditableFields)
+      if (updates[key] !== undefined)
+        (property as unknown as Record<string, unknown>)[key] = updates[key];
     if (dto.financeLegal !== undefined)
       property.financeLegal = this.encrypt(dto.financeLegal);
     property.completeness = this.completeness(property);
-    if (property.status === PropertyStatus.APPROVED)
-      property.status = PropertyStatus.PENDING;
     if (dto.submit) {
       this.assertComplete(property);
       property.status = PropertyStatus.PENDING;
@@ -348,30 +397,72 @@ export class PropertiesService {
     return this.ownerViewValue(property);
   }
 
+  private async updateApprovedProperty(
+    property: PropertyDocument,
+    ownerId: string,
+    dto: UpdateOwnerPropertyDto,
+  ) {
+    const incoming = { ...dto } as Record<string, unknown>;
+    delete incoming.submit;
+    if (dto.siteId) await this.sites.getActive(dto.siteId);
+    if (dto.propertyTypeId) {
+      const master = await this.propertyTypes.getActive(dto.propertyTypeId);
+      incoming.propertyType = master.name;
+    }
+
+    const live = property.toObject() as unknown as Record<string, unknown>;
+    live.financeLegal = this.decrypt(String(property.financeLegal || ''));
+    const pending = this.pendingViewValue(property.pendingChanges || {});
+    const candidate = { ...pending };
+    for (const key of ownerEditableFields) {
+      if (incoming[key] === undefined) continue;
+      if (this.sameValue(incoming[key], live[key])) delete candidate[key];
+      else candidate[key] = incoming[key];
+    }
+
+    if (dto.submit)
+      this.assertComplete({ ...live, ...candidate } as unknown as Property);
+
+    const storedPending = { ...candidate };
+    if (candidate.financeLegal !== undefined)
+      storedPending.financeLegal = this.encrypt(
+        candidate.financeLegal as Record<string, unknown>,
+      );
+    property.pendingChanges = storedPending;
+    property.pendingReviewSections = Object.entries(sectionFields)
+      .filter(([, fields]) => fields.some((field) => field in candidate))
+      .map(([section]) => section);
+    property.pendingUpdateStatus = Object.keys(candidate).length
+      ? dto.submit
+        ? 'PENDING'
+        : property.pendingUpdateStatus || 'DRAFT'
+      : undefined;
+    if (dto.submit) property.pendingReviewReason = undefined;
+    await property.save();
+    await this.auditOwner('PROPERTY_LIVE_UPDATE_SAVED', property, ownerId, {
+      submitted: Boolean(dto.submit),
+      sections: property.pendingReviewSections,
+    });
+    return this.ownerViewValue(property);
+  }
+
+  private pendingViewValue(value: Record<string, unknown>) {
+    const pending = { ...value };
+    if (typeof pending.financeLegal === 'string')
+      pending.financeLegal = this.decrypt(pending.financeLegal);
+    return pending;
+  }
+
+  private sameValue(left: unknown, right: unknown) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+  }
+
   private assertRequestedSections(
     property: PropertyDocument,
     dto: UpdateOwnerPropertyDto,
   ) {
     const requested = property.reviewSections || [];
     if (!requested.length) return;
-    const sectionFields: Record<string, string[]> = {
-      'Property Type': ['propertyTypeId', 'propertyType'],
-      'Basic Info': ['name', 'displayName', 'description', 'basicInfo'],
-      Location: [
-        'siteId',
-        'address',
-        'city',
-        'state',
-        'country',
-        'locationDetails',
-        'location',
-      ],
-      'Rooms & Spaces': ['roomDetails', 'rooms', 'maxGuests', 'price'],
-      'Photos & Videos': ['media'],
-      Amenities: ['amenities'],
-      'Meals & Policies': ['mealPlans', 'policies'],
-      'Finance & Legal': ['financeLegal', 'documents', 'seo'],
-    };
     const allowed = new Set(
       requested.flatMap((name) => sectionFields[name] || []),
     );

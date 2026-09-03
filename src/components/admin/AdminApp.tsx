@@ -178,6 +178,10 @@ type Property = {
   status: Status;
   reviewReason?: string;
   reviewSections?: string[];
+  pendingChanges?: Record<string, unknown>;
+  pendingUpdateStatus?: "DRAFT" | "PENDING" | "CHANGES_REQUIRED";
+  pendingReviewSections?: string[];
+  pendingReviewReason?: string;
   createdAt: string;
   displayName?: string;
   description?: string;
@@ -2511,9 +2515,10 @@ function PropertiesView({
         token,
       );
       setReviewProperty(result.data);
-      setReviewSections([]);
+      setReviewSections(result.data.pendingReviewSections || []);
       setReviewNote(
-        "Please review and update the selected sections, then resubmit the property for verification.",
+        result.data.pendingReviewReason ||
+          "Please review and update the selected sections, then resubmit the property for verification.",
       );
       setError("");
     } catch (e) {
@@ -2920,6 +2925,11 @@ function PropertiesView({
                   <div className="property-main">
                     <div>
                       <StatusBadge value={property.status} />
+                      {property.pendingUpdateStatus && (
+                        <span className="pending-revision-badge">
+                          Updated sections: {property.pendingUpdateStatus}
+                        </span>
+                      )}
                       <span>{property.propertyType}</span>
                     </div>
                     <h2>{property.name}</h2>
@@ -2996,6 +3006,10 @@ function PropertyReviewPage({
   onRequestChanges: () => void;
   onApprove: () => void;
 }) {
+  const changedSections = property.pendingReviewSections || [];
+  const pending = property.pendingChanges || {};
+  const field = <T,>(name: string, live: T): T =>
+    (name in pending ? pending[name] : live) as T;
   return (
     <section className="property-review-page">
       <button className="property-review-back" type="button" onClick={onBack}>
@@ -3008,42 +3022,77 @@ function PropertyReviewPage({
       />
       <div className="property-review-grid">
         <ReviewBlock
+          title="Property type"
+          highlighted={changedSections.includes("Property Type")}
+          onRequest={() => onToggleSection("Property Type")}
+          value={{
+            propertyType: field("propertyType", property.propertyType),
+          }}
+        />
+        <ReviewBlock
           title="Basic information"
+          highlighted={changedSections.includes("Basic Info")}
           onRequest={() => onToggleSection("Basic Info")}
-          value={{ description: property.description, ...property.basicInfo }}
+          value={{
+            name: field("name", property.name),
+            displayName: field("displayName", property.displayName),
+            description: field("description", property.description),
+            ...field("basicInfo", property.basicInfo),
+          }}
         />
         <ReviewBlock
           title="Location"
-          value={property.locationDetails}
+          highlighted={changedSections.includes("Location")}
+          value={{
+            address: field("address", property.address),
+            city: field("city", property.city),
+            state: field("state", property.state),
+            country: field("country", property.country),
+            ...field("locationDetails", property.locationDetails),
+          }}
           onRequest={() => onToggleSection("Location")}
         />
         <ReviewBlock
           title="Rooms & pricing"
-          value={property.roomDetails}
+          highlighted={changedSections.includes("Rooms & Spaces")}
+          value={{
+            rooms: field("rooms", property.rooms),
+            maxGuests: field("maxGuests", property.maxGuests),
+            price: field("price", property.price),
+            roomDetails: field("roomDetails", property.roomDetails),
+          }}
           onRequest={() => onToggleSection("Rooms & Spaces")}
         />
         <MediaReview
-          value={property.media}
+          value={field("media", property.media)}
+          highlighted={changedSections.includes("Photos & Videos")}
           onRequest={() => onToggleSection("Photos & Videos")}
         />
         <ReviewBlock
           title="Amenities"
-          value={property.amenities}
+          highlighted={changedSections.includes("Amenities")}
+          value={field("amenities", property.amenities)}
           onRequest={() => onToggleSection("Amenities")}
         />
         <ReviewBlock
           title="Meals & policies"
+          highlighted={changedSections.includes("Meals & Policies")}
           onRequest={() => onToggleSection("Meals & Policies")}
-          value={{ mealPlans: property.mealPlans, policies: property.policies }}
+          value={{
+            mealPlans: field("mealPlans", property.mealPlans),
+            policies: field("policies", property.policies),
+          }}
         />
         <ReviewBlock
           title="Finance & legal"
-          value={property.financeLegal}
+          highlighted={changedSections.includes("Finance & Legal")}
+          value={field("financeLegal", property.financeLegal)}
           privateData
           onRequest={() => onToggleSection("Finance & Legal")}
         />
         <DocumentReview
-          value={property.documents}
+          value={field("documents", property.documents)}
+          highlighted={changedSections.includes("Finance & Legal")}
           onRequest={() => onToggleSection("Finance & Legal")}
         />
       </div>
@@ -3079,7 +3128,8 @@ function PropertyReviewPage({
             >
               Request changes
             </button>
-            {property.status === "PENDING" && (
+            {(property.status === "PENDING" ||
+              property.pendingUpdateStatus === "PENDING") && (
               <button type="button" className="approve" onClick={onApprove}>
                 <Check /> Approve and publish
               </button>
@@ -3107,17 +3157,22 @@ function ReviewBlock({
   value,
   privateData = false,
   onRequest,
+  highlighted = false,
 }: {
   title: string;
   value: unknown;
   privateData?: boolean;
   onRequest?: () => void;
+  highlighted?: boolean;
 }) {
   return (
-    <section className="property-review-block">
+    <section
+      className={`property-review-block${highlighted ? " updated" : ""}`}
+    >
       <header>
         <h3>{title}</h3>
         <div className="review-block-actions">
+          {highlighted && <strong>Updated — pending approval</strong>}
           {privateData && <span>Private</span>}
           {onRequest && (
             <button type="button" onClick={onRequest}>
@@ -3220,18 +3275,23 @@ function HumanValue({ value }: { value: unknown }) {
 function MediaReview({
   value,
   onRequest,
+  highlighted = false,
 }: {
   value: unknown;
   onRequest?: () => void;
+  highlighted?: boolean;
 }) {
   const media = Array.isArray(value)
     ? (value as Array<Record<string, unknown>>)
     : [];
   return (
-    <section className="property-review-block review-wide">
+    <section
+      className={`property-review-block review-wide${highlighted ? " updated" : ""}`}
+    >
       <header>
         <h3>Photos & videos</h3>
         <div className="review-block-actions">
+          {highlighted && <strong>Updated — pending approval</strong>}
           <small>{media.length} files</small>
           {onRequest && <button onClick={onRequest}>Request update</button>}
         </div>
@@ -3279,18 +3339,23 @@ function MediaReview({
 function DocumentReview({
   value,
   onRequest,
+  highlighted = false,
 }: {
   value: unknown;
   onRequest?: () => void;
+  highlighted?: boolean;
 }) {
   const documents = Array.isArray(value)
     ? (value as Array<Record<string, unknown>>)
     : [];
   return (
-    <section className="property-review-block review-wide">
+    <section
+      className={`property-review-block review-wide${highlighted ? " updated" : ""}`}
+    >
       <header>
         <h3>Documents</h3>
         <div className="review-block-actions">
+          {highlighted && <strong>Updated — pending approval</strong>}
           <span>Private</span>
           {onRequest && <button onClick={onRequest}>Request update</button>}
         </div>

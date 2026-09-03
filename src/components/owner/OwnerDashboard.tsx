@@ -40,6 +40,8 @@ type Property = {
   state: string;
   status: string;
   reviewReason?: string;
+  pendingUpdateStatus?: "DRAFT" | "PENDING" | "CHANGES_REQUIRED";
+  pendingReviewReason?: string;
   completeness?: number;
   media?: Array<{ url: string; primary?: boolean }>;
 };
@@ -292,7 +294,9 @@ export function OwnerDashboard() {
             </button>
           </header>
           {properties.some(
-            (property) => property.status === "CHANGES_REQUIRED",
+            (property) =>
+              property.status === "CHANGES_REQUIRED" ||
+              property.pendingUpdateStatus === "CHANGES_REQUIRED",
           ) && (
             <div className="owner-update-notification">
               <span>!</span>
@@ -451,9 +455,14 @@ export function OwnerDashboard() {
                               >
                                 {property.status === "CHANGES_REQUIRED"
                                   ? "1 pending task"
-                                  : property.status === "APPROVED"
-                                    ? "No pending tasks"
-                                    : "Listing in progress"}
+                                  : property.pendingUpdateStatus === "PENDING"
+                                    ? "Update pending approval"
+                                    : property.pendingUpdateStatus ===
+                                        "CHANGES_REQUIRED"
+                                      ? "Update changes requested"
+                                      : property.status === "APPROVED"
+                                        ? "No pending tasks"
+                                        : "Listing in progress"}
                               </button>
                             </td>
                             <td>0</td>
