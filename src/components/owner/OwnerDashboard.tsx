@@ -380,110 +380,123 @@ export function OwnerDashboard() {
               </select>
             </div>
             {visible.length ? (
-              <div className="owner-summary-table-wrap">
-                <table className="owner-summary-table">
-                  <thead>
-                    <tr>
-                      <th>
-                        Property <ArrowUpDown />
-                      </th>
-                      <th>Content Score</th>
-                      <th>Today&apos;s Bookings</th>
-                      <th>Today&apos;s Check Ins</th>
-                      <th>Staying Today</th>
-                      <th>Today&apos;s Check Outs</th>
-                      <th className="owner-summary-range" colSpan={2}>
-                        <span>
-                          {dateFrom} – {dateTo}
-                        </span>
-                        <label>
-                          <CalendarDays /> Change dates
-                          <input
-                            type="date"
-                            value={dateFrom}
-                            max={dateTo}
-                            onChange={(event) =>
-                              setDateFrom(event.target.value)
-                            }
-                          />
-                          <input
-                            type="date"
-                            value={dateTo}
-                            min={dateFrom}
-                            onChange={(event) => setDateTo(event.target.value)}
-                          />
-                        </label>
-                      </th>
-                    </tr>
-                    <tr className="owner-summary-subhead">
-                      <th colSpan={6} />
-                      <th>Net Bookings</th>
-                      <th>Net Earnings</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map((property) => {
-                      const site =
-                        typeof property.siteId === "string"
-                          ? sites.find((s) => s._id === property.siteId)
-                          : property.siteId;
-                      const cover =
-                        property.media?.find((media) => media.primary)?.url ||
-                        property.media?.[0]?.url;
-                      return (
-                        <tr key={property._id}>
-                          <td>
-                            <div className="owner-summary-property">
-                              {cover ? (
-                                <img src={cover} alt="" />
-                              ) : (
-                                <span>
-                                  <Building2 />
-                                </span>
+              <div className="owner-summary-panels">
+                <div className="owner-summary-table-wrap">
+                  <table className="owner-summary-table owner-summary-main-table">
+                    <thead>
+                      <tr>
+                        <th>
+                          Property <ArrowUpDown />
+                        </th>
+                        <th>Content Score</th>
+                        <th>Today&apos;s Bookings</th>
+                        <th>Today&apos;s Check Ins</th>
+                        <th>Staying Today</th>
+                        <th>Today&apos;s Check Outs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visible.map((property) => {
+                        const site =
+                          typeof property.siteId === "string"
+                            ? sites.find((s) => s._id === property.siteId)
+                            : property.siteId;
+                        const cover =
+                          property.media?.find((media) => media.primary)?.url ||
+                          property.media?.[0]?.url;
+                        return (
+                          <tr key={property._id}>
+                            <td>
+                              <div className="owner-summary-property">
+                                {cover ? (
+                                  <img src={cover} alt="" />
+                                ) : (
+                                  <span>
+                                    <Building2 />
+                                  </span>
+                                )}
+                                <div>
+                                  <button
+                                    onClick={() =>
+                                      router.push(
+                                        `/owner/properties/${property._id}`,
+                                      )
+                                    }
+                                  >
+                                    {property.displayName || property.name}
+                                  </button>
+                                  <small>
+                                    {property.propertyType} · {property.city}
+                                  </small>
+                                  <em>{site?.name || currentSite.name}</em>
+                                </div>
+                              </div>
+                              {property.reviewReason && (
+                                <div className="owner-review-note compact">
+                                  <b>Admin note</b> {property.reviewReason}
+                                </div>
                               )}
-                              <div>
-                                <button
-                                  onClick={() =>
-                                    router.push(
-                                      `/owner/properties/${property._id}`,
-                                    )
-                                  }
-                                >
-                                  {property.displayName || property.name}
-                                </button>
-                                <small>
-                                  {property.propertyType} · {property.city}
-                                </small>
-                                <em>{site?.name || currentSite.name}</em>
-                              </div>
-                            </div>
-                            {property.reviewReason && (
-                              <div className="owner-review-note compact">
-                                <b>Admin note</b> {property.reviewReason}
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <strong className="owner-content-score">
-                              {property.completeness || 0}/100
-                            </strong>
-                            <button
-                              className="owner-pending-task"
-                              onClick={() =>
-                                router.push(`/owner/properties/${property._id}`)
-                              }
-                            >
-                              {property.status === "CHANGES_REQUIRED"
-                                ? "1 pending task"
-                                : property.status === "APPROVED"
-                                  ? "No pending tasks"
-                                  : "Listing in progress"}
-                            </button>
-                          </td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>0</td>
+                            </td>
+                            <td>
+                              <strong className="owner-content-score">
+                                {property.completeness || 0}/100
+                              </strong>
+                              <button
+                                className="owner-pending-task"
+                                onClick={() =>
+                                  router.push(
+                                    `/owner/properties/${property._id}`,
+                                  )
+                                }
+                              >
+                                {property.status === "CHANGES_REQUIRED"
+                                  ? "1 pending task"
+                                  : property.status === "APPROVED"
+                                    ? "No pending tasks"
+                                    : "Listing in progress"}
+                              </button>
+                            </td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="owner-summary-table-wrap owner-financial-panel">
+                  <div className="owner-summary-range">
+                    <span>
+                      {dateFrom} – {dateTo}
+                    </span>
+                    <label>
+                      <CalendarDays /> Change dates
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        max={dateTo}
+                        onChange={(event) => setDateFrom(event.target.value)}
+                      />
+                      <input
+                        type="date"
+                        value={dateTo}
+                        min={dateFrom}
+                        onChange={(event) => setDateTo(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <table className="owner-summary-table owner-financial-table">
+                    <thead>
+                      <tr>
+                        <th>Net Bookings</th>
+                        <th>Net Earnings</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visible.map((property) => (
+                        <tr key={property._id}>
                           <td>
                             <strong>0</strong>
                           </td>
@@ -491,10 +504,10 @@ export function OwnerDashboard() {
                             <strong>₹0</strong>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <div className="owner-empty">
