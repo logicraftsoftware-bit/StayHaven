@@ -2456,6 +2456,7 @@ function PropertiesView({
     null,
   );
   const [reviewProperty, setReviewProperty] = useState<Property | null>(null);
+  const [reviewLogOpen, setReviewLogOpen] = useState(false);
   const [reviewSections, setReviewSections] = useState<string[]>([]);
   const [reviewNote, setReviewNote] = useState("");
   const [loadingReview, setLoadingReview] = useState(false);
@@ -2516,6 +2517,7 @@ function PropertiesView({
         token,
       );
       setReviewProperty(result.data);
+      setReviewLogOpen(false);
       setReviewSections(result.data.pendingReviewSections || []);
       setReviewNote(
         result.data.pendingReviewReason ||
@@ -2618,12 +2620,21 @@ function PropertiesView({
   }
 
   if (!masterOnly && reviewProperty) {
+    if (reviewLogOpen) {
+      return (
+        <PropertyUpdateLogPage
+          property={reviewProperty}
+          onBack={() => setReviewLogOpen(false)}
+        />
+      );
+    }
     return (
       <PropertyReviewPage
         property={reviewProperty}
         selectedSections={reviewSections}
         note={reviewNote}
         onBack={() => setReviewProperty(null)}
+        onOpenLog={() => setReviewLogOpen(true)}
         onToggleSection={toggleReviewSection}
         onNoteChange={setReviewNote}
         onRequestChanges={() => void requestSelectedChanges()}
@@ -2993,6 +3004,7 @@ function PropertyReviewPage({
   selectedSections,
   note,
   onBack,
+  onOpenLog,
   onToggleSection,
   onNoteChange,
   onRequestChanges,
@@ -3002,6 +3014,7 @@ function PropertyReviewPage({
   selectedSections: string[];
   note: string;
   onBack: () => void;
+  onOpenLog: () => void;
   onToggleSection: (section: string) => void;
   onNoteChange: (note: string) => void;
   onRequestChanges: () => void;
@@ -3013,9 +3026,18 @@ function PropertyReviewPage({
     (name in pending ? pending[name] : live) as T;
   return (
     <section className="property-review-page">
-      <button className="property-review-back" type="button" onClick={onBack}>
-        <ArrowLeft /> Back to properties
-      </button>
+      <div className="property-review-toolbar">
+        <button className="property-review-back" type="button" onClick={onBack}>
+          <ArrowLeft /> Back to properties
+        </button>
+        <button
+          className="property-update-log-button"
+          type="button"
+          onClick={onOpenLog}
+        >
+          <FileText /> Update Log
+        </button>
+      </div>
       <PageHeader
         eyebrow="FULL PROPERTY VERIFICATION"
         title={property.displayName || property.name}
@@ -3125,35 +3147,6 @@ function PropertyReviewPage({
           onRequest={() => onToggleSection("Finance & Legal")}
         />
       </div>
-      {property.reviewHistory?.some((entry) => entry.approvedValues) && (
-        <section className="property-review-history">
-          <h2>Approved update history</h2>
-          <p>Previous and published values retained for the audit log.</p>
-          {[...property.reviewHistory]
-            .reverse()
-            .filter((entry) => entry.approvedValues)
-            .map((entry, index) => (
-              <article key={`${String(entry.createdAt)}-${index}`}>
-                <header>
-                  <strong>{String(entry.reason || "Update approved")}</strong>
-                  <span>
-                    {new Date(String(entry.createdAt)).toLocaleString()}
-                  </span>
-                </header>
-                <div className="review-comparison">
-                  <section>
-                    <b>Previous details</b>
-                    <HumanValue value={entry.previousValues} />
-                  </section>
-                  <section>
-                    <b>Approved details</b>
-                    <HumanValue value={entry.approvedValues} />
-                  </section>
-                </div>
-              </article>
-            ))}
-        </section>
-      )}
       {["PENDING", "APPROVED"].includes(property.status) && (
         <div className="property-review-decision">
           <h3>Verification decision</h3>
@@ -3193,6 +3186,77 @@ function PropertyReviewPage({
               </button>
             )}
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PropertyUpdateLogPage({
+  property,
+  onBack,
+}: {
+  property: Property;
+  onBack: () => void;
+}) {
+  const history = [...(property.reviewHistory || [])]
+    .reverse()
+    .filter((entry) => entry.approvedValues);
+  return (
+    <section className="property-review-page property-update-log-page">
+      <button className="property-review-back" type="button" onClick={onBack}>
+        <ArrowLeft /> Back to property details
+      </button>
+      <PageHeader
+        eyebrow="PROPERTY AUDIT TRAIL"
+        title="Update Log"
+        text={`${property.displayName || property.name} · Previous and approved property details`}
+      />
+      {history.length ? (
+        <section className="property-review-history standalone">
+          {history.map((entry, index) => {
+            const sections = Array.isArray(entry.sections)
+              ? (entry.sections as string[])
+              : [];
+            return (
+              <article key={`${String(entry.createdAt)}-${index}`}>
+                <header>
+                  <div>
+                    <strong>{String(entry.reason || "Update approved")}</strong>
+                    {sections.length ? (
+                      <div className="update-log-sections">
+                        {sections.map((section) => (
+                          <span key={section}>{section}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <span>
+                    {new Date(String(entry.createdAt)).toLocaleString()}
+                  </span>
+                </header>
+                <div className="review-comparison">
+                  <section>
+                    <b>Previous live details</b>
+                    <HumanValue value={entry.previousValues} />
+                  </section>
+                  <section>
+                    <b>Approved and published details</b>
+                    <HumanValue value={entry.approvedValues} />
+                  </section>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <div className="update-log-empty">
+          <FileText />
+          <h2>No approved updates yet</h2>
+          <p>
+            Previous details will appear here after the first property update is
+            reviewed and approved.
+          </p>
         </div>
       )}
     </section>
