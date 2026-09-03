@@ -26,11 +26,22 @@ type Owner = {
   businessName?: string;
   profileImage?: string;
 };
+type OwnerProperty = {
+  _id: string;
+  name: string;
+  displayName?: string;
+  propertyType?: string;
+  city?: string;
+  status?: string;
+};
 
 export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [owner, setOwner] = useState<Owner | null>(null);
+  const [properties, setProperties] = useState<OwnerProperty[]>([]);
+  const [propertySwitchOpen, setPropertySwitchOpen] = useState(false);
+  const [propertySearch, setPropertySearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -39,6 +50,16 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const propertySwitchRef = useRef<HTMLDivElement>(null);
+  const propertyId = pathname.match(/^\/owner\/properties\/([^/]+)$/)?.[1];
+  const currentProperty = properties.find(
+    (property) => property._id === propertyId,
+  );
+  const filteredProperties = properties.filter((property) =>
+    `${property.displayName || property.name} ${property.city || ""}`
+      .toLowerCase()
+      .includes(propertySearch.trim().toLowerCase()),
+  );
 
   useEffect(() => {
     if (pathname === "/owner") return;
@@ -47,22 +68,33 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
       router.replace("/list-your-property");
       return;
     }
-    apiRequest<Api<Owner>>("/api/v1/owner/me", token)
-      .then((response) => setOwner(response.data))
+    Promise.all([
+      apiRequest<Api<Owner>>("/api/v1/owner/me", token),
+      propertyId
+        ? apiRequest<Api<OwnerProperty[]>>("/api/v1/owner/properties", token)
+        : Promise.resolve(null),
+    ])
+      .then(([response, propertyResponse]) => {
+        setOwner(response.data);
+        if (propertyResponse) setProperties(propertyResponse.data);
+      })
       .catch(() => {
         localStorage.removeItem(OWNER_TOKEN_KEY);
         router.replace("/list-your-property");
       });
-  }, [pathname, router]);
+  }, [pathname, propertyId, router]);
 
   useEffect(() => {
     const close = (event: PointerEvent) => {
       if (!profileRef.current?.contains(event.target as Node))
         setProfileOpen(false);
+      if (!propertySwitchRef.current?.contains(event.target as Node))
+        setPropertySwitchOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setProfileOpen(false);
+        setPropertySwitchOpen(false);
         setPasswordOpen(false);
       }
     };
@@ -108,7 +140,79 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   return (
     <main className="owner-dashboard-shell">
       <header className="owner-dashboard-header">
-        <Brand />
+        <div className="owner-header-property-area">
+          <Brand />
+          {propertyId && currentProperty && (
+            <div className="owner-property-switcher" ref={propertySwitchRef}>
+              <button
+                className="owner-property-switch-trigger"
+                onClick={() => setPropertySwitchOpen((open) => !open)}
+                aria-expanded={propertySwitchOpen}
+              >
+                <Building2 />
+                <span>
+                  <strong>
+                    {currentProperty.displayName || currentProperty.name}
+                  </strong>
+                  <small>
+                    {currentProperty.propertyType || "Property"}
+                    {currentProperty.city ? ` · ${currentProperty.city}` : ""}
+                  </small>
+                </span>
+                <ChevronDown className={propertySwitchOpen ? "open" : ""} />
+              </button>
+              {propertySwitchOpen && (
+                <div className="owner-property-switch-menu">
+                  <div className="owner-property-switch-search">
+                    <input
+                      autoFocus
+                      value={propertySearch}
+                      onChange={(event) =>
+                        setPropertySearch(event.target.value)
+                      }
+                      placeholder="Search by property name or city"
+                    />
+                  </div>
+                  <div className="owner-property-switch-list">
+                    {filteredProperties.map((property) => (
+                      <button
+                        key={property._id}
+                        className={property._id === propertyId ? "active" : ""}
+                        onClick={() => {
+                          setPropertySwitchOpen(false);
+                          setPropertySearch("");
+                          router.push(`/owner/properties/${property._id}`);
+                        }}
+                      >
+                        <Building2 />
+                        <span>
+                          <strong>
+                            {property.displayName || property.name}
+                          </strong>
+                          <small>
+                            {property.city ||
+                              property.propertyType ||
+                              "Property"}
+                          </small>
+                        </span>
+                        {property._id === propertyId && <Check />}
+                      </button>
+                    ))}
+                    {!filteredProperties.length && (
+                      <p>No matching properties found.</p>
+                    )}
+                  </div>
+                  <button
+                    className="owner-property-switch-all"
+                    onClick={() => router.push("/owner")}
+                  >
+                    View all properties
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="owner-profile-menu" ref={profileRef}>
           <button
             className="owner-profile-trigger"
