@@ -21,6 +21,7 @@ import {
 import QRCodeMaker from "qrcode";
 import { useMemo, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
+import { OwnerBookings } from "@/components/owner/OwnerBookings";
 type Site = { name: string; domain: string };
 type Property = {
   _id?: string;
@@ -292,19 +293,22 @@ export function PropertyManager({
             </article>
           </div>
         )}
-        {["bookings", "payments", "analytics"].includes(tab) && (
+        {tab === "bookings" && (
+          <OwnerBookings
+            propertyName={property.displayName || property.name}
+            marketplaceName={site?.name}
+            onManageInventory={() => setTab("rates")}
+          />
+        )}
+        {["payments", "analytics"].includes(tab) && (
           <EmptyState
             title={
-              tab === "bookings"
-                ? "No booking records yet"
-                : tab === "payments"
+              tab === "payments"
                   ? "No payment records yet"
                   : "No analytics data available yet"
             }
             text={
-              tab === "bookings"
-                ? "Bookings and filters will appear here when the booking engine is connected."
-                : tab === "payments"
+              tab === "payments"
                   ? "Payments will appear after bookings are processed."
                   : "Real views, conversion, bookings and revenue will appear here when collected."
             }
