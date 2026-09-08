@@ -97,16 +97,20 @@ export function OwnerRatesInventory({
     queueMicrotask(() => void load());
   }, [load]);
 
-  const valueFor = (room: Room & { roomId: string }, date: Date): InventoryRow =>
-    byCell.get(`${room.roomId}:${iso(date)}`) || {
+  const valueFor = (room: Room & { roomId: string }, date: Date): InventoryRow => {
+    const stored = byCell.get(`${room.roomId}:${iso(date)}`);
+    return {
       roomId: room.roomId,
       date: iso(date),
-      available: Number(room.totalRooms || 1),
-      blocked: 0,
-      rate: Number(room.baseRate || 0),
-      extraAdultRate: Number(room.additionalAdultPrice || 0),
-      extraChildRate: Number(room.additionalChildPrice || 0),
+      available: stored?.available ?? Number(room.totalRooms || 1),
+      blocked: stored?.blocked ?? 0,
+      rate: stored?.rate ?? Number(room.baseRate || 0),
+      extraAdultRate: stored?.extraAdultRate ?? Number(room.additionalAdultPrice || 0),
+      extraChildRate: stored?.extraChildRate ?? Number(room.additionalChildPrice || 0),
+      minimumStay: stored?.minimumStay,
+      maximumStay: stored?.maximumStay,
     };
+  };
   const toggle = (roomId: string) => setExpanded((current) => {
     const next = new Set(current);
     if (next.has(roomId)) next.delete(roomId); else next.add(roomId);
