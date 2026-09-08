@@ -25,6 +25,8 @@ type Room = {
   baseRate?: number;
   totalRooms?: number;
   baseAdults?: number;
+  additionalAdultPrice?: number;
+  additionalChildPrice?: number;
 };
 type InventoryRow = {
   roomId: string;
@@ -32,6 +34,8 @@ type InventoryRow = {
   available: number;
   blocked: number;
   rate: number;
+  extraAdultRate: number;
+  extraChildRate: number;
   minimumStay?: number;
   maximumStay?: number;
 };
@@ -99,6 +103,8 @@ export function OwnerRatesInventory({
       available: Number(room.totalRooms || 1),
       blocked: 0,
       rate: Number(room.baseRate || 0),
+      extraAdultRate: Number(room.additionalAdultPrice || 0),
+      extraChildRate: Number(room.additionalChildPrice || 0),
     };
   const toggle = (roomId: string) => setExpanded((current) => {
     const next = new Set(current);
@@ -177,6 +183,16 @@ export function OwnerRatesInventory({
                           const cell = valueFor(room, date);
                           return <button className="inventory-rate-cell" key={`rate-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}><span>₹</span>{cell.rate.toLocaleString("en-IN")}</button>;
                         })}
+                        <div className="inventory-rate-label supplemental"><Plus /><div><strong>Extra adult rate</strong><small>Per additional adult</small></div></div>
+                        {dates.map((date) => {
+                          const cell = valueFor(room, date);
+                          return <button className="inventory-rate-cell supplemental" key={`adult-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}><span>₹</span>{Number(cell.extraAdultRate || 0).toLocaleString("en-IN")}</button>;
+                        })}
+                        <div className="inventory-rate-label supplemental"><Plus /><div><strong>Extra child rate</strong><small>Per additional child</small></div></div>
+                        {dates.map((date) => {
+                          const cell = valueFor(room, date);
+                          return <button className="inventory-rate-cell supplemental" key={`child-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}><span>₹</span>{Number(cell.extraChildRate || 0).toLocaleString("en-IN")}</button>;
+                        })}
                         <div className="inventory-restriction-label"><ChevronsUpDown /> Stay restrictions</div>
                         {dates.map((date) => {
                           const cell = valueFor(room, date);
@@ -243,6 +259,8 @@ function InventoryEditor({
   const [available, setAvailable] = useState(seed?.available ?? Number(seedRoom?.totalRooms || 1));
   const [blocked, setBlocked] = useState(seed?.blocked ?? 0);
   const [rate, setRate] = useState(seed?.rate ?? Number(seedRoom?.baseRate || 0));
+  const [extraAdultRate, setExtraAdultRate] = useState(seed?.extraAdultRate ?? Number(seedRoom?.additionalAdultPrice || 0));
+  const [extraChildRate, setExtraChildRate] = useState(seed?.extraChildRate ?? Number(seedRoom?.additionalChildPrice || 0));
   const [minimumStay, setMinimumStay] = useState(seed?.minimumStay || 1);
   const [maximumStay, setMaximumStay] = useState(seed?.maximumStay || 30);
   const [saving, setSaving] = useState(false);
@@ -264,6 +282,8 @@ function InventoryEditor({
       available,
       blocked,
       rate,
+      extraAdultRate,
+      extraChildRate,
       minimumStay,
       maximumStay,
     })));
@@ -295,6 +315,10 @@ function InventoryEditor({
               <label>Rooms blocked<input type="number" min="0" max="9999" value={blocked} onChange={(event) => setBlocked(Number(event.target.value))} /></label>
               <label>Nightly rate (₹)<input type="number" min="0" value={rate} onChange={(event) => setRate(Number(event.target.value))} /></label>
               <div className="inventory-sellable"><small>Sellable rooms</small><strong>{Math.max(0, available - blocked)}</strong></div>
+            </div>
+            <div className="inventory-editor-grid two inventory-extra-rates">
+              <label>Extra adult rate (₹)<input type="number" min="0" value={extraAdultRate} onChange={(event) => setExtraAdultRate(Number(event.target.value))} /><small>Charged for each adult above the room&apos;s base occupancy.</small></label>
+              <label>Extra child rate (₹)<input type="number" min="0" value={extraChildRate} onChange={(event) => setExtraChildRate(Number(event.target.value))} /><small>Charged for each additional child.</small></label>
             </div>
           </section>
           <section>

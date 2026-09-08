@@ -97,6 +97,8 @@ export class OwnerInventoryEntryDto {
   @Type(() => Number) @IsInt() @Min(0) @Max(9999) available: number;
   @Type(() => Number) @IsInt() @Min(0) @Max(9999) blocked = 0;
   @Type(() => Number) @IsNumber() @Min(0) @Max(10000000) rate: number;
+  @Type(() => Number) @IsNumber() @Min(0) @Max(10000000) extraAdultRate = 0;
+  @Type(() => Number) @IsNumber() @Min(0) @Max(10000000) extraChildRate = 0;
   @IsOptional()
   @Type(() => Number)
   @IsInt()

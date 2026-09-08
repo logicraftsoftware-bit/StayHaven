@@ -35,7 +35,7 @@ type Property = {
   status?: string;
   completeness?: number;
   price: number;
-  roomDetails: Array<{ id?: string; _id?: string; name?: string; baseRate?: number; totalRooms?: number; baseAdults?: number }>;
+  roomDetails: Array<{ id?: string; _id?: string; name?: string; baseRate?: number; totalRooms?: number; baseAdults?: number; additionalAdultPrice?: number; additionalChildPrice?: number }>;
   media: Array<{ url: string }>;
 };
 const sections = [

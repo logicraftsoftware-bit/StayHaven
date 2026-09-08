@@ -512,6 +512,8 @@ export class PropertiesService {
               available: entry.available,
               blocked: entry.blocked,
               rate: entry.rate,
+              extraAdultRate: entry.extraAdultRate,
+              extraChildRate: entry.extraChildRate,
               ...(entry.minimumStay ? { minimumStay: entry.minimumStay } : {}),
               ...(entry.maximumStay ? { maximumStay: entry.maximumStay } : {}),
             },

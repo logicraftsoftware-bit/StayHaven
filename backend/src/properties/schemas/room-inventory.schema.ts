@@ -10,6 +10,8 @@ export class RoomInventory {
   @Prop({ required: true, min: 0 }) available: number;
   @Prop({ default: 0, min: 0 }) blocked: number;
   @Prop({ required: true, min: 0 }) rate: number;
+  @Prop({ default: 0, min: 0 }) extraAdultRate: number;
+  @Prop({ default: 0, min: 0 }) extraChildRate: number;
   @Prop({ min: 1 }) minimumStay?: number;
   @Prop({ min: 1 }) maximumStay?: number;
 }
