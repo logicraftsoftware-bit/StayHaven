@@ -143,4 +143,76 @@ describe('PropertiesService', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('persists owner inventory updates for rooms belonging to the property', async () => {
+    const inventory = { bulkWrite: jest.fn().mockResolvedValue({}) };
+    const audit = { record: jest.fn().mockResolvedValue({}) };
+    const service = new PropertiesService(
+      {} as never,
+      audit as never,
+      {} as never,
+      {} as never,
+      undefined,
+      inventory as never,
+    );
+    jest.spyOn(service, 'getOwner').mockResolvedValue({
+      _id: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      siteId: new Types.ObjectId('507f1f77bcf86cd799439013'),
+      roomDetails: [{ id: 'room-one', name: 'Deluxe' }],
+    } as never);
+    const result = await service.updateOwnerInventory(
+      '507f1f77bcf86cd799439011',
+      '507f1f77bcf86cd799439012',
+      {
+        entries: [
+          {
+            roomId: 'room-one',
+            date: '2026-09-10',
+            available: 4,
+            blocked: 1,
+            rate: 2500,
+            minimumStay: 2,
+            maximumStay: 5,
+          },
+        ],
+      },
+    );
+    expect(result).toEqual({ updated: 1 });
+    expect(inventory.bulkWrite).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'ROOM_INVENTORY_UPDATED' }),
+    );
+  });
+
+  it('rejects inventory updates for a room outside the owner property', async () => {
+    const service = new PropertiesService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      { bulkWrite: jest.fn() } as never,
+    );
+    jest.spyOn(service, 'getOwner').mockResolvedValue({
+      _id: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      roomDetails: [{ id: 'room-one' }],
+    } as never);
+    await expect(
+      service.updateOwnerInventory(
+        '507f1f77bcf86cd799439011',
+        '507f1f77bcf86cd799439012',
+        {
+          entries: [
+            {
+              roomId: 'foreign-room',
+              date: '2026-09-10',
+              available: 1,
+              blocked: 0,
+              rate: 1000,
+            },
+          ],
+        },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

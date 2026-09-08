@@ -13,6 +13,9 @@ import {
   IsBoolean,
   IsObject,
   IsInt,
+  IsDateString,
+  ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
 import { PropertyStatus } from '../../common/enums/status.enum';
 export class PropertyQueryDto {
@@ -82,3 +85,36 @@ export class CreateOwnerPropertyDto {
 export class UpdateOwnerPropertyDto extends PartialType(
   CreateOwnerPropertyDto,
 ) {}
+
+export class OwnerInventoryQueryDto {
+  @IsDateString() from: string;
+  @IsDateString() to: string;
+}
+
+export class OwnerInventoryEntryDto {
+  @IsString() @MaxLength(100) roomId: string;
+  @IsDateString() date: string;
+  @Type(() => Number) @IsInt() @Min(0) @Max(9999) available: number;
+  @Type(() => Number) @IsInt() @Min(0) @Max(9999) blocked = 0;
+  @Type(() => Number) @IsNumber() @Min(0) @Max(10000000) rate: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  minimumStay?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  maximumStay?: number;
+}
+
+export class UpdateOwnerInventoryDto {
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => OwnerInventoryEntryDto)
+  entries: OwnerInventoryEntryDto[];
+}

@@ -22,6 +22,7 @@ import QRCodeMaker from "qrcode";
 import { useMemo, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { OwnerBookings } from "@/components/owner/OwnerBookings";
+import { OwnerRatesInventory } from "@/components/owner/OwnerRatesInventory";
 type Site = { name: string; domain: string };
 type Property = {
   _id?: string;
@@ -34,7 +35,7 @@ type Property = {
   status?: string;
   completeness?: number;
   price: number;
-  roomDetails: Array<{ name?: string; baseRate?: number }>;
+  roomDetails: Array<{ id?: string; _id?: string; name?: string; baseRate?: number; totalRooms?: number; baseAdults?: number }>;
   media: Array<{ url: string }>;
 };
 const sections = [
@@ -315,21 +316,11 @@ export function PropertyManager({
           />
         )}
         {tab === "rates" && (
-          <div className="wizard-card">
-            <h2>Rates & Inventory foundation</h2>
-            <p>
-              Room base rates are ready. Date-range rates, adjustments and
-              availability will connect to the future inventory engine.
-            </p>
-            {property.roomDetails.map((room, index) => (
-              <div className="rate-row" key={index}>
-                <b>{String(room.name || `Room ${index + 1}`)}</b>
-                <span>
-                  ₹{Number(room.baseRate || 0).toLocaleString("en-IN")} / night
-                </span>
-              </div>
-            ))}
-          </div>
+          <OwnerRatesInventory
+            propertyId={property._id || ""}
+            rooms={property.roomDetails}
+            token={token}
+          />
         )}
         {tab === "information" && (
           <div className="wizard-card">

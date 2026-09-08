@@ -18,6 +18,8 @@ import { Role } from '../common/enums/role.enum';
 import { PropertyStatus } from '../common/enums/status.enum';
 import {
   AvailabilityQueryDto,
+  OwnerInventoryQueryDto,
+  UpdateOwnerInventoryDto,
   PropertyQueryDto,
   PublicPropertyQueryDto,
 } from './dto/property.dto';
@@ -437,6 +439,117 @@ export class PropertiesService {
   async getOwnerView(ownerId: string, id: string) {
     const property = await this.getOwner(ownerId, id);
     return this.ownerViewValue(property);
+  }
+
+  async getOwnerInventory(
+    ownerId: string,
+    id: string,
+    query: OwnerInventoryQueryDto,
+  ) {
+    const property = await this.getOwner(ownerId, id);
+    if (!this.inventory)
+      throw new BadRequestException('Inventory service is unavailable');
+    const from = this.inventoryDate(query.from);
+    const to = this.inventoryDate(query.to);
+    const days = Math.round((to.valueOf() - from.valueOf()) / 86400000) + 1;
+    if (days < 1 || days > 31)
+      throw new BadRequestException(
+        'Inventory range must be between 1 and 31 days',
+      );
+    const rows = await this.inventory
+      .find({ propertyId: property._id, date: { $gte: from, $lte: to } })
+      .sort({ date: 1, roomId: 1 })
+      .lean();
+    return { from: query.from, to: query.to, rows };
+  }
+
+  async updateOwnerInventory(
+    ownerId: string,
+    id: string,
+    dto: UpdateOwnerInventoryDto,
+  ) {
+    const property = await this.getOwner(ownerId, id);
+    if (!this.inventory)
+      throw new BadRequestException('Inventory service is unavailable');
+    const rooms = property.roomDetails || [];
+    const roomIds = new Set(
+      rooms.map((room, index) => {
+        const value = room.id || room._id;
+        return typeof value === 'string' || typeof value === 'number'
+          ? String(value)
+          : String(index);
+      }),
+    );
+    if (!dto.entries.length)
+      throw new BadRequestException(
+        'At least one inventory update is required',
+      );
+    for (const entry of dto.entries) {
+      if (!roomIds.has(entry.roomId))
+        throw new BadRequestException(
+          `Room ${entry.roomId} does not belong to this property`,
+        );
+      this.inventoryDate(entry.date);
+      if (
+        entry.maximumStay &&
+        entry.minimumStay &&
+        entry.maximumStay < entry.minimumStay
+      )
+        throw new BadRequestException(
+          'Maximum stay cannot be shorter than minimum stay',
+        );
+    }
+    await this.inventory.bulkWrite(
+      dto.entries.map((entry) => ({
+        updateOne: {
+          filter: {
+            propertyId: property._id,
+            roomId: entry.roomId,
+            date: this.inventoryDate(entry.date),
+          },
+          update: {
+            $set: {
+              available: entry.available,
+              blocked: entry.blocked,
+              rate: entry.rate,
+              ...(entry.minimumStay ? { minimumStay: entry.minimumStay } : {}),
+              ...(entry.maximumStay ? { maximumStay: entry.maximumStay } : {}),
+            },
+            ...(!entry.minimumStay || !entry.maximumStay
+              ? {
+                  $unset: {
+                    ...(!entry.minimumStay ? { minimumStay: 1 } : {}),
+                    ...(!entry.maximumStay ? { maximumStay: 1 } : {}),
+                  },
+                }
+              : {}),
+          },
+          upsert: true,
+        },
+      })),
+    );
+    await this.auditOwner('ROOM_INVENTORY_UPDATED', property, ownerId, {
+      entries: dto.entries.length,
+      roomIds: [...new Set(dto.entries.map((entry) => entry.roomId))],
+      from: dto.entries.map((entry) => entry.date).sort()[0],
+      to: dto.entries
+        .map((entry) => entry.date)
+        .sort()
+        .at(-1),
+    });
+    return { updated: dto.entries.length };
+  }
+
+  private inventoryDate(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
+      throw new BadRequestException('Inventory dates must use YYYY-MM-DD');
+    const date = new Date(`${value}T00:00:00.000Z`);
+    if (
+      Number.isNaN(date.valueOf()) ||
+      date.toISOString().slice(0, 10) !== value
+    )
+      throw new BadRequestException('Invalid inventory date');
+    return date;
   }
 
   private ownerViewValue(property: PropertyDocument) {

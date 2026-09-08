@@ -24,6 +24,8 @@ import {
   CreateOwnerPropertyDto,
   OwnerPropertyQueryDto,
   UpdateOwnerPropertyDto,
+  OwnerInventoryQueryDto,
+  UpdateOwnerInventoryDto,
 } from './dto/property.dto';
 import { PropertiesService } from './properties.service';
 
@@ -82,6 +84,31 @@ export class OwnerPropertiesController {
     return {
       success: true,
       data: await this.properties.getOwnerView(req.user.sub, id),
+    };
+  }
+
+  @Get(':id/inventory')
+  async inventory(
+    @Param('id', MongoIdPipe) id: string,
+    @Query() query: OwnerInventoryQueryDto,
+    @Req() req: { user: { sub: string } },
+  ) {
+    return {
+      success: true,
+      data: await this.properties.getOwnerInventory(req.user.sub, id, query),
+    };
+  }
+
+  @Patch(':id/inventory')
+  async updateInventory(
+    @Param('id', MongoIdPipe) id: string,
+    @Body() dto: UpdateOwnerInventoryDto,
+    @Req() req: { user: { sub: string } },
+  ) {
+    return {
+      success: true,
+      message: 'Rates and inventory updated',
+      data: await this.properties.updateOwnerInventory(req.user.sub, id, dto),
     };
   }
 
