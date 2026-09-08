@@ -17,6 +17,7 @@ import {
   Home,
   ImagePlus,
   KeyRound,
+  Landmark,
   LayoutDashboard,
   LoaderCircle,
   LogOut,
@@ -4401,6 +4402,8 @@ function ApiSettingsView({ token }: { token: string }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [razorpay, setRazorpay] = useState({ keyId: "", keySecret: "", webhookSecret: "", accountNumber: "", liveMode: false, minimumWithdrawalAmount: 1000, keySecretConfigured: false, webhookSecretConfigured: false, accountNumberConfigured: false, gatewayReady: false, payoutsReady: false });
+  const [savingRazorpay, setSavingRazorpay] = useState(false);
 
   useEffect(() => {
     api<ApiResponse<{ googleMapsBrowserKey: string }>>(
@@ -4412,6 +4415,11 @@ function ApiSettingsView({ token }: { token: string }) {
       )
       .catch((reason) => setError((reason as Error).message))
       .finally(() => setLoading(false));
+  }, [token]);
+  useEffect(() => {
+    api<ApiResponse<typeof razorpay>>("/api/v1/admin/settings/razorpay", token)
+      .then((result) => setRazorpay((value) => ({ ...value, ...result.data, keySecret: "", webhookSecret: "", accountNumber: "" })))
+      .catch((reason) => setError((reason as Error).message));
   }, [token]);
 
   async function save(event: FormEvent) {
@@ -4435,6 +4443,13 @@ function ApiSettingsView({ token }: { token: string }) {
     } finally {
       setSaving(false);
     }
+  }
+  async function saveRazorpay(event: FormEvent) {
+    event.preventDefault(); setSavingRazorpay(true); setMessage(""); setError("");
+    try {
+      const result = await api<ApiResponse<typeof razorpay>>("/api/v1/admin/settings/razorpay", token, { method: "PATCH", body: JSON.stringify({ keyId: razorpay.keyId, ...(razorpay.keySecret ? { keySecret: razorpay.keySecret } : {}), ...(razorpay.webhookSecret ? { webhookSecret: razorpay.webhookSecret } : {}), ...(razorpay.accountNumber ? { accountNumber: razorpay.accountNumber } : {}), liveMode: razorpay.liveMode, minimumWithdrawalAmount: Number(razorpay.minimumWithdrawalAmount) }) });
+      setRazorpay((value) => ({ ...value, ...result.data, keySecret: "", webhookSecret: "", accountNumber: "" })); setMessage(result.message || "Razorpay settings saved.");
+    } catch (reason) { setError((reason as Error).message); } finally { setSavingRazorpay(false); }
   }
 
   return (
@@ -4461,7 +4476,7 @@ function ApiSettingsView({ token }: { token: string }) {
           <LoaderCircle className="spin" /> Loading API settings…
         </div>
       ) : (
-        <form className="admin-card api-settings-card" onSubmit={save}>
+        <div className="api-settings-stack"><form className="admin-card api-settings-card" onSubmit={save}>
           <div className="api-settings-card-heading">
             <i>
               <MapPinned />
@@ -4513,6 +4528,13 @@ function ApiSettingsView({ token }: { token: string }) {
             </button>
           </div>
         </form>
+        <form className="admin-card api-settings-card razorpay-settings-card" onSubmit={saveRazorpay}>
+          <div className="api-settings-card-heading"><i><Landmark /></i><div><h2>Razorpay Payments & RazorpayX</h2><p>Collect customer payments, settle completed stays to owner wallets and send withdrawals to verified bank accounts.</p></div><StatusBadge value={razorpay.gatewayReady ? "active" : "inactive"} /></div>
+          <div className="razorpay-readiness"><span className={razorpay.gatewayReady ? "ready" : ""}><Check/> Payment Gateway {razorpay.gatewayReady ? "ready" : "needs configuration"}</span><span className={razorpay.payoutsReady ? "ready" : ""}><Check/> RazorpayX Payouts {razorpay.payoutsReady ? "ready" : "needs source account"}</span></div>
+          <div className="razorpay-fields"><label>Key ID<input value={razorpay.keyId} onChange={(e) => setRazorpay({ ...razorpay, keyId: e.target.value })} placeholder="rzp_live_…" autoComplete="off" required /></label><label>Key secret<input type="password" value={razorpay.keySecret} onChange={(e) => setRazorpay({ ...razorpay, keySecret: e.target.value })} placeholder={razorpay.keySecretConfigured ? "Configured — enter only to replace" : "Enter Razorpay key secret"} autoComplete="new-password" required={!razorpay.keySecretConfigured} /></label><label>Webhook secret<input type="password" value={razorpay.webhookSecret} onChange={(e) => setRazorpay({ ...razorpay, webhookSecret: e.target.value })} placeholder={razorpay.webhookSecretConfigured ? "Configured — enter only to replace" : "Set the same secret in Razorpay webhooks"} autoComplete="new-password" required={!razorpay.webhookSecretConfigured} /></label><label>RazorpayX source account number<input type="password" value={razorpay.accountNumber} onChange={(e) => setRazorpay({ ...razorpay, accountNumber: e.target.value })} placeholder={razorpay.accountNumberConfigured ? "Configured — enter only to replace" : "RazorpayX account_number"} autoComplete="off" required={!razorpay.accountNumberConfigured} /></label><label>Minimum owner withdrawal (₹)<input type="number" min="1000" step="1" value={razorpay.minimumWithdrawalAmount} onChange={(e) => setRazorpay({ ...razorpay, minimumWithdrawalAmount: Number(e.target.value) })} required /></label><label className="razorpay-mode"><input type="checkbox" checked={razorpay.liveMode} onChange={(e) => setRazorpay({ ...razorpay, liveMode: e.target.checked })}/><span><b>Live payment mode</b><small>Turn on only after test-mode checkout and payout verification.</small></span></label></div>
+          <div className="api-settings-security"><ShieldCheck/><div><strong>Secrets are encrypted and never returned to the browser</strong><p>Configure the Razorpay webhook URL as <code>https://guwahatihomestay.com/api/v1/payments/razorpay/webhook</code> and enable payment.captured plus payout processed, failed and reversed events. RazorpayX must be activated before withdrawals can run.</p></div></div>
+          <div className="api-settings-actions"><button className="admin-primary compact" disabled={savingRazorpay}>{savingRazorpay ? <LoaderCircle className="spin"/> : <KeyRound/>}{savingRazorpay ? "Saving…" : "Save Razorpay settings"}</button></div>
+        </form></div>
       )}
     </>
   );

@@ -18,6 +18,7 @@ import { PropertyTypesModule } from './property-types/property-types.module';
 import { OwnerOperationsModule } from './owner-operations/owner-operations.module';
 import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
 import { CustomersModule } from './customers/customers.module';
+import { PaymentsModule } from './payments/payments.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -49,6 +50,7 @@ import { CustomersModule } from './customers/customers.module';
     OwnerOperationsModule,
     PlatformSettingsModule,
     CustomersModule,
+    PaymentsModule,
   ],
   controllers: [HealthController],
 })

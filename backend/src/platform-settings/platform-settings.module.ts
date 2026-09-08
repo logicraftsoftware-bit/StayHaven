@@ -17,5 +17,6 @@ import {
   ],
   controllers: [PlatformSettingsController],
   providers: [PlatformSettingsService],
+  exports: [PlatformSettingsService],
 })
 export class PlatformSettingsModule {}

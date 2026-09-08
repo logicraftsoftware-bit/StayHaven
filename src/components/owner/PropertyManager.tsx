@@ -23,6 +23,7 @@ import { useMemo, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { OwnerBookings } from "@/components/owner/OwnerBookings";
 import { OwnerRatesInventory } from "@/components/owner/OwnerRatesInventory";
+import { OwnerPayments } from "@/components/owner/OwnerPayments";
 type Site = { name: string; domain: string };
 type Property = {
   _id?: string;
@@ -301,18 +302,13 @@ export function PropertyManager({
             onManageInventory={() => setTab("rates")}
           />
         )}
-        {["payments", "analytics"].includes(tab) && (
+        {tab === "payments" && (
+          <OwnerPayments propertyId={property._id || ""} propertyName={property.displayName || property.name} token={token} />
+        )}
+        {tab === "analytics" && (
           <EmptyState
-            title={
-              tab === "payments"
-                  ? "No payment records yet"
-                  : "No analytics data available yet"
-            }
-            text={
-              tab === "payments"
-                  ? "Payments will appear after bookings are processed."
-                  : "Real views, conversion, bookings and revenue will appear here when collected."
-            }
+            title="No analytics data available yet"
+            text="Real views, conversion, bookings and revenue will appear here when collected."
           />
         )}
         {tab === "rates" && (

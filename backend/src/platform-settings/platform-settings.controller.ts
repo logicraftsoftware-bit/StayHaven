@@ -16,6 +16,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   UpdateAdminBrandingDto,
   UpdateMapSettingsDto,
+  UpdateRazorpaySettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSettingsService } from './platform-settings.service';
 
@@ -70,6 +71,26 @@ export class PlatformSettingsController {
         ? 'Google Maps enabled'
         : 'Google Maps disabled; fallback map remains active',
       data: await this.service.updateMaps(dto),
+    };
+  }
+
+  @Get('admin/settings/razorpay')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async adminRazorpay() {
+    return { success: true, data: await this.service.razorpay(false) };
+  }
+
+  @Patch('admin/settings/razorpay')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async updateRazorpay(@Body() dto: UpdateRazorpaySettingsDto) {
+    return {
+      success: true,
+      message: 'Razorpay settings updated securely',
+      data: await this.service.updateRazorpay(dto),
     };
   }
 }

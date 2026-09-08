@@ -8,6 +8,8 @@
   min-height: 100dvh;
   color: var(--admin-ink);
 }
+
+.api-settings-stack{display:grid;gap:22px}.razorpay-settings-card .api-settings-card-heading i{background:linear-gradient(145deg,#fff0f1,#ffe2e6);color:#ae0d1d}.razorpay-readiness{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 20px}.razorpay-readiness span{display:flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:#fff4e2;color:#8c5b10;font-size:12px;font-weight:800}.razorpay-readiness span.ready{background:#e7faef;color:#087a40}.razorpay-readiness svg{width:15px}.razorpay-fields{display:grid;grid-template-columns:1fr 1fr;gap:17px}.razorpay-fields label{display:grid;gap:8px}.razorpay-fields label input{width:100%}.razorpay-fields .razorpay-mode{grid-template-columns:auto 1fr;align-items:center;padding:13px;border:1px solid #dfe4ec;border-radius:12px}.razorpay-mode>input{width:18px!important;height:18px}.razorpay-mode span{display:grid;gap:3px}.razorpay-mode small{color:#748197}@media(max-width:760px){.razorpay-fields{grid-template-columns:1fr}}
 .admin-login {
   display: grid;
   grid-template-columns: 1.08fr 0.92fr;

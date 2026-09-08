@@ -58,7 +58,7 @@ function configureApplication(app: INestApplication): void {
 }
 
 async function createApplication(): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   configureApplication(app);
   app.enableShutdownHooks();
   return app;
