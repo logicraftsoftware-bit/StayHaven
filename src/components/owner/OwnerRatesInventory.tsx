@@ -64,6 +64,7 @@ export function OwnerRatesInventory({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
   const [editor, setEditor] = useState<{ roomId?: string; date?: string } | null>(null);
   const dates = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(start, index)), [start]);
   const roomEntries = useMemo(
@@ -114,6 +115,41 @@ export function OwnerRatesInventory({
   const toggleAll = () => setExpanded(
     expanded.size === roomEntries.length ? new Set() : new Set(roomEntries.map((room) => room.roomId)),
   );
+  const saveCell = async (
+    room: Room & { roomId: string },
+    date: Date,
+    patch: Partial<InventoryRow>,
+  ) => {
+    const current = valueFor(room, date);
+    const next: InventoryRow = {
+      ...current,
+      extraAdultRate: Number(current.extraAdultRate || 0),
+      extraChildRate: Number(current.extraChildRate || 0),
+      ...patch,
+    };
+    const cellKey = `${room.roomId}:${iso(date)}`;
+    setSavingCells((values) => new Set(values).add(cellKey));
+    setRows((values) => [
+      ...values.filter((row) => `${row.roomId}:${row.date.slice(0, 10)}` !== cellKey),
+      next,
+    ]);
+    try {
+      await apiRequest<Api<{ updated: number }>>(`/api/v1/owner/properties/${propertyId}/inventory`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ entries: [next] }),
+      });
+      setMessage("Calendar cell updated successfully.");
+    } catch (reason) {
+      setMessage((reason as Error).message);
+      await load();
+    } finally {
+      setSavingCells((values) => {
+        const nextValues = new Set(values);
+        nextValues.delete(cellKey);
+        return nextValues;
+      });
+    }
+  };
 
   return (
     <div className="inventory-workspace">
@@ -170,10 +206,21 @@ export function OwnerRatesInventory({
                     {dates.map((date) => {
                       const cell = valueFor(room, date);
                       return (
-                        <button className="inventory-availability-cell" key={iso(date)} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}>
-                          <strong>{Math.max(0, cell.available - cell.blocked)}</strong>
+                        <label className={`inventory-availability-cell editable ${savingCells.has(`${room.roomId}:${iso(date)}`) ? "saving" : ""}`} key={iso(date)}>
+                          <input
+                            type="number"
+                            min="0"
+                            max="9999"
+                            defaultValue={cell.available}
+                            aria-label={`${room.name || "Room"} availability on ${iso(date)}`}
+                            onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+                            onBlur={(event) => {
+                              const value = Number(event.currentTarget.value);
+                              if (Number.isFinite(value) && value >= 0 && value !== cell.available) void saveCell(room, date, { available: value });
+                            }}
+                          />
                           <small>{cell.blocked ? `${cell.blocked} blocked` : "Available"}</small>
-                        </button>
+                        </label>
                       );
                     })}
                     {open && (
@@ -181,22 +228,22 @@ export function OwnerRatesInventory({
                         <div className="inventory-rate-label"><IndianRupee /><div><strong>Standard rate</strong><small>Per night</small></div></div>
                         {dates.map((date) => {
                           const cell = valueFor(room, date);
-                          return <button className="inventory-rate-cell" key={`rate-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}><span>₹</span>{cell.rate.toLocaleString("en-IN")}</button>;
+                          return <InlineRate key={`rate-${iso(date)}`} label="nightly rate" value={cell.rate} saving={savingCells.has(`${room.roomId}:${iso(date)}`)} onSave={(value) => saveCell(room, date, { rate: value })} />;
                         })}
                         <div className="inventory-rate-label supplemental"><Plus /><div><strong>Extra adult rate</strong><small>Per additional adult</small></div></div>
                         {dates.map((date) => {
                           const cell = valueFor(room, date);
-                          return <button className="inventory-rate-cell supplemental" key={`adult-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}><span>₹</span>{Number(cell.extraAdultRate || 0).toLocaleString("en-IN")}</button>;
+                          return <InlineRate supplemental key={`adult-${iso(date)}`} label="extra adult rate" value={Number(cell.extraAdultRate || 0)} saving={savingCells.has(`${room.roomId}:${iso(date)}`)} onSave={(value) => saveCell(room, date, { extraAdultRate: value })} />;
                         })}
                         <div className="inventory-rate-label supplemental"><Plus /><div><strong>Extra child rate</strong><small>Per additional child</small></div></div>
                         {dates.map((date) => {
                           const cell = valueFor(room, date);
-                          return <button className="inventory-rate-cell supplemental" key={`child-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}><span>₹</span>{Number(cell.extraChildRate || 0).toLocaleString("en-IN")}</button>;
+                          return <InlineRate supplemental key={`child-${iso(date)}`} label="extra child rate" value={Number(cell.extraChildRate || 0)} saving={savingCells.has(`${room.roomId}:${iso(date)}`)} onSave={(value) => saveCell(room, date, { extraChildRate: value })} />;
                         })}
                         <div className="inventory-restriction-label"><ChevronsUpDown /> Stay restrictions</div>
                         {dates.map((date) => {
                           const cell = valueFor(room, date);
-                          return <button className="inventory-restriction-cell" key={`stay-${iso(date)}`} onClick={() => setEditor({ roomId: room.roomId, date: iso(date) })}>{cell.minimumStay || 1}–{cell.maximumStay || "∞"} nights</button>;
+                          return <div className={`inventory-restriction-cell editable ${savingCells.has(`${room.roomId}:${iso(date)}`) ? "saving" : ""}`} key={`stay-${iso(date)}`}><input type="number" min="1" max="365" defaultValue={cell.minimumStay || 1} aria-label="Minimum stay" onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()} onBlur={(event) => { const value = Number(event.currentTarget.value); if (value >= 1 && value !== (cell.minimumStay || 1)) void saveCell(room, date, { minimumStay: value }); }} /><span>–</span><input type="number" min={cell.minimumStay || 1} max="365" defaultValue={cell.maximumStay || 30} aria-label="Maximum stay" onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()} onBlur={(event) => { const value = Number(event.currentTarget.value); if (value >= (cell.minimumStay || 1) && value !== (cell.maximumStay || 30)) void saveCell(room, date, { maximumStay: value }); }} /><small>nights</small></div>;
                         })}
                       </>
                     )}
@@ -231,6 +278,37 @@ export function OwnerRatesInventory({
         />
       )}
     </div>
+  );
+}
+
+function InlineRate({
+  value,
+  label,
+  supplemental = false,
+  saving,
+  onSave,
+}: {
+  value: number;
+  label: string;
+  supplemental?: boolean;
+  saving: boolean;
+  onSave: (value: number) => Promise<void>;
+}) {
+  return (
+    <label className={`inventory-rate-cell editable ${supplemental ? "supplemental" : ""} ${saving ? "saving" : ""}`}>
+      <span>₹</span>
+      <input
+        type="number"
+        min="0"
+        defaultValue={value}
+        aria-label={label}
+        onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+        onBlur={(event) => {
+          const next = Number(event.currentTarget.value);
+          if (Number.isFinite(next) && next >= 0 && next !== value) void onSave(next);
+        }}
+      />
+    </label>
   );
 }
 
