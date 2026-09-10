@@ -30,4 +30,54 @@ describe('CustomersService', () => {
       service.login({ email: 'guest@example.com', password: 'wrong' }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+  it('selects the login OTP flow and exposes password availability for an existing customer', async () => {
+    const query = {
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue({ passwordHash: 'hash', active: true }),
+    };
+    const model = { findOne: jest.fn(() => query) };
+    const service = new CustomersService(
+      model as never,
+      {} as never,
+      jwt as never,
+      {} as never,
+    );
+    jest.spyOn(service, 'requestOtp').mockResolvedValue({
+      phone: '+91 masked',
+      expiresIn: 600,
+      resendAfter: 60,
+    });
+    await expect(
+      service.requestAccessOtp({ phone: '9876543210' }),
+    ).resolves.toMatchObject({
+      purpose: 'login',
+      existingAccount: true,
+      passwordAvailable: true,
+    });
+  });
+  it('selects registration and no password option for a new mobile number', async () => {
+    const query = {
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue(null),
+    };
+    const model = { findOne: jest.fn(() => query) };
+    const service = new CustomersService(
+      model as never,
+      {} as never,
+      jwt as never,
+      {} as never,
+    );
+    jest.spyOn(service, 'requestOtp').mockResolvedValue({
+      phone: '+91 masked',
+      expiresIn: 600,
+      resendAfter: 60,
+    });
+    await expect(
+      service.requestAccessOtp({ phone: '9876543210' }),
+    ).resolves.toMatchObject({
+      purpose: 'register',
+      existingAccount: false,
+      passwordAvailable: false,
+    });
+  });
 });

@@ -36,12 +36,15 @@ export class RequestCustomerOtpDto {
   @IsIn(['register', 'login', 'forgot-password']) purpose:
     'register' | 'login' | 'forgot-password';
 }
+export class RequestCustomerAccessDto {
+  @IsString() @MinLength(10) @MaxLength(18) phone: string;
+}
 export class VerifyCustomerOtpDto extends RequestCustomerOtpDto {
   @IsString() @MinLength(6) @MaxLength(6) otp: string;
 }
 export class CompleteCustomerRegistrationDto {
   @IsString() verificationToken: string;
-  @IsString() @MinLength(2) @MaxLength(120) name: string;
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(120) name?: string;
   @IsOptional() @IsEmail() @MaxLength(180) email?: string;
   @IsOptional() @IsString() @MinLength(8) @MaxLength(128) password?: string;
   @IsBoolean() acceptTerms: boolean;

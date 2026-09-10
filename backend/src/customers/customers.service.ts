@@ -21,6 +21,7 @@ import {
   CompleteCustomerRegistrationDto,
   CustomerLoginDto,
   RegisterCustomerDto,
+  RequestCustomerAccessDto,
   RequestCustomerOtpDto,
   ResetCustomerPasswordDto,
   UpdateCustomerDto,
@@ -55,6 +56,22 @@ export class CustomersService {
       /\d/.test(value) &&
       /[^A-Za-z0-9]/.test(value)
     );
+  }
+
+  async requestAccessOtp(dto: RequestCustomerAccessDto) {
+    const phone = this.phone(dto.phone);
+    const customer = await this.model
+      .findOne({ phone, active: true })
+      .select('+passwordHash')
+      .lean();
+    const purpose: Purpose = customer ? 'login' : 'register';
+    const result = await this.requestOtp({ phone, purpose });
+    return {
+      ...result,
+      purpose,
+      existingAccount: Boolean(customer),
+      passwordAvailable: Boolean(customer?.passwordHash),
+    };
   }
 
   async requestOtp(dto: RequestCustomerOtpDto) {
@@ -208,7 +225,7 @@ export class CustomersService {
     if (email && (await this.model.exists({ email })))
       throw new ConflictException('An account already exists for this email');
     const customer = await this.model.create({
-      name: dto.name.trim(),
+      name: dto.name?.trim() || 'Guest',
       email: email || undefined,
       phone: payload.phone,
       passwordHash: dto.password ? await bcrypt.hash(dto.password, 12) : '',

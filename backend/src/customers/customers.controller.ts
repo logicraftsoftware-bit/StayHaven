@@ -24,6 +24,7 @@ import {
   CompleteCustomerRegistrationDto,
   CustomerLoginDto,
   RegisterCustomerDto,
+  RequestCustomerAccessDto,
   RequestCustomerOtpDto,
   ResetCustomerPasswordDto,
   UpdateCustomerDto,
@@ -39,6 +40,15 @@ export class CustomerAuthController {
     private customers: CustomersService,
     private sites: SitesService,
   ) {}
+  @Post('access/otp')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async requestAccessOtp(@Body() dto: RequestCustomerAccessDto) {
+    return {
+      success: true,
+      message: 'Verification code sent on WhatsApp',
+      data: await this.customers.requestAccessOtp(dto),
+    };
+  }
   @Post('otp/request')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async requestOtp(@Body() dto: RequestCustomerOtpDto) {
