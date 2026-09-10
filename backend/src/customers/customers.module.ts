@@ -10,11 +10,14 @@ import {
 import { CustomersService } from './customers.service';
 import { Customer, CustomerSchema } from './schemas/customer.schema';
 import { CustomerActiveGuard } from './customer-active.guard';
+import { CustomerOtp, CustomerOtpSchema } from './schemas/customer-otp.schema';
+import { PlatformSettingsModule } from '../platform-settings/platform-settings.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Customer.name, schema: CustomerSchema },
+      { name: CustomerOtp.name, schema: CustomerOtpSchema },
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -24,6 +27,7 @@ import { CustomerActiveGuard } from './customer-active.guard';
       }),
     }),
     SitesModule,
+    PlatformSettingsModule,
   ],
   controllers: [CustomerAuthController, CustomerAccountController],
   providers: [CustomersService, CustomerActiveGuard],

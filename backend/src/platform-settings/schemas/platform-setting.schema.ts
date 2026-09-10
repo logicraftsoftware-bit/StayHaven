@@ -11,6 +11,9 @@ export class PlatformSetting {
   @Prop({ default: '', select: false }) razorpayXAccountNumber: string;
   @Prop({ default: false }) razorpayLiveMode: boolean;
   @Prop({ default: 1000, min: 1000 }) minimumWithdrawalAmount: number;
+  @Prop({ default: '' }) aiSensyApiUrl: string;
+  @Prop({ default: '', select: false }) aiSensyApiKey: string;
+  @Prop({ default: 'Homestay OTP Verification' }) aiSensyOtpCampaign: string;
 }
 export const PlatformSettingSchema =
   SchemaFactory.createForClass(PlatformSetting);

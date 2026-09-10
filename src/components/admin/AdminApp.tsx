@@ -23,6 +23,7 @@ import {
   LogOut,
   Menu,
   MapPinned,
+  MessageCircle,
   Plus,
   RefreshCw,
   Search,
@@ -4404,6 +4405,8 @@ function ApiSettingsView({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [razorpay, setRazorpay] = useState({ keyId: "", keySecret: "", webhookSecret: "", accountNumber: "", liveMode: false, minimumWithdrawalAmount: 1000, keySecretConfigured: false, webhookSecretConfigured: false, accountNumberConfigured: false, gatewayReady: false, payoutsReady: false });
   const [savingRazorpay, setSavingRazorpay] = useState(false);
+  const [aiSensy, setAiSensy] = useState({ apiUrl: "https://backend.aisensy.com/campaign/t1/api/v2", apiKey: "", otpCampaign: "Homestay OTP Verification", apiKeyConfigured: false, ready: false });
+  const [savingAiSensy, setSavingAiSensy] = useState(false);
 
   useEffect(() => {
     api<ApiResponse<{ googleMapsBrowserKey: string }>>(
@@ -4415,6 +4418,11 @@ function ApiSettingsView({ token }: { token: string }) {
       )
       .catch((reason) => setError((reason as Error).message))
       .finally(() => setLoading(false));
+  }, [token]);
+  useEffect(() => {
+    api<ApiResponse<typeof aiSensy>>("/api/v1/admin/settings/aisensy", token)
+      .then((result) => setAiSensy((value) => ({ ...value, ...result.data, apiKey: "" })))
+      .catch((reason) => setError((reason as Error).message));
   }, [token]);
   useEffect(() => {
     api<ApiResponse<typeof razorpay>>("/api/v1/admin/settings/razorpay", token)
@@ -4450,6 +4458,13 @@ function ApiSettingsView({ token }: { token: string }) {
       const result = await api<ApiResponse<typeof razorpay>>("/api/v1/admin/settings/razorpay", token, { method: "PATCH", body: JSON.stringify({ keyId: razorpay.keyId, ...(razorpay.keySecret ? { keySecret: razorpay.keySecret } : {}), ...(razorpay.webhookSecret ? { webhookSecret: razorpay.webhookSecret } : {}), ...(razorpay.accountNumber ? { accountNumber: razorpay.accountNumber } : {}), liveMode: razorpay.liveMode, minimumWithdrawalAmount: Number(razorpay.minimumWithdrawalAmount) }) });
       setRazorpay((value) => ({ ...value, ...result.data, keySecret: "", webhookSecret: "", accountNumber: "" })); setMessage(result.message || "Razorpay settings saved.");
     } catch (reason) { setError((reason as Error).message); } finally { setSavingRazorpay(false); }
+  }
+  async function saveAiSensy(event: FormEvent) {
+    event.preventDefault(); setSavingAiSensy(true); setMessage(""); setError("");
+    try {
+      const result = await api<ApiResponse<typeof aiSensy>>("/api/v1/admin/settings/aisensy", token, { method: "PATCH", body: JSON.stringify({ apiUrl: aiSensy.apiUrl, otpCampaign: aiSensy.otpCampaign, ...(aiSensy.apiKey ? { apiKey: aiSensy.apiKey } : {}) }) });
+      setAiSensy((value) => ({ ...value, ...result.data, apiKey: "" })); setMessage(result.message || "AiSensy settings saved.");
+    } catch (reason) { setError((reason as Error).message); } finally { setSavingAiSensy(false); }
   }
 
   return (
@@ -4527,6 +4542,16 @@ function ApiSettingsView({ token }: { token: string }) {
               {saving ? "Saving…" : "Save API settings"}
             </button>
           </div>
+        </form>
+        <form className="admin-card api-settings-card" onSubmit={saveAiSensy}>
+          <div className="api-settings-card-heading"><i><MessageCircle /></i><div><h2>AiSensy WhatsApp OTP</h2><p>Secure customer registration, OTP login and forgotten-password recovery through WhatsApp.</p></div><StatusBadge value={aiSensy.ready ? "active" : "inactive"} /></div>
+          <div className="razorpay-fields">
+            <label>AiSensy API URL<input type="url" value={aiSensy.apiUrl} onChange={(e) => setAiSensy({ ...aiSensy, apiUrl: e.target.value })} required /></label>
+            <label>AiSensy API key<input type="password" value={aiSensy.apiKey} onChange={(e) => setAiSensy({ ...aiSensy, apiKey: e.target.value })} placeholder={aiSensy.apiKeyConfigured ? "Configured — enter only to replace" : "Enter AiSensy API key"} autoComplete="new-password" required={!aiSensy.apiKeyConfigured} /></label>
+            <label>OTP campaign name<input value={aiSensy.otpCampaign} onChange={(e) => setAiSensy({ ...aiSensy, otpCampaign: e.target.value })} required /><small>{"Approved template: {{1}} is your verification code. For your security, do not share this code."}</small></label>
+          </div>
+          <div className="api-settings-security"><ShieldCheck/><div><strong>The API key is encrypted at rest</strong><p>The backend inserts the six-digit code into the first template parameter. Keep the campaign name exactly the same as the approved AiSensy campaign.</p></div></div>
+          <div className="api-settings-actions"><button className="admin-primary compact" disabled={savingAiSensy}>{savingAiSensy ? <LoaderCircle className="spin"/> : <KeyRound/>}{savingAiSensy ? "Saving…" : "Save WhatsApp OTP settings"}</button></div>
         </form>
         <form className="admin-card api-settings-card razorpay-settings-card" onSubmit={saveRazorpay}>
           <div className="api-settings-card-heading"><i><Landmark /></i><div><h2>Razorpay Payments & RazorpayX</h2><p>Collect customer payments, settle completed stays to owner wallets and send withdrawals to verified bank accounts.</p></div><StatusBadge value={razorpay.gatewayReady ? "active" : "inactive"} /></div>

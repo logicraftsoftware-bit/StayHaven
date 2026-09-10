@@ -31,3 +31,13 @@ export class UpdateRazorpaySettingsDto {
   @IsOptional() @IsBoolean() liveMode?: boolean;
   @IsOptional() @IsNumber() @Min(1000) minimumWithdrawalAmount?: number;
 }
+
+export class UpdateAiSensySettingsDto {
+  @IsOptional()
+  @IsString()
+  @IsUrl({ require_tld: false })
+  @MaxLength(500)
+  apiUrl?: string;
+  @IsOptional() @IsString() @MaxLength(500) apiKey?: string;
+  @IsOptional() @IsString() @MaxLength(160) otpCampaign?: string;
+}

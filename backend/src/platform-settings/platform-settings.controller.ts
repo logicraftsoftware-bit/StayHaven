@@ -17,6 +17,7 @@ import {
   UpdateAdminBrandingDto,
   UpdateMapSettingsDto,
   UpdateRazorpaySettingsDto,
+  UpdateAiSensySettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSettingsService } from './platform-settings.service';
 
@@ -91,6 +92,26 @@ export class PlatformSettingsController {
       success: true,
       message: 'Razorpay settings updated securely',
       data: await this.service.updateRazorpay(dto),
+    };
+  }
+
+  @Get('admin/settings/aisensy')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async adminAiSensy() {
+    return { success: true, data: await this.service.aiSensy(false) };
+  }
+
+  @Patch('admin/settings/aisensy')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async updateAiSensy(@Body() dto: UpdateAiSensySettingsDto) {
+    return {
+      success: true,
+      message: 'AiSensy WhatsApp OTP settings updated securely',
+      data: await this.service.updateAiSensy(dto),
     };
   }
 }

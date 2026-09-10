@@ -14,6 +14,7 @@ import {
   UpdateAdminBrandingDto,
   UpdateMapSettingsDto,
   UpdateRazorpaySettingsDto,
+  UpdateAiSensySettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSetting } from './schemas/platform-setting.schema';
 
@@ -155,5 +156,44 @@ export class PlatformSettingsService {
       { upsert: true, runValidators: true },
     );
     return this.razorpay(false);
+  }
+
+  async aiSensy(includeSecret = false) {
+    const value = await this.settings
+      .findOne({ key: 'aisensy' })
+      .select('+aiSensyApiKey')
+      .lean();
+    const apiKey = this.crypt(value?.aiSensyApiKey || '', true);
+    const result = {
+      apiUrl:
+        value?.aiSensyApiUrl ||
+        'https://backend.aisensy.com/campaign/t1/api/v2',
+      apiKey,
+      otpCampaign: value?.aiSensyOtpCampaign || 'Homestay OTP Verification',
+    };
+    return includeSecret
+      ? result
+      : {
+          ...result,
+          apiKey: '',
+          apiKeyConfigured: Boolean(apiKey),
+          ready: Boolean(result.apiUrl && apiKey && result.otpCampaign),
+        };
+  }
+
+  async updateAiSensy(dto: UpdateAiSensySettingsDto) {
+    const current = await this.aiSensy(true);
+    const set: Record<string, string> = {
+      aiSensyApiUrl: dto.apiUrl?.trim() || current.apiUrl,
+      aiSensyOtpCampaign: dto.otpCampaign?.trim() || current.otpCampaign,
+    };
+    if (dto.apiKey !== undefined && dto.apiKey !== '')
+      set.aiSensyApiKey = this.crypt(dto.apiKey.trim());
+    await this.settings.findOneAndUpdate(
+      { key: 'aisensy' },
+      { $set: set, $setOnInsert: { key: 'aisensy' } },
+      { upsert: true, runValidators: true },
+    );
+    return this.aiSensy(false);
   }
 }
