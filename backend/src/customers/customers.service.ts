@@ -117,9 +117,19 @@ export class CustomersService {
         body: JSON.stringify({
           apiKey: config.apiKey,
           campaignName: config.otpCampaign,
-          destination: phone,
+          destination: `+${phone}`,
           userName: 'Customer',
           templateParams: [code],
+          // Authentication templates require the same OTP for their dynamic
+          // Copy Code URL button; omitting this causes Meta error #131008.
+          buttons: [
+            {
+              type: 'button',
+              sub_type: 'url',
+              index: '0',
+              parameters: [{ type: 'text', text: code }],
+            },
+          ],
           source: 'customer-auth',
         }),
       });
