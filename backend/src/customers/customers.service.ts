@@ -313,6 +313,17 @@ export class CustomersService {
     if (!customer) throw new NotFoundException('Customer not found');
     return customer;
   }
+  async updateAvatar(id: string, avatarUrl: string) {
+    const customer = await this.model
+      .findByIdAndUpdate(
+        id,
+        { $set: { avatarUrl } },
+        { new: true, runValidators: true },
+      )
+      .lean();
+    if (!customer) throw new NotFoundException('Customer not found');
+    return customer;
+  }
   async changePassword(id: string, dto: ChangeCustomerPasswordDto) {
     if (!this.validPassword(dto.newPassword))
       throw new BadRequestException(

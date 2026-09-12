@@ -1,11 +1,14 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
   Post,
+  UploadedFile,
+  UseInterceptors,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -32,6 +35,8 @@ import {
 } from './dto/customer.dto';
 import { CustomersService } from './customers.service';
 import { CustomerActiveGuard } from './customer-active.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { MediaService } from '../media/media.service';
 
 @ApiTags('Customer authentication')
 @Controller('customer/auth')
@@ -114,7 +119,10 @@ export class CustomerAuthController {
 @UseGuards(JwtAuthGuard, RolesGuard, CustomerActiveGuard)
 @Roles(Role.CUSTOMER)
 export class CustomerAccountController {
-  constructor(private customers: CustomersService) {}
+  constructor(
+    private customers: CustomersService,
+    private media: MediaService,
+  ) {}
   @Get('me') async me(@Req() req: { user: { sub: string } }) {
     return { success: true, data: await this.customers.me(req.user.sub) };
   }
@@ -125,6 +133,44 @@ export class CustomerAccountController {
     return {
       success: true,
       data: await this.customers.update(req.user.sub, dto),
+    };
+  }
+  @Post('me/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { files: 1, fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async avatar(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: { user: { sub: string } },
+  ) {
+    if (!file?.buffer?.length)
+      throw new BadRequestException('Select a profile image');
+    const buffer = file.buffer;
+    const extension =
+      buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+        ? 'jpg'
+        : buffer
+              .subarray(0, 8)
+              .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          ? 'png'
+          : buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+              buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+            ? 'webp'
+            : '';
+    if (!extension)
+      throw new BadRequestException('Use a JPG, PNG, or WEBP image');
+    const uploaded = await this.media.upload(
+      buffer,
+      'image',
+      extension,
+      'customer-avatars',
+    );
+    return {
+      success: true,
+      message: 'Profile image updated',
+      data: await this.customers.updateAvatar(req.user.sub, uploaded.url),
     };
   }
   @Patch('me/password') async password(

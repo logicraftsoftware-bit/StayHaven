@@ -12,6 +12,7 @@ import { Customer, CustomerSchema } from './schemas/customer.schema';
 import { CustomerActiveGuard } from './customer-active.guard';
 import { CustomerOtp, CustomerOtpSchema } from './schemas/customer-otp.schema';
 import { PlatformSettingsModule } from '../platform-settings/platform-settings.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PlatformSettingsModule } from '../platform-settings/platform-settings.m
     }),
     SitesModule,
     PlatformSettingsModule,
+    MediaModule,
   ],
   controllers: [CustomerAuthController, CustomerAccountController],
   providers: [CustomersService, CustomerActiveGuard],
