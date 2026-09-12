@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   CalendarDays,
   Camera,
   CheckCircle2,
@@ -12,6 +13,7 @@ import {
   LogOut,
   Plus,
   ShieldCheck,
+  Smartphone,
   Trash2,
   UserRound,
   Users,
@@ -30,6 +32,7 @@ type Session = {
   device: string;
   createdAt: string;
   lastActiveAt: string;
+  current?: boolean;
 };
 type Customer = {
   name: string;
@@ -228,7 +231,24 @@ export function CustomerAccount() {
     ["security", "Password & security", <KeyRound key="s" />],
   ];
   return (
-    <main className="customer-account">
+    <main
+      className={`customer-account ${view === "devices" ? "devices-view" : ""}`}
+    >
+      {view === "devices" && (
+        <header className="mobile-device-header">
+          <button
+            type="button"
+            aria-label="Back to profile"
+            onClick={() => {
+              window.history.replaceState(null, "", "/account#profile");
+              setView("profile");
+            }}
+          >
+            <ArrowLeft />
+          </button>
+          <h1>Logged In Devices</h1>
+        </header>
+      )}
       <div className="account-hero">
         <div className="container">
           <label
@@ -488,22 +508,55 @@ export function CustomerAccount() {
                 </div>
               </div>
               <div className="device-list">
-                {sessions.map((s, i) => (
-                  <article key={s.id}>
-                    <Laptop />
-                    <p>
-                      <b>
-                        {s.device}
-                        {i === sessions.length - 1 ? " (Current device)" : ""}
-                      </b>
-                      <span>
-                        Signed in{" "}
-                        {new Date(s.createdAt).toLocaleString("en-IN")}
-                      </span>
-                    </p>
-                    <CheckCircle2 />
-                  </article>
-                ))}
+                {sessions.map((s, i) => {
+                  const current = s.current ?? i === sessions.length - 1;
+                  return (
+                    <article key={s.id} className={current ? "current" : ""}>
+                      {current ? <Smartphone /> : <Laptop />}
+                      <p>
+                        <b>
+                          {current ? `${s.device} (Current device)` : s.device}
+                        </b>
+                        <span>
+                          {current ? "This browser" : "Another web session"}
+                        </span>
+                        <span>
+                          Logged in since{" "}
+                          {new Date(s.createdAt).toLocaleString("en-IN")}
+                        </span>
+                      </p>
+                      {current ? (
+                        <CheckCircle2 aria-label="Current session" />
+                      ) : (
+                        <button
+                          type="button"
+                          className="device-logout"
+                          onClick={async () => {
+                            try {
+                              await apiRequest(
+                                `/api/v1/customer/sessions/${s.id}`,
+                                token,
+                                { method: "DELETE" },
+                              );
+                              setSessions((items) =>
+                                items.filter((item) => item.id !== s.id),
+                              );
+                              flash("Device signed out");
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Could not sign out device",
+                              );
+                            }
+                          }}
+                        >
+                          Logout
+                        </button>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
               <button
                 className="danger-outline"

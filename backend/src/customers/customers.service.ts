@@ -347,6 +347,12 @@ export class CustomersService {
   async revokeSessions(id: string) {
     await this.model.updateOne({ _id: id }, { $set: { sessions: [] } });
   }
+  async revokeSession(id: string, sessionId: string) {
+    await this.model.updateOne(
+      { _id: id },
+      { $pull: { sessions: { id: sessionId } } },
+    );
+  }
   async addTraveller(id: string, dto: AddCoTravellerDto) {
     const traveller = { id: randomUUID(), ...dto, createdAt: new Date() };
     await this.model.updateOne(

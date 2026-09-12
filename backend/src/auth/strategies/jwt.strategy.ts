@@ -17,11 +17,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: config.getOrThrow<string>('jwt.secret'),
     });
   }
-  async validate(payload: { sub: string; role: Role }) {
+  async validate(payload: { sub: string; role: Role; sid?: string }) {
     if (
       [Role.HOTEL_OWNER, Role.TEAM_MEMBER, Role.CUSTOMER].includes(payload.role)
     )
-      return { sub: payload.sub, role: payload.role };
+      return { sub: payload.sub, role: payload.role, sid: payload.sid };
 
     const admin = await this.admins.findSafe(payload.sub);
     if (admin.status !== AdminStatus.ACTIVE)

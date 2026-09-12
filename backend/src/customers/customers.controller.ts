@@ -180,14 +180,34 @@ export class CustomerAccountController {
     await this.customers.changePassword(req.user.sub, dto);
     return { success: true, message: 'Password changed successfully' };
   }
-  @Get('sessions') async sessions(@Req() req: { user: { sub: string } }) {
-    return { success: true, data: await this.customers.sessions(req.user.sub) };
+  @Get('sessions') async sessions(
+    @Req() req: { user: { sub: string; sid?: string } },
+  ) {
+    const sessions = await this.customers.sessions(req.user.sub);
+    return {
+      success: true,
+      data: sessions.map((session) => ({
+        ...session,
+        current: Boolean(req.user.sid && session.id === req.user.sid),
+      })),
+    };
   }
   @Delete('sessions') async revokeSessions(
     @Req() req: { user: { sub: string } },
   ) {
     await this.customers.revokeSessions(req.user.sub);
     return { success: true, message: 'All sessions signed out' };
+  }
+  @Delete('sessions/:id') async revokeSession(
+    @Param('id') id: string,
+    @Req() req: { user: { sub: string; sid?: string } },
+  ) {
+    if (req.user.sid === id)
+      throw new BadRequestException(
+        'Use account logout to sign out this device',
+      );
+    await this.customers.revokeSession(req.user.sub, id);
+    return { success: true, message: 'Device signed out' };
   }
   @Post('co-travellers') async addTraveller(
     @Body() dto: AddCoTravellerDto,
