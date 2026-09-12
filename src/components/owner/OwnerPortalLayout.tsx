@@ -10,6 +10,7 @@ import {
   KeyRound,
   LoaderCircle,
   LogOut,
+  Menu,
   UserRound,
   Users,
   X,
@@ -42,6 +43,7 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   const [owner, setOwner] = useState<Owner | null>(null);
   const [properties, setProperties] = useState<OwnerProperty[]>([]);
   const [propertySwitchOpen, setPropertySwitchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -141,9 +143,28 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   if (pathname === "/owner") return children;
 
   return (
-    <main className="owner-dashboard-shell">
+    <main
+      className={`owner-dashboard-shell ${mobileMenuOpen ? "owner-mobile-menu-open" : ""}`}
+      onClick={(event) => {
+        if (
+          (event.target as HTMLElement).closest(
+            ".manager-shell > aside button, .owner-sidebar button",
+          )
+        )
+          setMobileMenuOpen(false);
+      }}
+    >
       <header className="owner-dashboard-header">
         <div className="owner-header-property-area">
+          <button
+            type="button"
+            className="owner-mobile-menu-button"
+            aria-label="Open property menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </button>
           <Brand />
           {propertyId && currentProperty && (
             <div className="owner-property-switcher" ref={propertySwitchRef}>
@@ -301,6 +322,15 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
           )}
         </div>
       </header>
+
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          className="owner-mobile-menu-scrim"
+          aria-label="Close property menu"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
       <div className="owner-workspace owner-nested-workspace">
         <aside className="owner-sidebar">
