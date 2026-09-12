@@ -108,9 +108,27 @@ export function CustomerAccount() {
       )
         setView(next);
     };
+    const applyEvent = (event: Event) => {
+      const next = (event as CustomEvent<View>).detail;
+      if (
+        [
+          "profile",
+          "travellers",
+          "trips",
+          "wishlist",
+          "devices",
+          "security",
+        ].includes(next)
+      )
+        setView(next);
+    };
     applyHash();
     window.addEventListener("hashchange", applyHash);
-    return () => window.removeEventListener("hashchange", applyHash);
+    window.addEventListener("stayhaven-account-view", applyEvent);
+    return () => {
+      window.removeEventListener("hashchange", applyHash);
+      window.removeEventListener("stayhaven-account-view", applyEvent);
+    };
   }, []);
   const flash = (message: string) => {
     setError("");
@@ -222,8 +240,14 @@ export function CustomerAccount() {
             }
           >
             {customer.avatarUrl ? "" : customer.name[0].toUpperCase()}
-            <span><Camera /> Change photo</span>
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void uploadAvatar(event.target.files?.[0])} />
+            <span>
+              <Camera /> Change photo
+            </span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => void uploadAvatar(event.target.files?.[0])}
+            />
           </label>
           <div>
             <p>WELCOME BACK</p>

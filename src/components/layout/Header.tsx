@@ -8,6 +8,7 @@ import {
   Laptop,
   LogOut,
   Menu,
+  Search,
   UserRound,
   Users,
   X,
@@ -129,6 +130,9 @@ export function Header() {
             ))}
           </nav>
           <div className="header-actions">
+            <Link href="/hotels" className="icon-btn" aria-label="Search stays">
+              <Search />
+            </Link>
             <Link href="/wishlist" className="icon-btn" aria-label="Wishlist">
               <Heart />
             </Link>
@@ -174,7 +178,14 @@ export function Header() {
                     <p>You are viewing your personal profile</p>
                     <Link
                       href="/account#profile"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        setProfileOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("stayhaven-account-view", {
+                            detail: "profile",
+                          }),
+                        );
+                      }}
                     >
                       <UserRound />
                       <span>
@@ -184,7 +195,14 @@ export function Header() {
                     </Link>
                     <Link
                       href="/account#travellers"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        setProfileOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("stayhaven-account-view", {
+                            detail: "travellers",
+                          }),
+                        );
+                      }}
                     >
                       <Users />
                       <span>
@@ -194,7 +212,14 @@ export function Header() {
                     </Link>
                     <Link
                       href="/account#trips"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        setProfileOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("stayhaven-account-view", {
+                            detail: "trips",
+                          }),
+                        );
+                      }}
                     >
                       <CalendarDays />
                       <span>
@@ -214,7 +239,14 @@ export function Header() {
                     </Link>
                     <Link
                       href="/account#devices"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        setProfileOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("stayhaven-account-view", {
+                            detail: "devices",
+                          }),
+                        );
+                      }}
                     >
                       <Laptop />
                       <span>
@@ -224,7 +256,14 @@ export function Header() {
                     </Link>
                     <Link
                       href="/account#security"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        setProfileOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("stayhaven-account-view", {
+                            detail: "security",
+                          }),
+                        );
+                      }}
                     >
                       <KeyRound />
                       <span>
