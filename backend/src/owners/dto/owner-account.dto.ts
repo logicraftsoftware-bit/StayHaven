@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -15,8 +16,28 @@ export class RegisterOwnerDto {
 }
 
 export class OwnerLoginDto {
-  @IsEmail() email: string;
+  @IsOptional() @IsString() identifier?: string;
+  @IsOptional() @IsEmail() email?: string;
   @IsString() @MinLength(1) password: string;
+}
+
+export class RequestOwnerOtpDto {
+  @IsString() @MinLength(7) @MaxLength(30) phone: string;
+  @IsIn(['register', 'login', 'forgot-password'])
+  purpose: 'register' | 'login' | 'forgot-password';
+}
+
+export class VerifyOwnerOtpDto extends RequestOwnerOtpDto {
+  @IsString() @MinLength(6) @MaxLength(6) otp: string;
+}
+
+export class CompleteOwnerRegistrationDto extends RegisterOwnerDto {
+  @IsString() verificationToken: string;
+}
+
+export class ResetOwnerPasswordDto {
+  @IsString() resetToken: string;
+  @IsString() @MinLength(8) @MaxLength(128) newPassword: string;
 }
 
 export class UpdateOwnerProfileDto {

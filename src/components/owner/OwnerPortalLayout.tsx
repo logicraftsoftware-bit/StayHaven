@@ -6,6 +6,7 @@ import {
   Building2,
   Check,
   ChevronDown,
+  ChevronRight,
   KeyRound,
   LoaderCircle,
   LogOut,
@@ -244,6 +245,45 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
               <button
                 onClick={() => {
                   setProfileOpen(false);
+                  router.push("/owner/profile");
+                }}
+              >
+                <UserRound />
+                <span>
+                  <strong>My profile</strong>
+                  <small>Account and business details</small>
+                </span>
+                <ChevronRight />
+              </button>
+              <button
+                onClick={() => {
+                  setProfileOpen(false);
+                  router.push("/owner");
+                }}
+              >
+                <Building2 />
+                <span>
+                  <strong>My properties</strong>
+                  <small>View and manage every listing</small>
+                </span>
+                <ChevronRight />
+              </button>
+              <button
+                onClick={() => {
+                  setProfileOpen(false);
+                  router.push("/owner/team");
+                }}
+              >
+                <Users />
+                <span>
+                  <strong>My team</strong>
+                  <small>Manage property access</small>
+                </span>
+                <ChevronRight />
+              </button>
+              <button
+                onClick={() => {
+                  setProfileOpen(false);
                   setPasswordOpen(true);
                 }}
               >
@@ -276,6 +316,12 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
             onClick={() => router.push("/owner/team")}
           >
             <Users /> My Team
+          </button>
+          <button
+            className={pathname === "/owner/profile" ? "active" : ""}
+            onClick={() => router.push("/owner/profile")}
+          >
+            <UserRound /> My Profile
           </button>
         </aside>
         <div className="owner-portal-content">{children}</div>

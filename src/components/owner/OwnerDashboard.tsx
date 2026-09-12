@@ -250,6 +250,22 @@ export function OwnerDashboard() {
                   <small>{owner?.email}</small>
                 </div>
               </div>
+              <button onClick={() => router.push("/owner/profile")}>
+                <UserRound />
+                <span>
+                  <strong>My profile</strong>
+                  <small>Account and business details</small>
+                </span>
+                <ChevronRight />
+              </button>
+              <button onClick={() => router.push("/owner/team")}>
+                <Users />
+                <span>
+                  <strong>My team</strong>
+                  <small>Manage property access</small>
+                </span>
+                <ChevronRight />
+              </button>
               <button
                 onClick={() => {
                   setProfileOpen(false);

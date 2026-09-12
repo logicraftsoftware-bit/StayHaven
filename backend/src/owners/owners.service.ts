@@ -1,4 +1,6 @@
 import {
+  BadGatewayException,
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,19 +9,28 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage, Types } from 'mongoose';
+import { createHash, randomInt } from 'node:crypto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { Role } from '../common/enums/role.enum';
 import { OwnerStatus } from '../common/enums/status.enum';
 import { OwnerQueryDto } from './dto/owner.dto';
 import { Owner } from './schemas/owner.schema';
+import { OwnerOtp } from './schemas/owner-otp.schema';
 import * as bcrypt from 'bcrypt';
 import { SitesService } from '../sites/sites.service';
 import {
   ChangeOwnerPasswordDto,
+  CompleteOwnerRegistrationDto,
   OwnerLoginDto,
   RegisterOwnerDto,
+  RequestOwnerOtpDto,
+  ResetOwnerPasswordDto,
   UpdateOwnerProfileDto,
+  VerifyOwnerOtpDto,
 } from './dto/owner-account.dto';
+import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
+
+type OwnerOtpPurpose = 'register' | 'login' | 'forgot-password';
 
 type OwnerAdminDetail = Owner & {
   _id: Types.ObjectId;
@@ -43,7 +54,41 @@ export class OwnersService {
     private audit: AuditLogsService,
     private jwt: JwtService,
     private sites: SitesService,
+    @InjectModel(OwnerOtp.name) private otps: Model<OwnerOtp>,
+    private settings: PlatformSettingsService,
   ) {}
+
+  private phone(value: string) {
+    const digits = value.replace(/\D/g, '');
+    const phone = digits.length === 10 ? `91${digits}` : digits;
+    if (phone.length < 11 || phone.length > 15)
+      throw new BadRequestException('Enter a valid mobile number');
+    return phone;
+  }
+
+  private phoneCandidates(value: string) {
+    const normalized = this.phone(value);
+    return [
+      normalized,
+      `+${normalized}`,
+      normalized.startsWith('91') ? normalized.slice(2) : normalized,
+    ];
+  }
+
+  private hashOtp(phone: string, purpose: OwnerOtpPurpose, code: string) {
+    return createHash('sha256')
+      .update(`${phone}:owner:${purpose}:${code}`)
+      .digest('hex');
+  }
+
+  private validPassword(value: string) {
+    return (
+      value.length >= 8 &&
+      /[A-Za-z]/.test(value) &&
+      /\d/.test(value) &&
+      /[^A-Za-z0-9]/.test(value)
+    );
+  }
   async list(q: OwnerQueryDto, allowedSiteIds?: string[]) {
     const match: Record<string, unknown> = {};
     if (q.status) match.status = q.status;
@@ -183,12 +228,188 @@ export class OwnersService {
       throw new UnauthorizedException('Owner account is not available');
   }
 
+  async requestOtp(dto: RequestOwnerOtpDto) {
+    const phone = this.phone(dto.phone);
+    const owner = await this.model
+      .findOne({ phone: { $in: this.phoneCandidates(phone) } })
+      .select('_id status')
+      .lean();
+    if (dto.purpose === 'register' && owner)
+      throw new ConflictException(
+        'An owner account already exists for this mobile number',
+      );
+    if (dto.purpose !== 'register' && !owner)
+      throw new NotFoundException(
+        'No owner account was found for this mobile number',
+      );
+    if (
+      await this.otps.exists({
+        phone,
+        purpose: dto.purpose,
+        createdAt: { $gte: new Date(Date.now() - 60_000) },
+      })
+    )
+      throw new BadRequestException(
+        'Please wait 60 seconds before requesting another OTP',
+      );
+    const code = String(randomInt(100000, 1000000));
+    await this.otps.updateMany(
+      { phone, purpose: dto.purpose, used: false },
+      { $set: { used: true } },
+    );
+    const record = await this.otps.create({
+      phone,
+      purpose: dto.purpose,
+      codeHash: this.hashOtp(phone, dto.purpose, code),
+      expiresAt: new Date(Date.now() + 600_000),
+    });
+    try {
+      await this.sendWhatsAppOtp(phone, code);
+    } catch (error) {
+      await record.deleteOne();
+      throw error;
+    }
+    return {
+      phone: `+${phone.slice(0, 2)} ••••••${phone.slice(-4)}`,
+      expiresIn: 600,
+      resendAfter: 60,
+    };
+  }
+
+  private async sendWhatsAppOtp(phone: string, code: string) {
+    const config = await this.settings.aiSensy(true);
+    if (!config.apiUrl || !config.apiKey || !config.otpCampaign)
+      throw new BadGatewayException(
+        'WhatsApp OTP is not configured. Contact support.',
+      );
+    try {
+      const response = await fetch(config.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: config.apiKey,
+          campaignName: config.otpCampaign,
+          destination: `+${phone}`,
+          userName: 'Hotel Owner',
+          templateParams: [code],
+          buttons: [
+            {
+              type: 'button',
+              sub_type: 'url',
+              index: '0',
+              parameters: [{ type: 'text', text: code }],
+            },
+          ],
+          source: 'owner-auth',
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        message?: string;
+      };
+      if (!response.ok || body.success === false)
+        throw new Error(body.message || `AiSensy returned ${response.status}`);
+    } catch (error) {
+      throw new BadGatewayException(
+        error instanceof Error
+          ? `Unable to send WhatsApp OTP: ${error.message}`
+          : 'Unable to send WhatsApp OTP',
+      );
+    }
+  }
+
+  async verifyOtp(dto: VerifyOwnerOtpDto) {
+    const phone = this.phone(dto.phone);
+    const record = await this.otps
+      .findOne({ phone, purpose: dto.purpose, used: false })
+      .sort({ createdAt: -1 })
+      .select('+codeHash');
+    if (!record || record.expiresAt.getTime() < Date.now())
+      throw new UnauthorizedException('OTP has expired. Request a new code.');
+    if (record.attempts >= 5)
+      throw new UnauthorizedException(
+        'Too many incorrect attempts. Request a new code.',
+      );
+    if (record.codeHash !== this.hashOtp(phone, dto.purpose, dto.otp)) {
+      record.attempts += 1;
+      await record.save();
+      throw new UnauthorizedException('The verification code is incorrect');
+    }
+    record.used = true;
+    await record.save();
+    if (dto.purpose === 'login') {
+      const owner = await this.model.findOne({
+        phone: { $in: this.phoneCandidates(phone) },
+      });
+      if (!owner) throw new NotFoundException('Owner account not found');
+      if ([OwnerStatus.SUSPENDED, OwnerStatus.REJECTED].includes(owner.status))
+        throw new UnauthorizedException('Owner account is not available');
+      return { mode: 'session', ...(await this.session(owner)) };
+    }
+    return {
+      mode:
+        dto.purpose === 'register' ? 'complete-registration' : 'reset-password',
+      verificationToken: await this.jwt.signAsync(
+        { phone, flow: `owner-${dto.purpose}` },
+        { expiresIn: '15m' },
+      ),
+    };
+  }
+
+  async completeRegistration(
+    dto: CompleteOwnerRegistrationDto,
+    context: { siteId?: string; ip?: string; userAgent?: string },
+  ) {
+    let payload: { phone: string; flow: string };
+    try {
+      payload = await this.jwt.verifyAsync(dto.verificationToken);
+    } catch {
+      throw new UnauthorizedException('Registration verification has expired');
+    }
+    if (payload.flow !== 'owner-register')
+      throw new UnauthorizedException('Invalid registration verification');
+    if (this.phone(dto.phone) !== payload.phone)
+      throw new UnauthorizedException('Verified mobile number does not match');
+    return this.register(dto, context);
+  }
+
+  async resetPassword(dto: ResetOwnerPasswordDto) {
+    if (!this.validPassword(dto.newPassword))
+      throw new BadRequestException(
+        'Password must contain a letter, number and special character',
+      );
+    let payload: { phone: string; flow: string };
+    try {
+      payload = await this.jwt.verifyAsync(dto.resetToken);
+    } catch {
+      throw new UnauthorizedException(
+        'Password reset verification has expired',
+      );
+    }
+    if (payload.flow !== 'owner-forgot-password')
+      throw new UnauthorizedException('Invalid password reset verification');
+    const owner = await this.model
+      .findOne({ phone: { $in: this.phoneCandidates(payload.phone) } })
+      .select('+passwordHash');
+    if (!owner) throw new NotFoundException('Owner account not found');
+    owner.passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await owner.save();
+    return { changed: true };
+  }
+
   async register(
     dto: RegisterOwnerDto,
     context: { siteId?: string; ip?: string; userAgent?: string },
   ) {
     const email = dto.email.trim().toLowerCase();
+    const phone = this.phone(dto.phone);
     if (await this.model.exists({ email }))
+      throw new ConflictException(
+        'An owner account already exists. Please log in.',
+      );
+    if (
+      await this.model.exists({ phone: { $in: this.phoneCandidates(phone) } })
+    )
       throw new ConflictException(
         'An owner account already exists. Please log in.',
       );
@@ -200,7 +421,7 @@ export class OwnersService {
       owner = await this.model.create({
         name: dto.name.trim(),
         email,
-        phone: dto.phone.trim(),
+        phone,
         businessName: dto.businessName?.trim(),
         passwordHash: await bcrypt.hash(dto.password, 12),
         role: Role.HOTEL_OWNER,
@@ -230,9 +451,13 @@ export class OwnersService {
     dto: OwnerLoginDto,
     context: { ip?: string; userAgent?: string },
   ) {
-    const owner = await this.model
-      .findOne({ email: dto.email.trim().toLowerCase() })
-      .select('+passwordHash');
+    const identifier = (dto.identifier || dto.email || '').trim().toLowerCase();
+    if (!identifier)
+      throw new UnauthorizedException('Invalid owner credentials');
+    const filter = identifier.includes('@')
+      ? { email: identifier }
+      : { phone: { $in: this.phoneCandidates(identifier) } };
+    const owner = await this.model.findOne(filter).select('+passwordHash');
     if (
       !owner ||
       [OwnerStatus.SUSPENDED, OwnerStatus.REJECTED].includes(owner.status) ||

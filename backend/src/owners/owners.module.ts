@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { Owner, OwnerSchema } from './schemas/owner.schema';
+import { OwnerOtp, OwnerOtpSchema } from './schemas/owner-otp.schema';
 import { OwnersController } from './owners.controller';
 import { OwnersService } from './owners.service';
 import { SitesModule } from '../sites/sites.module';
@@ -12,9 +13,14 @@ import {
   OwnerAuthController,
 } from './owner-account.controller';
 import { OwnerStatusGuard } from './owner-status.guard';
+import { PlatformSettingsModule } from '../platform-settings/platform-settings.module';
+import { MediaModule } from '../media/media.module';
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Owner.name, schema: OwnerSchema }]),
+    MongooseModule.forFeature([
+      { name: Owner.name, schema: OwnerSchema },
+      { name: OwnerOtp.name, schema: OwnerOtpSchema },
+    ]),
     AuditLogsModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -24,6 +30,8 @@ import { OwnerStatusGuard } from './owner-status.guard';
       }),
     }),
     SitesModule,
+    PlatformSettingsModule,
+    MediaModule,
   ],
   controllers: [OwnersController, OwnerAuthController, OwnerAccountController],
   providers: [OwnersService, OwnerStatusGuard],

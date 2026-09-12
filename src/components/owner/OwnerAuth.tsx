@@ -1,171 +1,348 @@
 "use client";
 
-import { Building2, KeyRound, LogIn, UserPlus } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  CheckCircle2,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+  LogIn,
+  MessageCircle,
+  UserPlus,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 
 export const OWNER_TOKEN_KEY = "stayhaven-owner-token";
+type Mode = "login" | "register" | "otp-login" | "forgot" | "verify" | "reset";
+type Purpose = "register" | "login" | "forgot-password";
 type Session = {
   accessToken: string;
-  owner: { id: string; name: string; email: string; role: string };
+  owner: { id: string; name: string; email: string };
 };
-type Response = { success: boolean; message: string; data: Session };
+type Api<T> = { success: boolean; message: string; data: T };
 
 export function OwnerAuth() {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [notice, setNotice] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [name, setName] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-
+  const [mode, setMode] = useState<Mode>("login"),
+    [purpose, setPurpose] = useState<Purpose>("login");
+  const [verificationToken, setVerificationToken] = useState(""),
+    [notice, setNotice] = useState(""),
+    [loading, setLoading] = useState(false);
+  const [name, setName] = useState(""),
+    [businessName, setBusinessName] = useState(""),
+    [email, setEmail] = useState(""),
+    [phone, setPhone] = useState(""),
+    [password, setPassword] = useState(""),
+    [otp, setOtp] = useState("");
   useEffect(() => {
     if (localStorage.getItem(OWNER_TOKEN_KEY)) router.replace("/owner");
   }, [router]);
   useEffect(() => {
-    const selectRequestedMode = () => {
-      if (window.location.hash === "#create-account") setMode("register");
-    };
-    selectRequestedMode();
-    window.addEventListener("hashchange", selectRequestedMode);
-    return () => window.removeEventListener("hashchange", selectRequestedMode);
+    const sync = () =>
+      setMode(
+        window.location.hash === "#create-account" ? "register" : "login",
+      );
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
   }, []);
-  const submit = async (event: React.FormEvent) => {
+  const saveSession = (session: Session) => {
+    localStorage.setItem(OWNER_TOKEN_KEY, session.accessToken);
+    router.push("/owner");
+  };
+  const requestOtp = async (nextPurpose: Purpose) => {
+    await apiRequest("/api/v1/owner/auth/otp/request", "", {
+      method: "POST",
+      body: JSON.stringify({ phone, purpose: nextPurpose }),
+    });
+    setPurpose(nextPurpose);
+    setOtp("");
+    setMode("verify");
+  };
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setNotice("");
     try {
-      const body =
-        mode === "register"
-          ? { name, businessName, email, phone, password }
-          : { email, password };
-      const response = await apiRequest<Response>(
-        `/api/v1/owner/auth/${mode}`,
-        "",
-        { method: "POST", body: JSON.stringify(body) },
-      );
-      localStorage.setItem(OWNER_TOKEN_KEY, response.data.accessToken);
-      router.push("/owner");
+      if (mode === "login") {
+        const response = await apiRequest<Api<Session>>(
+          "/api/v1/owner/auth/login",
+          "",
+          {
+            method: "POST",
+            body: JSON.stringify({ identifier: email, password }),
+          },
+        );
+        saveSession(response.data);
+      } else if (mode === "register") await requestOtp("register");
+      else if (mode === "otp-login") await requestOtp("login");
+      else if (mode === "forgot") await requestOtp("forgot-password");
+      else if (mode === "verify") {
+        const response = await apiRequest<
+          Api<{
+            mode: string;
+            verificationToken?: string;
+            accessToken?: string;
+            owner?: Session["owner"];
+          }>
+        >("/api/v1/owner/auth/otp/verify", "", {
+          method: "POST",
+          body: JSON.stringify({ phone, purpose, otp }),
+        });
+        if (purpose === "login" && response.data.accessToken)
+          saveSession(response.data as Session);
+        else if (purpose === "register") {
+          const complete = await apiRequest<Api<Session>>(
+            "/api/v1/owner/auth/register/complete",
+            "",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                name,
+                businessName,
+                email,
+                phone,
+                password,
+                verificationToken: response.data.verificationToken,
+              }),
+            },
+          );
+          saveSession(complete.data);
+        } else {
+          setVerificationToken(response.data.verificationToken || "");
+          setPassword("");
+          setMode("reset");
+        }
+      } else if (mode === "reset") {
+        await apiRequest("/api/v1/owner/auth/password/reset", "", {
+          method: "POST",
+          body: JSON.stringify({
+            resetToken: verificationToken,
+            newPassword: password,
+          }),
+        });
+        setPassword("");
+        setMode("login");
+        setNotice("Password updated. You can now log in.");
+      }
     } catch (error) {
       setNotice((error as Error).message);
     } finally {
       setLoading(false);
     }
   };
-
+  const copy = {
+    login: ["Welcome back", "Use your email or mobile number and password."],
+    register: [
+      "Create owner account",
+      "Create one secure account for every property.",
+    ],
+    "otp-login": ["Login with OTP", "We will send a secure code on WhatsApp."],
+    forgot: [
+      "Forgot password",
+      "Verify your registered mobile number to reset access.",
+    ],
+    verify: [
+      "Verify WhatsApp code",
+      `Enter the six-digit code sent to ${phone}.`,
+    ],
+    reset: [
+      "Create new password",
+      "Choose a strong password for your owner account.",
+    ],
+  }[mode];
+  const goLogin = () => {
+    setMode("login");
+    setNotice("");
+    setVerificationToken("");
+  };
   return (
-    <section
-      id="create-account"
-      className="owner-auth-card scroll-mt-6 rounded-3xl border bg-white p-7 shadow-xl md:p-9"
-    >
-      <div className="flex items-center gap-3">
-        <span className="owner-auth-icon grid size-12 place-items-center rounded-xl bg-charcoal text-white">
+    <section id="create-account" className="owner-auth-card">
+      <header className="owner-auth-heading">
+        <span className="owner-auth-icon">
           <Building2 />
         </span>
         <div>
-          <p className="owner-auth-subtitle text-xs font-bold uppercase tracking-wider text-maroon">
-            Global hotel owner account
-          </p>
-          <h2 className="font-display text-2xl font-bold">
-            {mode === "login" ? "Owner login" : "Create owner account"}
-          </h2>
+          <p>STAYHAVEN PARTNER ACCOUNT</p>
+          <h2>{copy[0]}</h2>
+          <small>{copy[1]}</small>
         </div>
-      </div>
+      </header>
       {notice && (
-        <p
-          role="alert"
-          className="mt-5 rounded-xl bg-red-50 p-3 text-sm font-semibold text-maroon"
-        >
+        <p role="alert" className="owner-auth-alert">
           {notice}
         </p>
       )}
-      <form onSubmit={submit} className="mt-7 space-y-4">
+      <form onSubmit={submit} className="owner-auth-form">
         {mode === "register" && (
           <>
+            <div className="owner-auth-grid">
+              <label className="owner-label">
+                Owner name
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your full name"
+                />
+              </label>
+              <label className="owner-label">
+                Business name
+                <input
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Hotel or company name"
+                />
+              </label>
+            </div>
             <label className="owner-label">
-              Owner name
+              Business email
               <input
                 required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-            <label className="owner-label">
-              Business name
-              <input
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="owner@example.com"
               />
             </label>
           </>
         )}
-        <label className="owner-label">
-          Business email
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="owner@example.com"
-          />
-        </label>
-        {mode === "register" && (
+        {(mode === "register" || mode === "otp-login" || mode === "forgot") && (
           <label className="owner-label">
             Mobile number
+            <div className="owner-phone-field">
+              <span>IN +91</span>
+              <input
+                required
+                type="tel"
+                inputMode="numeric"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="10-digit mobile number"
+              />
+            </div>
+          </label>
+        )}
+        {mode === "login" && (
+          <label className="owner-label">
+            Email or mobile number
             <input
               required
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email or registered mobile"
+              autoComplete="username"
             />
           </label>
         )}
-        <label className="owner-label">
-          Password
-          <input
-            required
-            minLength={mode === "register" ? 8 : 1}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        <button
-          disabled={loading}
-          className="btn-primary w-full justify-center"
-        >
-          {mode === "login" ? (
-            <LogIn className="size-4" />
+        {(mode === "login" || mode === "register" || mode === "reset") && (
+          <label className="owner-label">
+            {mode === "reset" ? "New password" : "Password"}
+            <input
+              required
+              minLength={mode === "login" ? 1 : 8}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Minimum 8 characters"
+              autoComplete={
+                mode === "login" ? "current-password" : "new-password"
+              }
+            />
+            {mode !== "login" && (
+              <small>Use a letter, number and special character.</small>
+            )}
+          </label>
+        )}
+        {mode === "verify" && (
+          <label className="owner-label owner-otp-field">
+            WhatsApp verification code
+            <input
+              required
+              autoFocus
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              placeholder="000000"
+            />
+          </label>
+        )}
+        <button disabled={loading} className="owner-auth-submit">
+          {loading ? (
+            <LoaderCircle className="owner-spin" />
+          ) : mode === "login" ? (
+            <LogIn />
+          ) : mode === "register" ? (
+            <UserPlus />
+          ) : mode === "verify" ? (
+            <CheckCircle2 />
+          ) : mode === "reset" ? (
+            <LockKeyhole />
           ) : (
-            <UserPlus className="size-4" />
+            <MessageCircle />
           )}
           {loading
             ? "Please wait…"
             : mode === "login"
-              ? "Login to Owner Account"
-              : "Create Global Owner Account"}
+              ? "Login to owner account"
+              : mode === "register"
+                ? "Continue with WhatsApp"
+                : mode === "verify"
+                  ? "Verify and continue"
+                  : mode === "reset"
+                    ? "Reset password"
+                    : "Send WhatsApp OTP"}
         </button>
+        {mode === "login" ? (
+          <div className="owner-auth-secondary">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("otp-login");
+                setNotice("");
+              }}
+            >
+              <MessageCircle /> Login with OTP
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setNotice("");
+              }}
+            >
+              <KeyRound /> Forgot password?
+            </button>
+          </div>
+        ) : (
+          mode !== "verify" && (
+            <button type="button" className="owner-auth-back" onClick={goLogin}>
+              <ArrowLeft /> Back to login
+            </button>
+          )
+        )}
+        <div className="owner-auth-divider">
+          <span>or</span>
+        </div>
         <button
           type="button"
-          onClick={() => {
-            setMode(mode === "login" ? "register" : "login");
-            setNotice("");
-          }}
-          className="owner-auth-switch w-full text-sm font-bold text-maroon"
+          className="owner-auth-switch"
+          onClick={() =>
+            mode === "register" ? goLogin() : setMode("register")
+          }
         >
-          {mode === "login"
-            ? "Create an owner account"
-            : "Already registered? Login"}
+          {mode === "register"
+            ? "Already registered? Login"
+            : "Create a new owner account"}
         </button>
       </form>
-      <p className="owner-auth-note mt-6 flex items-start gap-2 text-xs leading-5 text-slate-500">
-        <KeyRound className="mt-0.5 size-4 shrink-0 text-maroon" />
-        One account works across every StayHaven marketplace and the future
-        owner app.
+      <p className="owner-auth-note">
+        <KeyRound /> Your login and property data are securely protected.
       </p>
     </section>
   );
