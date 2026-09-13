@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -48,6 +49,15 @@ export class OwnerOperationsController {
     return {
       success: true,
       data: await this.service.saveTeam(r.user.sub, dto, id),
+    };
+  }
+  @Delete('team/:id') async remove(
+    @Req() r: { user: { sub: string } },
+    @Param('id', MongoIdPipe) id: string,
+  ) {
+    return {
+      success: true,
+      data: await this.service.deleteTeamMember(r.user.sub, id),
     };
   }
   @Get('support-tickets') async tickets(@Req() r: { user: { sub: string } }) {

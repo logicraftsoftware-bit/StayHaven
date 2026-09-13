@@ -14,11 +14,13 @@ import {
   Plus,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   Users,
   WalletCards,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { ConfirmDialog } from "@/components/customer/ConfirmDialog";
 import { apiRequest } from "@/lib/api-client";
 import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 
@@ -90,6 +92,8 @@ export function TeamManager() {
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
 
   const load = async (authToken: string) => {
     const [memberResponse, propertyResponse] = await Promise.all([
@@ -189,6 +193,26 @@ export function TeamManager() {
         ? editing.permissions.filter((item) => item !== permission)
         : [...editing.permissions, permission],
     });
+
+  const deleteMember = async () => {
+    if (!deleteTarget?._id) return;
+    setDeleting(true);
+    setNotice("");
+    try {
+      await apiRequest(`/api/v1/owner/team/${deleteTarget._id}`, token, {
+        method: "DELETE",
+      });
+      setMembers((current) =>
+        current.filter((member) => member._id !== deleteTarget._id),
+      );
+      setDeleteTarget(null);
+      setNotice("Team member deleted successfully.");
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
   const toggleProperty = (propertyId: string) => {
     if (!editing) return;
     const selected = editing.assignedPropertyIds
@@ -510,12 +534,20 @@ export function TeamManager() {
                     </div>
                   );
                 })}
-                <button
-                  className="team-edit-button"
-                  onClick={() => openEditor(member)}
-                >
-                  <Pencil /> Edit
-                </button>
+                <div className="team-row-actions">
+                  <button
+                    className="team-edit-button"
+                    onClick={() => openEditor(member)}
+                  >
+                    <Pencil /> Edit
+                  </button>
+                  <button
+                    className="team-delete-button"
+                    onClick={() => setDeleteTarget(member)}
+                  >
+                    <Trash2 /> Delete
+                  </button>
+                </div>
               </article>
             ))
           ) : (
@@ -584,6 +616,15 @@ export function TeamManager() {
           </span>
         </div>
       </section>
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete this team member?"
+        description={`${deleteTarget?.name || "This member"} will immediately lose access to every assigned property and owner tool.`}
+        confirmLabel="Delete member"
+        busy={deleting}
+        onCancel={() => !deleting && setDeleteTarget(null)}
+        onConfirm={() => void deleteMember()}
+      />
     </main>
   );
 }

@@ -86,6 +86,21 @@ export class OwnerOperationsService {
     });
     return member;
   }
+  async deleteTeamMember(ownerId: string, id: string) {
+    const member = await this.teams.findOneAndDelete({
+      _id: new Types.ObjectId(id),
+      ownerId: new Types.ObjectId(ownerId),
+    });
+    if (!member) throw new NotFoundException('Team member not found');
+    await this.audit.record({
+      actorId: new Types.ObjectId(ownerId),
+      actorRole: Role.HOTEL_OWNER,
+      action: 'TEAM_MEMBER_DELETED',
+      entityType: 'TEAM_MEMBER',
+      entityId: member._id,
+    });
+    return { id: member._id };
+  }
   async login(email: string, password: string) {
     const member = await this.teams
       .findOne({ email: email.toLowerCase(), status: 'active' })

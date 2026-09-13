@@ -62,6 +62,27 @@ describe('OwnerOperationsService', () => {
       }),
     );
   });
+  it('deletes only a member belonging to the authenticated owner', async () => {
+    const memberId = '507f1f77bcf86cd799439013';
+    const teams = {
+      findOneAndDelete: jest.fn().mockResolvedValue({ _id: memberId }),
+    };
+    const audit = { record: jest.fn() };
+    const service = new OwnerOperationsService(
+      teams as never,
+      {} as never,
+      {} as never,
+      audit as never,
+      {} as never,
+    );
+    await expect(
+      service.deleteTeamMember('507f1f77bcf86cd799439011', memberId),
+    ).resolves.toEqual({ id: memberId });
+    expect(teams.findOneAndDelete).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'TEAM_MEMBER_DELETED' }),
+    );
+  });
   it('requires VIEW_PROPERTIES for team property access', () => {
     const service = new OwnerOperationsService(
       {} as never,
