@@ -16,6 +16,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 
 export const OWNER_TOKEN_KEY = "stayhaven-owner-token";
+export const OWNER_ROLE_KEY = "stayhaven-owner-session-role";
 type Mode = "login" | "register" | "otp-login" | "forgot" | "verify" | "reset";
 type Purpose = "register" | "login" | "forgot-password";
 type Session = {
@@ -56,6 +57,7 @@ export function OwnerAuth() {
   }, []);
   const saveSession = (session: Session) => {
     localStorage.setItem(OWNER_TOKEN_KEY, session.accessToken);
+    localStorage.setItem(OWNER_ROLE_KEY, "HOTEL_OWNER");
     router.push("/owner");
   };
   const requestOtp = async (nextPurpose: Purpose) => {
@@ -73,15 +75,29 @@ export function OwnerAuth() {
     setNotice("");
     try {
       if (mode === "login") {
-        const response = await apiRequest<Api<Session>>(
-          "/api/v1/owner/auth/login",
-          "",
-          {
-            method: "POST",
-            body: JSON.stringify({ identifier: email, password }),
-          },
-        );
-        saveSession(response.data);
+        try {
+          const response = await apiRequest<Api<Session>>(
+            "/api/v1/owner/auth/login",
+            "",
+            {
+              method: "POST",
+              body: JSON.stringify({ identifier: email, password }),
+            },
+          );
+          saveSession(response.data);
+        } catch {
+          const response = await apiRequest<Api<Session>>(
+            "/api/v1/owner/team-member/login",
+            "",
+            {
+              method: "POST",
+              body: JSON.stringify({ identifier: email, password }),
+            },
+          );
+          localStorage.setItem(OWNER_TOKEN_KEY, response.data.accessToken);
+          localStorage.setItem(OWNER_ROLE_KEY, "TEAM_MEMBER");
+          router.push("/owner");
+        }
       } else if (mode === "register") await requestOtp("register");
       else if (mode === "otp-login") await requestOtp("login");
       else if (mode === "forgot") await requestOtp("forgot-password");
@@ -140,7 +156,10 @@ export function OwnerAuth() {
     }
   };
   const copy = {
-    login: ["Welcome back", "Use your email or mobile number and password."],
+    login: [
+      "Welcome back",
+      "Owners and team members can use their email or mobile number and password.",
+    ],
     register: [
       "Create owner account",
       "Create one secure account for every property.",

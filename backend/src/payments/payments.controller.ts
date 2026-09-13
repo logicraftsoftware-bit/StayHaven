@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   Param,
@@ -74,22 +75,27 @@ export class CustomerPaymentsController {
 @ApiBearerAuth()
 @Controller('owner/payments')
 @UseGuards(JwtAuthGuard, RolesGuard, OwnerStatusGuard)
-@Roles(Role.HOTEL_OWNER)
+@Roles(Role.HOTEL_OWNER, Role.TEAM_MEMBER)
 export class OwnerPaymentsController {
   constructor(private service: PaymentsService) {}
   @Get() async list(
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalPaymentUser },
     @Query() query: PaymentQueryDto,
   ) {
     return {
       success: true,
-      data: await this.service.ownerPayments(req.user.sub, query),
+      data: await this.service.ownerPayments(
+        this.ownerId(req.user, query.propertyId),
+        query,
+      ),
     };
   }
   @Patch('bank-account') async bank(
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalPaymentUser },
     @Body() dto: SaveBankAccountDto,
   ) {
+    if (req.user.role === Role.TEAM_MEMBER)
+      throw new ForbiddenException('Only the owner can change bank details');
     return {
       success: true,
       message: 'Withdrawal bank account saved',
@@ -97,16 +103,36 @@ export class OwnerPaymentsController {
     };
   }
   @Post('withdrawals') async withdraw(
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalPaymentUser },
     @Body() dto: RequestWithdrawalDto,
   ) {
+    if (req.user.role === Role.TEAM_MEMBER)
+      throw new ForbiddenException('Only the owner can request withdrawals');
     return {
       success: true,
       message: 'Withdrawal submitted to RazorpayX',
       data: await this.service.requestWithdrawal(req.user.sub, dto),
     };
   }
+  private ownerId(user: PortalPaymentUser, propertyId?: string) {
+    if (user.role !== Role.TEAM_MEMBER) return user.sub;
+    if (
+      !user.permissions?.includes('VIEW_PAYMENTS') ||
+      !propertyId ||
+      !user.propertyIds?.includes(propertyId)
+    )
+      throw new ForbiddenException('VIEW_PAYMENTS permission is required');
+    return user.ownerId || '';
+  }
 }
+
+type PortalPaymentUser = {
+  sub: string;
+  role: Role;
+  ownerId?: string;
+  propertyIds?: string[];
+  permissions?: string[];
+};
 
 @ApiTags('Razorpay webhooks')
 @Controller('payments')

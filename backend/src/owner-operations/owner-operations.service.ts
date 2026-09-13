@@ -101,9 +101,13 @@ export class OwnerOperationsService {
     });
     return { id: member._id };
   }
-  async login(email: string, password: string) {
+  async login(identifier: string, password: string) {
+    const normalized = identifier.trim().toLowerCase();
     const member = await this.teams
-      .findOne({ email: email.toLowerCase(), status: 'active' })
+      .findOne({
+        status: 'active',
+        $or: [{ email: normalized }, { phone: identifier.trim() }],
+      })
       .select('+passwordHash');
     if (!member || !(await bcrypt.compare(password, member.passwordHash)))
       throw new UnauthorizedException('Invalid credentials');
@@ -129,11 +133,10 @@ export class OwnerOperationsService {
     propertyIds: string[];
     permissions: string[];
   }) {
-    if (!user.permissions.includes('VIEW_PROPERTIES'))
-      throw new ForbiddenException('VIEW_PROPERTIES permission is required');
     return this.properties
       .find({ ownerId: user.ownerId, _id: { $in: user.propertyIds } })
       .select('-financeLegal -documents')
+      .populate('siteId', 'name domain')
       .lean();
   }
   listTickets(ownerId: string) {

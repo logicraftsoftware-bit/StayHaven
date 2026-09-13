@@ -83,20 +83,25 @@ describe('OwnerOperationsService', () => {
       expect.objectContaining({ action: 'TEAM_MEMBER_DELETED' }),
     );
   });
-  it('requires VIEW_PROPERTIES for team property access', () => {
+  it('lists assigned properties even when access is limited to another area', () => {
+    const lean = jest.fn().mockReturnValue([]);
+    const populate = jest.fn().mockReturnValue({ lean });
+    const select = jest.fn().mockReturnValue({ populate });
+    const properties = { find: jest.fn().mockReturnValue({ select }) };
     const service = new OwnerOperationsService(
       {} as never,
       {} as never,
-      {} as never,
+      properties as never,
       {} as never,
       {} as never,
     );
-    expect(() =>
+    expect(
       service.listAssigned({
         ownerId: '507f1f77bcf86cd799439011',
-        propertyIds: [],
-        permissions: [],
+        propertyIds: ['507f1f77bcf86cd799439012'],
+        permissions: ['VIEW_BOOKINGS'],
       }),
-    ).toThrow(ForbiddenException);
+    ).toEqual([]);
+    expect(properties.find).toHaveBeenCalledTimes(1);
   });
 });

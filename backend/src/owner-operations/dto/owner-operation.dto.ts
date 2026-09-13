@@ -32,7 +32,7 @@ export class TeamMemberDto {
   @IsOptional() @IsString() @MinLength(8) temporaryPassword?: string;
 }
 export class TeamLoginDto {
-  @IsEmail() email: string;
+  @IsString() identifier: string;
   @IsString() @MinLength(8) password: string;
 }
 export class SupportTicketDto {

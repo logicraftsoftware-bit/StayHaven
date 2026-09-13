@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -82,7 +83,7 @@ export class TeamMemberController {
   async login(@Body() dto: TeamLoginDto) {
     return {
       success: true,
-      data: await this.service.login(dto.email, dto.password),
+      data: await this.service.login(dto.identifier, dto.password),
     };
   }
   @Get('properties')
@@ -96,6 +97,26 @@ export class TeamMemberController {
     },
   ) {
     return { success: true, data: await this.service.listAssigned(r.user) };
+  }
+  @Post('support-tickets')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.TEAM_MEMBER)
+  async support(
+    @Req()
+    r: {
+      user: { ownerId: string; propertyIds: string[]; permissions: string[] };
+    },
+    @Body() dto: SupportTicketDto,
+  ) {
+    if (!r.user.permissions.includes('CONTACT_SUPPORT'))
+      throw new ForbiddenException('CONTACT_SUPPORT permission is required');
+    if (dto.propertyId && !r.user.propertyIds.includes(dto.propertyId))
+      throw new ForbiddenException('Property is not assigned to this member');
+    return {
+      success: true,
+      data: await this.service.createTicket(r.user.ownerId, dto),
+    };
   }
 }
 

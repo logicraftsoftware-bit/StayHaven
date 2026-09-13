@@ -36,7 +36,16 @@ type Property = {
   status?: string;
   completeness?: number;
   price: number;
-  roomDetails: Array<{ id?: string; _id?: string; name?: string; baseRate?: number; totalRooms?: number; baseAdults?: number; additionalAdultPrice?: number; additionalChildPrice?: number }>;
+  roomDetails: Array<{
+    id?: string;
+    _id?: string;
+    name?: string;
+    baseRate?: number;
+    totalRooms?: number;
+    baseAdults?: number;
+    additionalAdultPrice?: number;
+    additionalChildPrice?: number;
+  }>;
   media: Array<{ url: string }>;
 };
 const sections = [
@@ -49,18 +58,30 @@ const sections = [
   { id: "analytics", label: "Analysis & Report", icon: BarChart3 },
   { id: "help", label: "Help Center", icon: HelpCircle },
 ] as const;
+const permissionFor = {
+  home: "VIEW_PROPERTIES",
+  bookings: "VIEW_BOOKINGS",
+  rates: "VIEW_RATES",
+  payments: "VIEW_PAYMENTS",
+  information: "VIEW_PROPERTIES",
+  reviews: "VIEW_REVIEWS",
+  analytics: "VIEW_ANALYTICS",
+  help: "CONTACT_SUPPORT",
+} as const;
 export function PropertyManager({
   property,
   site,
   token,
   onBack,
   onEdit,
+  permissions,
 }: {
   property: Property;
   site?: Site;
   token: string;
   onBack: () => void;
   onEdit: () => void;
+  permissions?: string[];
 }) {
   const [tab, setTab] = useState<(typeof sections)[number]["id"]>("home");
   const [qr, setQr] = useState("");
@@ -72,6 +93,16 @@ export function PropertyManager({
     priority: "normal",
     attachments: [] as string[],
   });
+  const availableSections = useMemo(
+    () =>
+      permissions
+        ? sections.filter(({ id }) => permissions.includes(permissionFor[id]))
+        : sections,
+    [permissions],
+  );
+  const activeTab = availableSections.some((section) => section.id === tab)
+    ? tab
+    : availableSections[0]?.id;
   const reviewLink = useMemo(
     () =>
       `https://${site?.domain || "guwahatihomestay.com"}/hotels/${property.slug || property._id}?review=1`,
@@ -87,10 +118,16 @@ export function PropertyManager({
     );
   const submit = async () => {
     try {
-      await apiRequest("/api/v1/owner/support-tickets", token, {
-        method: "POST",
-        body: JSON.stringify({ ...ticket, propertyId: property._id }),
-      });
+      await apiRequest(
+        permissions
+          ? "/api/v1/owner/team-member/support-tickets"
+          : "/api/v1/owner/support-tickets",
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({ ...ticket, propertyId: property._id }),
+        },
+      );
       setMessage("Support request submitted.");
       setTicket({ ...ticket, subject: "", description: "" });
     } catch (e) {
@@ -119,10 +156,10 @@ export function PropertyManager({
         <h2>{property.displayName || property.name}</h2>
         <span className="owner-status approved">LIVE</span>
         <nav>
-          {sections.map(({ id, label, icon: Icon }) => (
+          {availableSections.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              className={tab === id ? "active" : ""}
+              className={activeTab === id ? "active" : ""}
               onClick={() => setTab(id)}
             >
               <Icon />
@@ -135,11 +172,11 @@ export function PropertyManager({
         <header>
           <div>
             <span>PROPERTY DASHBOARD</span>
-            <h1>{sections.find((x) => x.id === tab)?.label}</h1>
+            <h1>{availableSections.find((x) => x.id === activeTab)?.label}</h1>
           </div>
           <b>{site?.name}</b>
         </header>
-        {tab === "home" && (
+        {activeTab === "home" && (
           <div className="manager-cards">
             <div className="property-performance-dashboard">
               <div className="property-performance-intro">
@@ -150,7 +187,9 @@ export function PropertyManager({
                   <h2>Good afternoon</h2>
                   <p>Here is how your property is performing today.</p>
                 </div>
-                <button onClick={onEdit}>Improve content score</button>
+                {(!permissions || permissions.includes("EDIT_PROPERTIES")) && (
+                  <button onClick={onEdit}>Improve content score</button>
+                )}
               </div>
               <div className="property-performance-layout">
                 <div className="property-performance-main">
@@ -263,9 +302,12 @@ export function PropertyManager({
                       />
                     </div>
                     <small>{property.completeness || 0}% content score</small>
-                    <button onClick={onEdit}>
-                      Update property information
-                    </button>
+                    {(!permissions ||
+                      permissions.includes("EDIT_PROPERTIES")) && (
+                      <button onClick={onEdit}>
+                        Update property information
+                      </button>
+                    )}
                   </div>
                   <footer>
                     <button onClick={() => setTab("help")}>
@@ -295,30 +337,34 @@ export function PropertyManager({
             </article>
           </div>
         )}
-        {tab === "bookings" && (
+        {activeTab === "bookings" && (
           <OwnerBookings
             propertyName={property.displayName || property.name}
             marketplaceName={site?.name}
             onManageInventory={() => setTab("rates")}
           />
         )}
-        {tab === "payments" && (
-          <OwnerPayments propertyId={property._id || ""} propertyName={property.displayName || property.name} token={token} />
+        {activeTab === "payments" && (
+          <OwnerPayments
+            propertyId={property._id || ""}
+            propertyName={property.displayName || property.name}
+            token={token}
+          />
         )}
-        {tab === "analytics" && (
+        {activeTab === "analytics" && (
           <EmptyState
             title="No analytics data available yet"
             text="Real views, conversion, bookings and revenue will appear here when collected."
           />
         )}
-        {tab === "rates" && (
+        {activeTab === "rates" && (
           <OwnerRatesInventory
             propertyId={property._id || ""}
             rooms={property.roomDetails}
             token={token}
           />
         )}
-        {tab === "information" && (
+        {activeTab === "information" && (
           <div className="wizard-card">
             <h2>Property Information</h2>
             <p>
@@ -326,12 +372,14 @@ export function PropertyManager({
               meals, policies and private legal details. Critical changes return
               to Super Admin review before becoming public.
             </p>
-            <button className="btn-primary" onClick={onEdit}>
-              Edit property information
-            </button>
+            {(!permissions || permissions.includes("EDIT_PROPERTIES")) && (
+              <button className="btn-primary" onClick={onEdit}>
+                Edit property information
+              </button>
+            )}
           </div>
         )}
-        {tab === "reviews" && (
+        {activeTab === "reviews" && (
           <div className="wizard-card qr-panel">
             <h2>Property review QR</h2>
             <p>The QR is tied to this property and marketplace only.</p>
@@ -359,7 +407,7 @@ export function PropertyManager({
             )}
           </div>
         )}
-        {tab === "help" && (
+        {activeTab === "help" && (
           <div className="wizard-card">
             <h2>Contact StayHaven Support</h2>
             {message && <p className="owner-review-note">{message}</p>}
@@ -392,15 +440,17 @@ export function PropertyManager({
                   <option value="high">High</option>
                 </select>
               </label>
-              <label className="wide">
-                Subject
-                <input
-                  value={ticket.subject}
-                  onChange={(e) =>
-                    setTicket({ ...ticket, subject: e.target.value })
-                  }
-                />
-              </label>
+              {!permissions && (
+                <label className="wide">
+                  Subject
+                  <input
+                    value={ticket.subject}
+                    onChange={(e) =>
+                      setTicket({ ...ticket, subject: e.target.value })
+                    }
+                  />
+                </label>
+              )}
               <label className="wide">
                 Description
                 <textarea

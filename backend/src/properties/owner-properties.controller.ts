@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -33,26 +34,49 @@ import { PropertiesService } from './properties.service';
 @ApiBearerAuth()
 @Controller('owner/properties')
 @UseGuards(JwtAuthGuard, RolesGuard, OwnerStatusGuard)
-@Roles(Role.HOTEL_OWNER)
+@Roles(Role.HOTEL_OWNER, Role.TEAM_MEMBER)
 export class OwnerPropertiesController {
   constructor(
     private properties: PropertiesService,
     private sites: SitesService,
   ) {}
 
+  private ownerId(user: PortalUser) {
+    return user.role === Role.TEAM_MEMBER ? user.ownerId || '' : user.sub;
+  }
+
+  private authorize(user: PortalUser, propertyId: string, permission: string) {
+    if (user.role !== Role.TEAM_MEMBER) return;
+    if (
+      !user.propertyIds?.includes(propertyId) ||
+      !user.permissions?.includes(permission)
+    )
+      throw new ForbiddenException(
+        'You do not have permission to access this property area',
+      );
+  }
+
   @Get()
   async list(
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalUser },
     @Query() query: OwnerPropertyQueryDto,
   ) {
     return {
       success: true,
-      data: await this.properties.listOwner(req.user.sub, query),
+      data: (
+        await this.properties.listOwner(this.ownerId(req.user), query)
+      ).filter(
+        (property) =>
+          req.user.role !== Role.TEAM_MEMBER ||
+          req.user.propertyIds?.includes(String(property._id)),
+      ),
     };
   }
 
   @Get('summary')
-  async summary(@Req() req: { user: { sub: string } }) {
+  async summary(@Req() req: { user: PortalUser }) {
+    if (req.user.role === Role.TEAM_MEMBER)
+      throw new ForbiddenException('Owner summary is not available');
     return {
       success: true,
       data: await this.properties.ownerSummary(req.user.sub),
@@ -64,6 +88,8 @@ export class OwnerPropertiesController {
     @Body() dto: CreateOwnerPropertyDto,
     @Req() req: Request & { user: { sub: string } },
   ) {
+    if ((req.user as PortalUser).role === Role.TEAM_MEMBER)
+      throw new ForbiddenException('Only the owner can create properties');
     const currentSiteId = dto.siteId
       ? undefined
       : String(
@@ -79,11 +105,12 @@ export class OwnerPropertiesController {
   @Get(':id')
   async get(
     @Param('id', MongoIdPipe) id: string,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalUser },
   ) {
+    this.authorize(req.user, id, 'VIEW_PROPERTIES');
     return {
       success: true,
-      data: await this.properties.getOwnerView(req.user.sub, id),
+      data: await this.properties.getOwnerView(this.ownerId(req.user), id),
     };
   }
 
@@ -91,11 +118,16 @@ export class OwnerPropertiesController {
   async inventory(
     @Param('id', MongoIdPipe) id: string,
     @Query() query: OwnerInventoryQueryDto,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalUser },
   ) {
+    this.authorize(req.user, id, 'VIEW_RATES');
     return {
       success: true,
-      data: await this.properties.getOwnerInventory(req.user.sub, id, query),
+      data: await this.properties.getOwnerInventory(
+        this.ownerId(req.user),
+        id,
+        query,
+      ),
     };
   }
 
@@ -103,12 +135,17 @@ export class OwnerPropertiesController {
   async updateInventory(
     @Param('id', MongoIdPipe) id: string,
     @Body() dto: UpdateOwnerInventoryDto,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalUser },
   ) {
+    this.authorize(req.user, id, 'MANAGE_RATES');
     return {
       success: true,
       message: 'Rates and inventory updated',
-      data: await this.properties.updateOwnerInventory(req.user.sub, id, dto),
+      data: await this.properties.updateOwnerInventory(
+        this.ownerId(req.user),
+        id,
+        dto,
+      ),
     };
   }
 
@@ -116,22 +153,33 @@ export class OwnerPropertiesController {
   async update(
     @Param('id', MongoIdPipe) id: string,
     @Body() dto: UpdateOwnerPropertyDto,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalUser },
   ) {
+    this.authorize(req.user, id, 'EDIT_PROPERTIES');
     return {
       success: true,
-      data: await this.properties.updateOwner(req.user.sub, id, dto),
+      data: await this.properties.updateOwner(this.ownerId(req.user), id, dto),
     };
   }
 
   @Delete(':id')
   async remove(
     @Param('id', MongoIdPipe) id: string,
-    @Req() req: { user: { sub: string } },
+    @Req() req: { user: PortalUser },
   ) {
+    if (req.user.role === Role.TEAM_MEMBER)
+      throw new ForbiddenException('Only the owner can delete properties');
     return {
       success: true,
       data: await this.properties.deleteOwner(req.user.sub, id),
     };
   }
 }
+
+type PortalUser = {
+  sub: string;
+  role: Role;
+  ownerId?: string;
+  propertyIds?: string[];
+  permissions?: string[];
+};

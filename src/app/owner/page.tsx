@@ -1,5 +1,5 @@
-import { OwnerDashboard } from "@/components/owner/OwnerDashboard";
+import { OwnerEntry } from "@/components/owner/OwnerEntry";
 
 export default function OwnerPage() {
-  return <OwnerDashboard />;
+  return <OwnerEntry />;
 }
