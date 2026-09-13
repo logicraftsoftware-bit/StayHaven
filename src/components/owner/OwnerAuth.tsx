@@ -38,13 +38,18 @@ export function OwnerAuth() {
     [password, setPassword] = useState(""),
     [otp, setOtp] = useState("");
   useEffect(() => {
-    if (localStorage.getItem(OWNER_TOKEN_KEY)) router.replace("/owner");
+    if (
+      localStorage.getItem(OWNER_TOKEN_KEY) &&
+      window.location.hash !== "#forgot-password"
+    )
+      router.replace("/owner");
   }, [router]);
   useEffect(() => {
-    const sync = () =>
-      setMode(
-        window.location.hash === "#create-account" ? "register" : "login",
-      );
+    const sync = () => {
+      if (window.location.hash === "#create-account") setMode("register");
+      else if (window.location.hash === "#forgot-password") setMode("forgot");
+      else setMode("login");
+    };
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -299,7 +304,7 @@ export function OwnerAuth() {
                     : "Send WhatsApp OTP"}
         </button>
         {mode === "login" ? (
-          <div className="owner-auth-secondary">
+          <div className="owner-auth-text-links">
             <button
               type="button"
               onClick={() => {
@@ -326,20 +331,21 @@ export function OwnerAuth() {
             </button>
           )
         )}
-        <div className="owner-auth-divider">
-          <span>or</span>
-        </div>
-        <button
-          type="button"
-          className="owner-auth-switch"
-          onClick={() =>
-            mode === "register" ? goLogin() : setMode("register")
-          }
-        >
-          {mode === "register"
-            ? "Already registered? Login"
-            : "Create a new owner account"}
-        </button>
+        {mode !== "verify" && mode !== "reset" && (
+          <p className="owner-auth-account-prompt">
+            {mode === "register"
+              ? "Already have an account?"
+              : "Don’t have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() =>
+                mode === "register" ? goLogin() : setMode("register")
+              }
+            >
+              {mode === "register" ? "Login" : "Create account"}
+            </button>
+          </p>
+        )}
       </form>
       <p className="owner-auth-note">
         <KeyRound /> Your login and property data are securely protected.

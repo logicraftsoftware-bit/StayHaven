@@ -18,6 +18,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { Brand } from "@/components/layout/Brand";
+import { ConfirmDialog } from "@/components/customer/ConfirmDialog";
 import { apiRequest } from "@/lib/api-client";
 import { OWNER_TOKEN_KEY } from "./OwnerAuth";
 
@@ -47,6 +48,7 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   const [propertySearch, setPropertySearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [notice, setNotice] = useState("");
@@ -114,6 +116,11 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(OWNER_TOKEN_KEY);
     router.replace("/list-your-property");
+  };
+
+  const recoverPassword = () => {
+    localStorage.removeItem(OWNER_TOKEN_KEY);
+    window.location.assign("/list-your-property#forgot-password");
   };
 
   const changePassword = async (event: FormEvent) => {
@@ -315,7 +322,10 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
                 </span>
                 <ChevronDown />
               </button>
-              <button className="owner-profile-logout" onClick={logout}>
+              <button
+                className="owner-profile-logout"
+                onClick={() => setLogoutOpen(true)}
+              >
                 <LogOut /> Logout
               </button>
             </div>
@@ -395,6 +405,13 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
                   onChange={(event) => setCurrentPassword(event.target.value)}
                 />
               </label>
+              <button
+                type="button"
+                className="owner-password-forgot"
+                onClick={recoverPassword}
+              >
+                Forgot your password? Verify through WhatsApp
+              </button>
               <label>
                 New password
                 <input
@@ -423,6 +440,14 @@ export function OwnerPortalLayout({ children }: { children: ReactNode }) {
           </section>
         </div>
       )}
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Log out of your owner account?"
+        description="You will need to sign in again to manage your properties."
+        confirmLabel="Yes, logout"
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={logout}
+      />
     </main>
   );
 }
