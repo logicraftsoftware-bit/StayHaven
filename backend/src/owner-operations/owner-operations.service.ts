@@ -28,11 +28,30 @@ export class OwnerOperationsService {
     return this.teams.find({ ownerId }).sort({ createdAt: -1 }).lean();
   }
   async saveTeam(ownerId: string, dto: TeamMemberDto, id?: string) {
-    const count = await this.properties.countDocuments({
-      _id: { $in: dto.assignedPropertyIds },
-      ownerId,
-    });
-    if (count !== dto.assignedPropertyIds.length)
+    const assignedPropertyIds = [
+      ...new Set(
+        dto.assignedPropertyIds.map((propertyId) => String(propertyId)),
+      ),
+    ];
+    const ownedProperties = await this.properties
+      .find({
+        _id: {
+          $in: assignedPropertyIds.map(
+            (propertyId) => new Types.ObjectId(propertyId),
+          ),
+        },
+        ownerId: new Types.ObjectId(ownerId),
+      })
+      .select('_id')
+      .lean();
+    const ownedPropertyIds = new Set(
+      ownedProperties.map((property) => String(property._id)),
+    );
+    if (
+      assignedPropertyIds.some(
+        (propertyId) => !ownedPropertyIds.has(propertyId),
+      )
+    )
       throw new ForbiddenException(
         'A selected property does not belong to this owner',
       );
@@ -42,7 +61,7 @@ export class OwnerOperationsService {
     const data: Record<string, unknown> = {
       ...safeDto,
       ownerId: new Types.ObjectId(ownerId),
-      assignedPropertyIds: dto.assignedPropertyIds.map(
+      assignedPropertyIds: assignedPropertyIds.map(
         (x) => new Types.ObjectId(x),
       ),
     };
