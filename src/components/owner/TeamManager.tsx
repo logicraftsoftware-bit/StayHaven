@@ -153,7 +153,7 @@ export function TeamManager() {
     setSaving(true);
     setNotice("");
     try {
-      await apiRequest(
+      const response = await apiRequest<Api<Member>>(
         `/api/v1/owner/team${editing._id ? `/${editing._id}` : ""}`,
         token,
         {
@@ -161,9 +161,18 @@ export function TeamManager() {
           body: JSON.stringify(editing),
         },
       );
+      setMembers((current) => {
+        const savedId = String(response.data._id || "");
+        const existingIndex = current.findIndex(
+          (member) => String(member._id || "") === savedId,
+        );
+        if (existingIndex === -1) return [response.data, ...current];
+        return current.map((member, index) =>
+          index === existingIndex ? response.data : member,
+        );
+      });
       setEditing(null);
       setStep(1);
-      await load(token);
       setNotice("Team member saved successfully.");
     } catch (error) {
       setNotice((error as Error).message);

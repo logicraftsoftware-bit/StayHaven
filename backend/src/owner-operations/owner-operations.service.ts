@@ -25,7 +25,10 @@ export class OwnerOperationsService {
     private jwt: JwtService,
   ) {}
   listTeam(ownerId: string) {
-    return this.teams.find({ ownerId }).sort({ createdAt: -1 }).lean();
+    return this.teams
+      .find({ ownerId: new Types.ObjectId(ownerId) })
+      .sort({ createdAt: -1 })
+      .lean();
   }
   async saveTeam(ownerId: string, dto: TeamMemberDto, id?: string) {
     const assignedPropertyIds = [
