@@ -226,7 +226,7 @@ export function OwnerDashboard() {
     return <div className="owner-loading">Opening owner dashboard…</div>;
   return (
     <main
-      className={`owner-dashboard-shell ${mobileMenuOpen ? "owner-mobile-menu-open" : ""}`}
+      className={`owner-dashboard-shell owner-portfolio-shell ${mobileMenuOpen ? "owner-mobile-menu-open" : ""}`}
     >
       <header className="owner-dashboard-header">
         <div className="owner-header-property-area">
