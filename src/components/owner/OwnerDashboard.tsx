@@ -13,6 +13,7 @@ import {
   KeyRound,
   LoaderCircle,
   LogOut,
+  Menu,
   Plus,
   RefreshCw,
   Sparkles,
@@ -82,6 +83,7 @@ export function OwnerDashboard() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordNotice, setPasswordNotice] = useState("");
@@ -223,9 +225,22 @@ export function OwnerDashboard() {
   if (loading)
     return <div className="owner-loading">Opening owner dashboard…</div>;
   return (
-    <main className="owner-dashboard-shell">
+    <main
+      className={`owner-dashboard-shell ${mobileMenuOpen ? "owner-mobile-menu-open" : ""}`}
+    >
       <header className="owner-dashboard-header">
-        <Brand />
+        <div className="owner-header-property-area">
+          <button
+            type="button"
+            className="owner-mobile-menu-button"
+            aria-label="Open owner menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </button>
+          <Brand />
+        </div>
         <div className="owner-profile-menu" ref={profileRef}>
           <button
             className="owner-profile-trigger"
@@ -291,13 +306,26 @@ export function OwnerDashboard() {
           )}
         </div>
       </header>
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          className="owner-mobile-menu-scrim"
+          aria-label="Close owner menu"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
       <div className="owner-workspace">
         <aside className="owner-sidebar">
           <b>StayHaven Partner</b>
-          <button className="active">
+          <button className="active" onClick={() => setMobileMenuOpen(false)}>
             <Building2 /> My Properties
           </button>
-          <button onClick={() => router.push("/owner/team")}>
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              router.push("/owner/team");
+            }}
+          >
             <Users /> My Team
           </button>
         </aside>
