@@ -37,6 +37,8 @@ export class UpdateCashfreeSettingsDto {
   @IsOptional() @IsString() @MaxLength(200) appId?: string;
   @IsOptional() @IsString() @MaxLength(300) secretKey?: string;
   @IsOptional() @IsString() @MaxLength(300) webhookSecret?: string;
+  @IsOptional() @IsString() @MaxLength(200) payoutClientId?: string;
+  @IsOptional() @IsString() @MaxLength(300) payoutClientSecret?: string;
   @IsOptional() @IsBoolean() liveMode?: boolean;
   @IsOptional() @IsIn(['RAZORPAY', 'CASHFREE']) activeGateway?: string;
 }

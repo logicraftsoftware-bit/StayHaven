@@ -16,6 +16,8 @@ export class PlatformSetting {
   @Prop({ default: '', select: false }) cashfreeAppId: string;
   @Prop({ default: '', select: false }) cashfreeSecretKey: string;
   @Prop({ default: '', select: false }) cashfreeWebhookSecret: string;
+  @Prop({ default: '', select: false }) cashfreePayoutClientId: string;
+  @Prop({ default: '', select: false }) cashfreePayoutClientSecret: string;
   @Prop({ default: false }) cashfreeLiveMode: boolean;
   @Prop({ default: '' }) aiSensyApiUrl: string;
   @Prop({ default: '', select: false }) aiSensyApiKey: string;

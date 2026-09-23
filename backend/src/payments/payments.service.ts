@@ -53,6 +53,8 @@ type CashfreeSettings = {
   webhookSecret: string;
   liveMode: boolean;
   activeGateway: string;
+  payoutClientId: string;
+  payoutClientSecret: string;
 };
 
 @Injectable()
@@ -161,6 +163,40 @@ export class PaymentsService implements OnModuleInit {
     if (!response.ok)
       throw new BadGatewayException(
         this.text(payload.message, 'Cashfree request failed'),
+      );
+    return payload;
+  }
+  private async cashfreePayout(
+    path: string,
+    body: Record<string, unknown>,
+    requestId: string,
+  ) {
+    const gateway = await this.cashfreeGateway();
+    if (!gateway.payoutClientId || !gateway.payoutClientSecret)
+      throw new ServiceUnavailableException(
+        'Cashfree Payouts credentials are not configured',
+      );
+    const base = gateway.liveMode
+      ? 'https://api.cashfree.com/payout'
+      : 'https://sandbox.cashfree.com/payout';
+    const response = await fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-version': '2024-01-01',
+        'x-client-id': gateway.payoutClientId,
+        'x-client-secret': gateway.payoutClientSecret,
+        'x-request-id': requestId,
+      },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    if (!response.ok)
+      throw new BadGatewayException(
+        this.text(payload.message, 'Cashfree payout request failed'),
       );
     return payload;
   }
@@ -579,11 +615,24 @@ export class PaymentsService implements OnModuleInit {
   }
 
   async requestWithdrawal(ownerId: string, dto: RequestWithdrawalDto) {
-    const gateway = await this.gateway();
-    if (!gateway.accountNumber)
+    const activeGateway = await this.settings.activePaymentGateway();
+    const gateway = (await this.settings.razorpay(true)) as RazorpaySettings;
+    if (activeGateway === 'RAZORPAY' && !gateway.accountNumber)
       throw new ServiceUnavailableException(
         'RazorpayX payout account is not configured',
       );
+    if (activeGateway === 'CASHFREE') {
+      const cashfreeSettings = (await this.settings.cashfree(
+        true,
+      )) as CashfreeSettings;
+      if (
+        !cashfreeSettings.payoutClientId ||
+        !cashfreeSettings.payoutClientSecret
+      )
+        throw new ServiceUnavailableException(
+          'Cashfree Payouts credentials are not configured',
+        );
+    }
     if (dto.amount < gateway.minimumWithdrawalAmount)
       throw new BadRequestException(
         `Minimum withdrawal is ₹${gateway.minimumWithdrawalAmount}`,
@@ -614,9 +663,65 @@ export class PaymentsService implements OnModuleInit {
       accountMask: `••••${this.secure(wallet.bankAccountNumber, true).slice(-4)}`,
       ifsc: this.secure(wallet.bankIfsc, true),
       status: 'PROCESSING',
+      gateway: activeGateway,
     });
     let payoutAccepted = false;
     try {
+      if (activeGateway === 'CASHFREE') {
+        const owner = await this.owners.findById(ownerId).lean();
+        const payout = await this.cashfreePayout(
+          '/transfers',
+          {
+            transfer_id: withdrawalNumber.replaceAll('-', ''),
+            transfer_amount: amount / 100,
+            transfer_mode: 'imps',
+            beneficiary_details: {
+              beneficiary_id: `owner_${ownerId}`,
+              beneficiary_name: wallet.beneficiaryName,
+              beneficiary_instrument_details: {
+                bank_account_number: this.secure(
+                  wallet.bankAccountNumber,
+                  true,
+                ),
+                bank_ifsc: this.secure(wallet.bankIfsc, true),
+              },
+              beneficiary_contact_details: {
+                beneficiary_email: owner?.email,
+                beneficiary_phone: owner?.phone,
+                beneficiary_country_code: '+91',
+              },
+            },
+            transfer_remarks: 'StayHaven owner withdrawal',
+          },
+          withdrawalNumber,
+        );
+        payoutAccepted = true;
+        withdrawal.gatewayPayoutId = this.text(
+          payout.cf_transfer_id,
+          withdrawalNumber,
+        );
+        withdrawal.utr = this.text(payout.transfer_utr);
+        withdrawal.status = this.text(payout.status, 'RECEIVED').toUpperCase();
+        await withdrawal.save();
+        await this.transactions.updateOne(
+          { reference: `withdrawal:${withdrawal._id.toString()}` },
+          {
+            $setOnInsert: {
+              ownerId,
+              withdrawalId: withdrawal._id,
+              type: 'WITHDRAWAL',
+              direction: 'DEBIT',
+              amount,
+              reference: `withdrawal:${withdrawal._id.toString()}`,
+              description: `Withdrawal ${withdrawalNumber}`,
+              status: 'PENDING',
+              appliedToBalance: true,
+            },
+          },
+          { upsert: true },
+        );
+        return withdrawal;
+      }
       let contactId = wallet.razorpayContactId;
       let fundAccountId = wallet.razorpayFundAccountId;
       if (!contactId) {
@@ -666,6 +771,7 @@ export class PaymentsService implements OnModuleInit {
       );
       payoutAccepted = true;
       withdrawal.razorpayPayoutId = String(payout.id);
+      withdrawal.gatewayPayoutId = String(payout.id);
       withdrawal.status = this.text(payout.status, 'queued').toUpperCase();
       await withdrawal.save();
       await this.transactions.updateOne(

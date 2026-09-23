@@ -162,12 +162,19 @@ export class PlatformSettingsService {
   async cashfree(includeSecrets = false) {
     const value = await this.settings
       .findOne({ key: 'payments' })
-      .select('+cashfreeAppId +cashfreeSecretKey +cashfreeWebhookSecret')
+      .select(
+        '+cashfreeAppId +cashfreeSecretKey +cashfreeWebhookSecret +cashfreePayoutClientId +cashfreePayoutClientSecret',
+      )
       .lean();
     const settings = {
       appId: this.crypt(value?.cashfreeAppId || '', true),
       secretKey: this.crypt(value?.cashfreeSecretKey || '', true),
       webhookSecret: this.crypt(value?.cashfreeWebhookSecret || '', true),
+      payoutClientId: this.crypt(value?.cashfreePayoutClientId || '', true),
+      payoutClientSecret: this.crypt(
+        value?.cashfreePayoutClientSecret || '',
+        true,
+      ),
       liveMode: Boolean(value?.cashfreeLiveMode),
       activeGateway: value?.activePaymentGateway || 'RAZORPAY',
     };
@@ -176,9 +183,14 @@ export class PlatformSettingsService {
       appId: settings.appId,
       secretKeyConfigured: Boolean(settings.secretKey),
       webhookSecretConfigured: Boolean(settings.webhookSecret),
+      payoutClientId: settings.payoutClientId,
+      payoutClientSecretConfigured: Boolean(settings.payoutClientSecret),
       liveMode: settings.liveMode,
       activeGateway: settings.activeGateway,
       gatewayReady: Boolean(settings.appId && settings.secretKey),
+      payoutsReady: Boolean(
+        settings.payoutClientId && settings.payoutClientSecret,
+      ),
     };
   }
 
@@ -198,6 +210,12 @@ export class PlatformSettingsService {
     if (dto.secretKey) set.cashfreeSecretKey = this.crypt(dto.secretKey.trim());
     if (dto.webhookSecret)
       set.cashfreeWebhookSecret = this.crypt(dto.webhookSecret.trim());
+    if (dto.payoutClientId !== undefined)
+      set.cashfreePayoutClientId = this.crypt(dto.payoutClientId.trim());
+    if (dto.payoutClientSecret)
+      set.cashfreePayoutClientSecret = this.crypt(
+        dto.payoutClientSecret.trim(),
+      );
     await this.settings.findOneAndUpdate(
       { key: 'payments' },
       { $set: set, $setOnInsert: { key: 'payments' } },
