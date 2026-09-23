@@ -17,6 +17,7 @@ import {
   UpdateAdminBrandingDto,
   UpdateMapSettingsDto,
   UpdateRazorpaySettingsDto,
+  UpdateCashfreeSettingsDto,
   UpdateAiSensySettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSettingsService } from './platform-settings.service';
@@ -92,6 +93,26 @@ export class PlatformSettingsController {
       success: true,
       message: 'Razorpay settings updated securely',
       data: await this.service.updateRazorpay(dto),
+    };
+  }
+
+  @Get('admin/settings/cashfree')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async adminCashfree() {
+    return { success: true, data: await this.service.cashfree(false) };
+  }
+
+  @Patch('admin/settings/cashfree')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async updateCashfree(@Body() dto: UpdateCashfreeSettingsDto) {
+    return {
+      success: true,
+      message: 'Cashfree settings updated securely',
+      data: await this.service.updateCashfree(dto),
     };
   }
 

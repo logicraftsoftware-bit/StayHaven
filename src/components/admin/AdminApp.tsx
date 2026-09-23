@@ -4405,6 +4405,8 @@ function ApiSettingsView({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [razorpay, setRazorpay] = useState({ keyId: "", keySecret: "", webhookSecret: "", accountNumber: "", liveMode: false, minimumWithdrawalAmount: 1000, keySecretConfigured: false, webhookSecretConfigured: false, accountNumberConfigured: false, gatewayReady: false, payoutsReady: false });
   const [savingRazorpay, setSavingRazorpay] = useState(false);
+  const [cashfree, setCashfree] = useState({ appId: "", secretKey: "", webhookSecret: "", liveMode: false, activeGateway: "RAZORPAY", secretKeyConfigured: false, webhookSecretConfigured: false, gatewayReady: false });
+  const [savingCashfree, setSavingCashfree] = useState(false);
   const [aiSensy, setAiSensy] = useState({ apiUrl: "https://backend.aisensy.com/campaign/t1/api/v2", apiKey: "", otpCampaign: "Homestay OTP Verification", apiKeyConfigured: false, ready: false });
   const [savingAiSensy, setSavingAiSensy] = useState(false);
 
@@ -4427,6 +4429,11 @@ function ApiSettingsView({ token }: { token: string }) {
   useEffect(() => {
     api<ApiResponse<typeof razorpay>>("/api/v1/admin/settings/razorpay", token)
       .then((result) => setRazorpay((value) => ({ ...value, ...result.data, keySecret: "", webhookSecret: "", accountNumber: "" })))
+      .catch((reason) => setError((reason as Error).message));
+  }, [token]);
+  useEffect(() => {
+    api<ApiResponse<typeof cashfree>>("/api/v1/admin/settings/cashfree", token)
+      .then((result) => setCashfree((value) => ({ ...value, ...result.data, secretKey: "", webhookSecret: "" })))
       .catch((reason) => setError((reason as Error).message));
   }, [token]);
 
@@ -4458,6 +4465,13 @@ function ApiSettingsView({ token }: { token: string }) {
       const result = await api<ApiResponse<typeof razorpay>>("/api/v1/admin/settings/razorpay", token, { method: "PATCH", body: JSON.stringify({ keyId: razorpay.keyId, ...(razorpay.keySecret ? { keySecret: razorpay.keySecret } : {}), ...(razorpay.webhookSecret ? { webhookSecret: razorpay.webhookSecret } : {}), ...(razorpay.accountNumber ? { accountNumber: razorpay.accountNumber } : {}), liveMode: razorpay.liveMode, minimumWithdrawalAmount: Number(razorpay.minimumWithdrawalAmount) }) });
       setRazorpay((value) => ({ ...value, ...result.data, keySecret: "", webhookSecret: "", accountNumber: "" })); setMessage(result.message || "Razorpay settings saved.");
     } catch (reason) { setError((reason as Error).message); } finally { setSavingRazorpay(false); }
+  }
+  async function saveCashfree(event: FormEvent) {
+    event.preventDefault(); setSavingCashfree(true); setMessage(""); setError("");
+    try {
+      const result = await api<ApiResponse<typeof cashfree>>("/api/v1/admin/settings/cashfree", token, { method: "PATCH", body: JSON.stringify({ appId: cashfree.appId, ...(cashfree.secretKey ? { secretKey: cashfree.secretKey } : {}), ...(cashfree.webhookSecret ? { webhookSecret: cashfree.webhookSecret } : {}), liveMode: cashfree.liveMode, activeGateway: cashfree.activeGateway }) });
+      setCashfree((value) => ({ ...value, ...result.data, secretKey: "", webhookSecret: "" })); setMessage(result.message || "Cashfree settings saved.");
+    } catch (reason) { setError((reason as Error).message); } finally { setSavingCashfree(false); }
   }
   async function saveAiSensy(event: FormEvent) {
     event.preventDefault(); setSavingAiSensy(true); setMessage(""); setError("");
@@ -4559,6 +4573,13 @@ function ApiSettingsView({ token }: { token: string }) {
           <div className="razorpay-fields"><label>Key ID<input value={razorpay.keyId} onChange={(e) => setRazorpay({ ...razorpay, keyId: e.target.value })} placeholder="rzp_live_…" autoComplete="off" required /></label><label>Key secret<input type="password" value={razorpay.keySecret} onChange={(e) => setRazorpay({ ...razorpay, keySecret: e.target.value })} placeholder={razorpay.keySecretConfigured ? "Configured — enter only to replace" : "Enter Razorpay key secret"} autoComplete="new-password" required={!razorpay.keySecretConfigured} /></label><label>Webhook secret<input type="password" value={razorpay.webhookSecret} onChange={(e) => setRazorpay({ ...razorpay, webhookSecret: e.target.value })} placeholder={razorpay.webhookSecretConfigured ? "Configured — enter only to replace" : "Set the same secret in Razorpay webhooks"} autoComplete="new-password" required={!razorpay.webhookSecretConfigured} /></label><label>RazorpayX source account number<input type="password" value={razorpay.accountNumber} onChange={(e) => setRazorpay({ ...razorpay, accountNumber: e.target.value })} placeholder={razorpay.accountNumberConfigured ? "Configured — enter only to replace" : "RazorpayX account_number"} autoComplete="off" required={!razorpay.accountNumberConfigured} /></label><label>Minimum owner withdrawal (₹)<input type="number" min="1000" step="1" value={razorpay.minimumWithdrawalAmount} onChange={(e) => setRazorpay({ ...razorpay, minimumWithdrawalAmount: Number(e.target.value) })} required /></label><label className="razorpay-mode"><input type="checkbox" checked={razorpay.liveMode} onChange={(e) => setRazorpay({ ...razorpay, liveMode: e.target.checked })}/><span><b>Live payment mode</b><small>Turn on only after test-mode checkout and payout verification.</small></span></label></div>
           <div className="api-settings-security"><ShieldCheck/><div><strong>Secrets are encrypted and never returned to the browser</strong><p>Configure the Razorpay webhook URL as <code>https://guwahatihomestay.com/api/v1/payments/razorpay/webhook</code> and enable payment.captured plus payout processed, failed and reversed events. RazorpayX must be activated before withdrawals can run.</p></div></div>
           <div className="api-settings-actions"><button className="admin-primary compact" disabled={savingRazorpay}>{savingRazorpay ? <LoaderCircle className="spin"/> : <KeyRound/>}{savingRazorpay ? "Saving…" : "Save Razorpay settings"}</button></div>
+        </form>
+        <form className="admin-card api-settings-card razorpay-settings-card" onSubmit={saveCashfree}>
+          <div className="api-settings-card-heading"><i><Landmark /></i><div><h2>Cashfree Payments</h2><p>Accept UPI, cards, netbanking and wallets through Cashfree Hosted Checkout while keeping owner settlements in the StayHaven wallet.</p></div><StatusBadge value={cashfree.gatewayReady ? "active" : "inactive"} /></div>
+          <div className="razorpay-readiness"><span className={cashfree.gatewayReady ? "ready" : ""}><Check/> Payment Gateway {cashfree.gatewayReady ? "ready" : "needs configuration"}</span><span className={cashfree.activeGateway === "CASHFREE" ? "ready" : ""}><Check/> {cashfree.activeGateway === "CASHFREE" ? "Selected for checkout" : "Razorpay selected"}</span></div>
+          <div className="razorpay-fields"><label>Cashfree App ID<input value={cashfree.appId} onChange={(e) => setCashfree({ ...cashfree, appId: e.target.value })} placeholder="Cashfree App ID" autoComplete="off" required /></label><label>Secret key<input type="password" value={cashfree.secretKey} onChange={(e) => setCashfree({ ...cashfree, secretKey: e.target.value })} placeholder={cashfree.secretKeyConfigured ? "Configured — enter only to replace" : "Enter Cashfree secret key"} autoComplete="new-password" required={!cashfree.secretKeyConfigured} /></label><label>Active customer checkout<select value={cashfree.activeGateway} onChange={(e) => setCashfree({ ...cashfree, activeGateway: e.target.value })}><option value="RAZORPAY">Razorpay</option><option value="CASHFREE" disabled={!cashfree.gatewayReady && !cashfree.secretKey}>Cashfree</option></select><small>Only one gateway accepts new bookings at a time. Existing records remain available.</small></label><label className="razorpay-mode"><input type="checkbox" checked={cashfree.liveMode} onChange={(e) => setCashfree({ ...cashfree, liveMode: e.target.checked })}/><span><b>Cashfree production mode</b><small>Keep disabled while testing with sandbox credentials.</small></span></label></div>
+          <div className="api-settings-security"><ShieldCheck/><div><strong>Credentials are encrypted and status is verified server-side</strong><p>Configure <code>https://guwahatihomestay.com/api/v1/payments/cashfree/webhook</code> in Cashfree and enable payment events.</p></div></div>
+          <div className="api-settings-actions"><button className="admin-primary compact" disabled={savingCashfree}>{savingCashfree ? <LoaderCircle className="spin"/> : <KeyRound/>}{savingCashfree ? "Saving…" : "Save Cashfree settings"}</button></div>
         </form></div>
       )}
     </>

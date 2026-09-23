@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsNumber,
   IsOptional,
+  IsIn,
   IsString,
   IsUrl,
   MaxLength,
@@ -30,6 +31,14 @@ export class UpdateRazorpaySettingsDto {
   @IsOptional() @IsString() @MaxLength(100) accountNumber?: string;
   @IsOptional() @IsBoolean() liveMode?: boolean;
   @IsOptional() @IsNumber() @Min(1000) minimumWithdrawalAmount?: number;
+}
+
+export class UpdateCashfreeSettingsDto {
+  @IsOptional() @IsString() @MaxLength(200) appId?: string;
+  @IsOptional() @IsString() @MaxLength(300) secretKey?: string;
+  @IsOptional() @IsString() @MaxLength(300) webhookSecret?: string;
+  @IsOptional() @IsBoolean() liveMode?: boolean;
+  @IsOptional() @IsIn(['RAZORPAY', 'CASHFREE']) activeGateway?: string;
 }
 
 export class UpdateAiSensySettingsDto {

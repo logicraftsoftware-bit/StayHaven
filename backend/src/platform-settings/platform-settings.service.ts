@@ -14,6 +14,7 @@ import {
   UpdateAdminBrandingDto,
   UpdateMapSettingsDto,
   UpdateRazorpaySettingsDto,
+  UpdateCashfreeSettingsDto,
   UpdateAiSensySettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSetting } from './schemas/platform-setting.schema';
@@ -156,6 +157,53 @@ export class PlatformSettingsService {
       { upsert: true, runValidators: true },
     );
     return this.razorpay(false);
+  }
+
+  async cashfree(includeSecrets = false) {
+    const value = await this.settings
+      .findOne({ key: 'payments' })
+      .select('+cashfreeAppId +cashfreeSecretKey +cashfreeWebhookSecret')
+      .lean();
+    const settings = {
+      appId: this.crypt(value?.cashfreeAppId || '', true),
+      secretKey: this.crypt(value?.cashfreeSecretKey || '', true),
+      webhookSecret: this.crypt(value?.cashfreeWebhookSecret || '', true),
+      liveMode: Boolean(value?.cashfreeLiveMode),
+      activeGateway: value?.activePaymentGateway || 'RAZORPAY',
+    };
+    if (includeSecrets) return settings;
+    return {
+      appId: settings.appId,
+      secretKeyConfigured: Boolean(settings.secretKey),
+      webhookSecretConfigured: Boolean(settings.webhookSecret),
+      liveMode: settings.liveMode,
+      activeGateway: settings.activeGateway,
+      gatewayReady: Boolean(settings.appId && settings.secretKey),
+    };
+  }
+
+  async activePaymentGateway() {
+    const value = await this.settings.findOne({ key: 'payments' }).lean();
+    return value?.activePaymentGateway === 'CASHFREE' ? 'CASHFREE' : 'RAZORPAY';
+  }
+
+  async updateCashfree(dto: UpdateCashfreeSettingsDto) {
+    const current = await this.cashfree(true);
+    const set: Record<string, unknown> = {
+      cashfreeLiveMode: dto.liveMode ?? current.liveMode,
+      activePaymentGateway: dto.activeGateway ?? current.activeGateway,
+    };
+    if (dto.appId !== undefined)
+      set.cashfreeAppId = this.crypt(dto.appId.trim());
+    if (dto.secretKey) set.cashfreeSecretKey = this.crypt(dto.secretKey.trim());
+    if (dto.webhookSecret)
+      set.cashfreeWebhookSecret = this.crypt(dto.webhookSecret.trim());
+    await this.settings.findOneAndUpdate(
+      { key: 'payments' },
+      { $set: set, $setOnInsert: { key: 'payments' } },
+      { upsert: true, runValidators: true },
+    );
+    return this.cashfree(false);
   }
 
   async aiSensy(includeSecret = false) {

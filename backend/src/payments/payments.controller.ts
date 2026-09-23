@@ -25,6 +25,7 @@ import {
   RequestWithdrawalDto,
   SaveBankAccountDto,
   VerifyPaymentDto,
+  VerifyCashfreePaymentDto,
 } from './dto/payment.dto';
 import { PaymentsService } from './payments.service';
 
@@ -52,6 +53,16 @@ export class CustomerPaymentsController {
       success: true,
       message: 'Payment verified and booking confirmed',
       data: await this.service.verifyPayment(req.user.sub, dto),
+    };
+  }
+  @Post('verify-cashfree') async verifyCashfree(
+    @Req() req: { user: { sub: string } },
+    @Body() dto: VerifyCashfreePaymentDto,
+  ) {
+    return {
+      success: true,
+      message: 'Cashfree payment verified and booking confirmed',
+      data: await this.service.verifyCashfreePayment(req.user.sub, dto),
     };
   }
   @Get() async list(@Req() req: { user: { sub: string } }) {
@@ -147,6 +158,20 @@ export class RazorpayWebhookController {
       data: await this.service.webhook(
         req.rawBody || Buffer.from(''),
         signature,
+      ),
+    };
+  }
+  @Post('cashfree/webhook') async cashfreeWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('x-webhook-signature') signature: string,
+    @Headers('x-webhook-timestamp') timestamp: string,
+  ) {
+    return {
+      success: true,
+      data: await this.service.cashfreeWebhook(
+        req.rawBody || Buffer.from(''),
+        signature,
+        timestamp,
       ),
     };
   }

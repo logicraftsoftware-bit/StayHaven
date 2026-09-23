@@ -30,6 +30,7 @@ import {
   RequestWithdrawalDto,
   SaveBankAccountDto,
   VerifyPaymentDto,
+  VerifyCashfreePaymentDto,
 } from './dto/payment.dto';
 import { Booking } from './schemas/booking.schema';
 import {
@@ -45,6 +46,13 @@ type RazorpaySettings = {
   accountNumber: string;
   liveMode: boolean;
   minimumWithdrawalAmount: number;
+};
+type CashfreeSettings = {
+  appId: string;
+  secretKey: string;
+  webhookSecret: string;
+  liveMode: boolean;
+  activeGateway: string;
 };
 
 @Injectable()
@@ -95,17 +103,22 @@ export class PaymentsService implements OnModuleInit {
       .update(this.config.getOrThrow<string>('jwt.secret'))
       .digest();
     if (decode) {
-      const [ivHex, tagHex, data] = value.split(':');
-      const decipher = createDecipheriv(
-        'aes-256-gcm',
-        key,
-        Buffer.from(ivHex, 'hex'),
-      );
-      decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-      return Buffer.concat([
-        decipher.update(Buffer.from(data, 'base64')),
-        decipher.final(),
-      ]).toString('utf8');
+      try {
+        const [ivHex, tagHex, data] = value.split(':');
+        const decipher = createDecipheriv(
+          'aes-256-gcm',
+          key,
+          Buffer.from(ivHex, 'hex'),
+        );
+        decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+        return Buffer.concat([
+          decipher.update(Buffer.from(data, 'base64')),
+          decipher.final(),
+        ]).toString('utf8');
+      } catch {
+        this.logger.warn('Ignored unreadable legacy owner bank details');
+        return '';
+      }
     }
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv);
@@ -119,6 +132,37 @@ export class PaymentsService implements OnModuleInit {
         'Online payment is not configured yet',
       );
     return value;
+  }
+  private async cashfreeGateway(): Promise<CashfreeSettings> {
+    const value = (await this.settings.cashfree(true)) as CashfreeSettings;
+    if (!value.appId || !value.secretKey)
+      throw new ServiceUnavailableException('Cashfree is not configured yet');
+    return value;
+  }
+  private async cashfree(path: string, init: RequestInit = {}) {
+    const gateway = await this.cashfreeGateway();
+    const base = gateway.liveMode
+      ? 'https://api.cashfree.com/pg'
+      : 'https://sandbox.cashfree.com/pg';
+    const response = await fetch(`${base}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-version': '2023-08-01',
+        'x-client-id': gateway.appId,
+        'x-client-secret': gateway.secretKey,
+        ...(init.headers || {}),
+      },
+    });
+    const payload = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    if (!response.ok)
+      throw new BadGatewayException(
+        this.text(payload.message, 'Cashfree request failed'),
+      );
+    return payload;
   }
   private async razorpay(
     path: string,
@@ -204,12 +248,37 @@ export class PaymentsService implements OnModuleInit {
       (grossAmount * commissionPercent) / 100,
     );
     const bookingNumber = this.id('GH');
-    const order = await this.razorpay('/orders', {
-      amount: grossAmount,
-      currency: 'INR',
-      receipt: bookingNumber,
-      notes: { propertyId: String(property._id), customerId },
-    });
+    const activeGateway = await this.settings.activePaymentGateway();
+    const order =
+      activeGateway === 'CASHFREE'
+        ? await this.cashfree('/orders', {
+            method: 'POST',
+            body: JSON.stringify({
+              order_id: bookingNumber,
+              order_amount: grossAmount / 100,
+              order_currency: 'INR',
+              customer_details: {
+                customer_id: customerId,
+                customer_name: dto.guestName.trim(),
+                customer_email: dto.guestEmail.toLowerCase(),
+                customer_phone: dto.guestPhone.trim(),
+              },
+              order_meta: {
+                notify_url:
+                  'https://guwahatihomestay.com/api/v1/payments/cashfree/webhook',
+              },
+              order_note: `${property.displayName || property.name} booking`,
+            }),
+          })
+        : await this.razorpay('/orders', {
+            amount: grossAmount,
+            currency: 'INR',
+            receipt: bookingNumber,
+            notes: { propertyId: String(property._id), customerId },
+          });
+    const gatewayOrderId = String(
+      activeGateway === 'CASHFREE' ? order.order_id : order.id,
+    );
     const booking = await this.bookings.create({
       customerId,
       ownerId: property.ownerId,
@@ -235,10 +304,29 @@ export class PaymentsService implements OnModuleInit {
       commissionPercent,
       commissionAmount,
       ownerNetAmount: grossAmount - commissionAmount,
-      razorpayOrderId: String(order.id),
+      paymentGateway: activeGateway,
+      gatewayOrderId,
+      ...(activeGateway === 'RAZORPAY'
+        ? { razorpayOrderId: gatewayOrderId }
+        : {}),
     });
+    if (activeGateway === 'CASHFREE') {
+      const cashfree = await this.cashfreeGateway();
+      return {
+        gateway: 'CASHFREE',
+        bookingId: booking._id,
+        bookingNumber,
+        orderId: gatewayOrderId,
+        paymentSessionId: order.payment_session_id,
+        mode: cashfree.liveMode ? 'production' : 'sandbox',
+        amount: grossAmount,
+        currency: 'INR',
+        propertyName: booking.propertyName,
+      };
+    }
     const gateway = await this.gateway();
     return {
+      gateway: 'RAZORPAY',
       bookingId: booking._id,
       bookingNumber,
       razorpayOrderId: order.id,
@@ -271,15 +359,47 @@ export class PaymentsService implements OnModuleInit {
       !timingSafeEqual(received, expectedBuffer)
     )
       throw new BadRequestException('Payment signature is invalid');
-    await this.captureBooking(booking.razorpayOrderId, dto.razorpayPaymentId);
+    await this.captureBooking(
+      booking.razorpayOrderId || booking.gatewayOrderId || '',
+      dto.razorpayPaymentId,
+    );
+    return this.customerBooking(customerId, String(booking._id));
+  }
+  async verifyCashfreePayment(
+    customerId: string,
+    dto: VerifyCashfreePaymentDto,
+  ) {
+    const booking = await this.bookings.findOne({
+      customerId,
+      paymentGateway: 'CASHFREE',
+      gatewayOrderId: dto.orderId,
+    });
+    if (!booking) throw new NotFoundException('Cashfree order not found');
+    const order = await this.cashfree(
+      `/orders/${encodeURIComponent(dto.orderId)}`,
+    );
+    if (order.order_status !== 'PAID')
+      throw new BadRequestException('Cashfree has not confirmed this payment');
+    await this.captureBooking(
+      dto.orderId,
+      this.text(order.cf_order_id, dto.orderId),
+    );
     return this.customerBooking(customerId, String(booking._id));
   }
   private async captureBooking(orderId: string, paymentId: string) {
+    const booking = await this.bookings.findOne({
+      $or: [{ gatewayOrderId: orderId }, { razorpayOrderId: orderId }],
+      paymentStatus: { $ne: 'PAID' },
+    });
+    if (!booking) return null;
     return this.bookings.findOneAndUpdate(
-      { razorpayOrderId: orderId, paymentStatus: { $ne: 'PAID' } },
+      { _id: booking._id, paymentStatus: { $ne: 'PAID' } },
       {
         $set: {
-          razorpayPaymentId: paymentId,
+          gatewayPaymentId: paymentId,
+          ...(booking.paymentGateway !== 'CASHFREE'
+            ? { razorpayPaymentId: paymentId }
+            : {}),
           paymentStatus: 'PAID',
           status: 'CONFIRMED',
           settlementStatus: 'ON_HOLD',
@@ -412,6 +532,10 @@ export class PaymentsService implements OnModuleInit {
     const held = bookings
       .filter((x) => x.settlementStatus !== 'SETTLED')
       .reduce((sum, x) => sum + x.ownerNetAmount, 0);
+    const encryptedBank =
+      (wallet as unknown as { bankAccountNumber?: string } | null)
+        ?.bankAccountNumber || '';
+    const bankAccount = this.secure(encryptedBank, true);
     return {
       wallet: {
         availableBalance: wallet?.availableBalance || 0,
@@ -419,17 +543,12 @@ export class PaymentsService implements OnModuleInit {
         totalSettled: wallet?.totalSettled || 0,
         totalWithdrawn: wallet?.totalWithdrawn || 0,
         beneficiaryName: wallet?.beneficiaryName || '',
-        accountMask: wallet
-          ? `••••${this.secure((wallet as unknown as { bankAccountNumber?: string }).bankAccountNumber || '', true).slice(-4)}`
-          : '',
-        bankConfigured: Boolean(
-          wallet?.razorpayFundAccountId ||
-          (wallet as unknown as { bankAccountNumber?: string })
-            .bankAccountNumber,
+        accountMask: bankAccount ? `••••${bankAccount.slice(-4)}` : '',
+        bankConfigured: Boolean(wallet?.razorpayFundAccountId || bankAccount),
+        minimumWithdrawalAmount: Number(
+          (paymentSettings as { minimumWithdrawalAmount?: number })
+            .minimumWithdrawalAmount || 1000,
         ),
-        minimumWithdrawalAmount: (
-          paymentSettings as { minimumWithdrawalAmount: number }
-        ).minimumWithdrawalAmount,
       },
       bookings,
       transactions,
@@ -612,6 +731,38 @@ export class PaymentsService implements OnModuleInit {
           String((entity.failure_reason as string) || ''),
         );
     }
+    return { received: true };
+  }
+  async cashfreeWebhook(raw: Buffer, signature: string, timestamp: string) {
+    const gateway = (await this.settings.cashfree(true)) as CashfreeSettings;
+    const secret = gateway.secretKey;
+    if (!secret)
+      throw new ServiceUnavailableException(
+        'Cashfree webhook is not configured',
+      );
+    const expected = createHmac('sha256', secret)
+      .update(`${timestamp}${raw.toString('utf8')}`)
+      .digest('base64');
+    const a = Buffer.from(signature || '');
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b))
+      throw new BadRequestException('Invalid Cashfree webhook signature');
+    const event = JSON.parse(raw.toString('utf8')) as {
+      type?: string;
+      data?: {
+        order?: { order_id?: string };
+        payment?: { cf_payment_id?: string | number; payment_status?: string };
+      };
+    };
+    if (
+      event.type === 'PAYMENT_SUCCESS_WEBHOOK' &&
+      event.data?.payment?.payment_status === 'SUCCESS' &&
+      event.data.order?.order_id
+    )
+      await this.captureBooking(
+        event.data.order.order_id,
+        String(event.data.payment.cf_payment_id || ''),
+      );
     return { received: true };
   }
   private async updatePayout(

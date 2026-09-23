@@ -29,6 +29,9 @@ export class VerifyPaymentDto {
   @IsString() razorpayPaymentId: string;
   @IsString() razorpaySignature: string;
 }
+export class VerifyCashfreePaymentDto {
+  @IsString() @MaxLength(80) orderId: string;
+}
 export class SaveBankAccountDto {
   @IsString() @MaxLength(120) beneficiaryName: string;
   @Matches(/^\d{6,20}$/) accountNumber: string;

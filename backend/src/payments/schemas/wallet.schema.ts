@@ -51,6 +51,9 @@ export class Withdrawal {
   @Prop({ required: true }) accountMask: string;
   @Prop({ required: true }) ifsc: string;
   @Prop() razorpayPayoutId?: string;
+  @Prop({ default: 'RAZORPAY', enum: ['RAZORPAY', 'CASHFREE'] })
+  gateway: string;
+  @Prop() gatewayPayoutId?: string;
   @Prop() utr?: string;
   @Prop() failureReason?: string;
   @Prop() processedAt?: Date;
