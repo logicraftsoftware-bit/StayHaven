@@ -314,7 +314,7 @@ export function OwnerDashboard() {
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
-      <div className="owner-workspace">
+      <div className="owner-workspace owner-dashboard-workspace">
         <aside className="owner-sidebar">
           <b>StayHaven Partner</b>
           <button className="active" onClick={() => setMobileMenuOpen(false)}>
