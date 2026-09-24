@@ -9,13 +9,17 @@ import {
   Copy,
   Download,
   Eye,
+  Filter,
   HelpCircle,
   Home,
   IndianRupee,
   ListChecks,
+  MessageSquareText,
   QrCode,
+  Search,
   SlidersHorizontal,
   Sparkles,
+  Star,
   TrendingUp,
 } from "lucide-react";
 import QRCodeMaker from "qrcode";
@@ -380,32 +384,12 @@ export function PropertyManager({
           </div>
         )}
         {activeTab === "reviews" && (
-          <div className="wizard-card qr-panel">
-            <h2>Property review QR</h2>
-            <p>The QR is tied to this property and marketplace only.</p>
-            <code>{reviewLink}</code>
-            {qr ? (
-              <>
-                <img src={qr} alt="Property review QR" />
-                <div>
-                  <button
-                    onClick={() =>
-                      void navigator.clipboard.writeText(reviewLink)
-                    }
-                  >
-                    <Copy /> Copy link
-                  </button>
-                  <a href={qr} download={`${property.name}-review-qr.png`}>
-                    <Download /> Download PNG
-                  </a>
-                </div>
-              </>
-            ) : (
-              <button className="btn-primary" onClick={() => void makeQr()}>
-                <QrCode /> Generate Review QR
-              </button>
-            )}
-          </div>
+          <OwnerReviewsDashboard
+            propertyName={property.displayName || property.name}
+            reviewLink={reviewLink}
+            qr={qr}
+            onGenerateQr={() => void makeQr()}
+          />
         )}
         {activeTab === "help" && (
           <div className="wizard-card">
@@ -482,6 +466,74 @@ export function PropertyManager({
         )}
       </section>
     </main>
+  );
+}
+function OwnerReviewsDashboard({
+  propertyName,
+  reviewLink,
+  qr,
+  onGenerateQr,
+}: {
+  propertyName: string;
+  reviewLink: string;
+  qr: string;
+  onGenerateQr: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [search, setSearch] = useState("");
+  const distributions = [5, 4, 3, 2, 1];
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(reviewLink);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  return (
+    <div className="owner-ratings-dashboard">
+      <div className="owner-ratings-heading">
+        <div>
+          <h2>Ratings &amp; Reviews</h2>
+          <p>All ratings and guest reviews received by {propertyName}.</p>
+        </div>
+        <button className="owner-review-qr-link" onClick={onGenerateQr}>
+          <QrCode /> Get review QR code
+        </button>
+      </div>
+
+      <div className="owner-rating-overview">
+        <article className="owner-rating-summary-card">
+          <header>
+            <div className="owner-rating-brand"><Star /><span><strong>Direct website</strong><small>0 ratings &amp; 0 reviews</small></span></div>
+            <span className="owner-rating-status">Awaiting first review</span>
+          </header>
+          <div className="owner-rating-score-layout">
+            <div className="owner-rating-score"><strong>—</strong><span>/5</span><small>No ratings yet</small></div>
+            <div className="owner-rating-bars">
+              {distributions.map((rating) => (
+                <div key={rating}><span>{rating} star</span><i><b style={{ width: "0%" }} /></i><small>0% (0)</small></div>
+              ))}
+            </div>
+          </div>
+          <div className="owner-rating-subsection"><span>Category ratings</span><p>Category scores will appear after guests rate cleanliness, location, service and value.</p></div>
+          <div className="owner-rating-subsection"><span>Recent ratings</span><div className="owner-rating-chips">{[1, 2, 3, 4, 5].map((rating) => <i key={rating}>{rating}</i>)}</div></div>
+        </article>
+
+        <article className="owner-rating-qr-card">
+          <div className="owner-rating-qr-icon"><QrCode /></div>
+          <h3>Collect more guest reviews</h3>
+          <p>Share this property-specific link or place the QR code at reception and inside guest rooms.</p>
+          {qr ? <img src={qr} alt={`${propertyName} review QR code`} /> : <button className="btn-primary" onClick={onGenerateQr}><QrCode /> Generate QR code</button>}
+          <div className="owner-rating-link-row"><span>{reviewLink}</span><button onClick={() => void copyLink()}><Copy /> {copied ? "Copied" : "Copy"}</button></div>
+          {qr && <a className="owner-rating-download" href={qr} download={`${propertyName}-review-qr.png`}><Download /> Download PNG</a>}
+        </article>
+      </div>
+
+      <section className="owner-review-list-card">
+        <header><div><h2>All Ratings &amp; Reviews <span>(0)</span></h2><p>Search and filter feedback submitted by verified guests.</p></div><label className="owner-review-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by booking ID or guest" /></label></header>
+        <div className="owner-review-filters"><span><Filter /> Filters</span><select aria-label="Posted on"><option>Posted: Newest first</option><option>Oldest first</option></select><select aria-label="Rating"><option>Rating: All</option>{distributions.map((rating) => <option key={rating}>{rating} stars</option>)}</select><select aria-label="Reply status"><option>Reply: All</option><option>Replied</option><option>Not replied</option></select><select aria-label="Room"><option>Room: All</option></select><button type="button">Clear all</button></div>
+        <div className="owner-review-empty"><div><MessageSquareText /></div><h3>No guest reviews yet</h3><p>{search ? "No reviews match your search." : "New ratings and reviews will appear here automatically after guests submit feedback."}</p><button onClick={onGenerateQr}><QrCode /> Share review QR</button></div>
+      </section>
+    </div>
   );
 }
 function KpiCard({
