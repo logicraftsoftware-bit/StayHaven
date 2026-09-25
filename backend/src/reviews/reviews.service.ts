@@ -23,7 +23,7 @@ export class ReviewsService {
   async publicReviews(siteId: string, slug: string) {
     const property = await this.properties
       .findOne({
-        siteId,
+        siteId: new Types.ObjectId(siteId),
         slug,
         status: PropertyStatus.APPROVED,
         active: { $ne: false },
