@@ -19,6 +19,7 @@ import { OwnerOperationsModule } from './owner-operations/owner-operations.modul
 import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
 import { CustomersModule } from './customers/customers.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ReviewsModule } from './reviews/reviews.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -51,6 +52,7 @@ import { PaymentsModule } from './payments/payments.module';
     PlatformSettingsModule,
     CustomersModule,
     PaymentsModule,
+    ReviewsModule,
   ],
   controllers: [HealthController],
 })
