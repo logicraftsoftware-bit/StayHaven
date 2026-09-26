@@ -1808,6 +1808,15 @@
 }
 
 /* Phase 6 owner property workspace */
+.owner-analytics-report { width: 100%; }
+.owner-analytics-report > span { color: #980d1b; font-size: .75rem; font-weight: 800; letter-spacing: .1em; }
+.owner-analytics-report > p { color: #667085; line-height: 1.55; }
+.owner-analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.owner-analytics-grid article { display: flex; flex-direction: column; gap: .75rem; min-width: 0; padding: 1.5rem; border: 1px solid #e2e5ea; border-radius: 1rem; background: #fff; }
+.owner-analytics-grid small { color: #667085; }
+.owner-analytics-grid strong { font-size: 1.75rem; color: #101828; }
+@media (max-width: 800px) { .owner-analytics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .owner-analytics-grid { grid-template-columns: 1fr; } }
 .manager-shell {
   min-height: 100vh;
   background: #f5f6f8;

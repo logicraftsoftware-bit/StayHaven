@@ -21,6 +21,7 @@ import { OwnerBookings } from "@/components/owner/OwnerBookings";
 import { OwnerRatesInventory } from "@/components/owner/OwnerRatesInventory";
 import { OwnerPayments } from "@/components/owner/OwnerPayments";
 import { OwnerReviews } from "@/components/owner/OwnerReviews";
+import { OwnerAnalytics, analyticsMoney, useOwnerAnalytics } from "@/components/owner/OwnerAnalytics";
 type Site = { name: string; domain: string };
 type Property = {
   _id?: string;
@@ -100,6 +101,8 @@ export function PropertyManager({
   const activeTab = availableSections.some((section) => section.id === tab)
     ? tab
     : availableSections[0]?.id;
+  const analytics = useOwnerAnalytics(property._id || "", token,
+    !permissions || permissions.includes("VIEW_ANALYTICS"));
   const reviewLink = useMemo(
     () =>
       `https://${site?.domain || "guwahatihomestay.com"}/hotels/${property.slug || property._id}/review`,
@@ -232,43 +235,43 @@ export function PropertyManager({
                     <KpiCard
                       icon={CalendarDays}
                       title="Today's room nights"
-                      value="0"
-                      comparison="Last 7 days: 0 room nights"
+                      value={analytics.data ? String(analytics.data.today.roomNights) : "—"}
+                      comparison={analytics.data ? `Last 7 days: ${analytics.data.last7Days.roomNights} room nights` : "Booking data unavailable"}
                       onClick={() => setTab("bookings")}
                     />
                     <KpiCard
                       icon={IndianRupee}
                       title="Today's revenue"
-                      value="₹0"
-                      comparison="Last 7 days: ₹0"
+                      value={analyticsMoney(analytics.data?.today.revenue)}
+                      comparison={analytics.data ? `Last 7 days: ${analyticsMoney(analytics.data.last7Days.revenue)}` : "Booking data unavailable"}
                       onClick={() => setTab("payments")}
                     />
                     <KpiCard
                       icon={TrendingUp}
                       title="Average selling price"
-                      value="₹0"
-                      comparison="Last 7 days: ₹0"
+                      value={analyticsMoney(analytics.data?.last7Days.averageSellingPrice)}
+                      comparison="Paid room revenue per room night · last 7 days"
                       onClick={() => setTab("analytics")}
                     />
                     <KpiCard
                       icon={CalendarDays}
                       title="Today's check-ins"
-                      value="0"
-                      comparison="Last 7 days: 0 check-ins"
+                      value={analytics.data ? String(analytics.data.today.checkIns) : "—"}
+                      comparison={analytics.data ? `Last 7 days: ${analytics.data.last7Days.checkIns} check-ins` : "Booking data unavailable"}
                       onClick={() => setTab("bookings")}
                     />
                     <KpiCard
                       icon={Eye}
                       title="Property visits"
-                      value="0"
-                      comparison="Last 7 days: 0 visits"
+                      value="—"
+                      comparison="Visit tracking not available"
                       onClick={() => setTab("analytics")}
                     />
                     <KpiCard
                       icon={BarChart3}
                       title="Conversion"
-                      value="0%"
-                      comparison="Last 7 days: 0%"
+                      value="—"
+                      comparison="Conversion tracking not available"
                       onClick={() => setTab("analytics")}
                     />
                   </div>
@@ -348,12 +351,7 @@ export function PropertyManager({
             token={token}
           />
         )}
-        {activeTab === "analytics" && (
-          <EmptyState
-            title="No analytics data available yet"
-            text="Real views, conversion, bookings and revenue will appear here when collected."
-          />
-        )}
+        {activeTab === "analytics" && <OwnerAnalytics {...analytics} />}
         {activeTab === "rates" && (
           <OwnerRatesInventory
             propertyId={property._id || ""}
@@ -489,13 +487,5 @@ function KpiCard({
       </div>
       <button onClick={onClick}>View details</button>
     </article>
-  );
-}
-function EmptyState({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="owner-empty">
-      <h2>{title}</h2>
-      <p>{text}</p>
-    </div>
   );
 }

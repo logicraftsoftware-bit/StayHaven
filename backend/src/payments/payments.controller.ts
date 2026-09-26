@@ -89,6 +89,20 @@ export class CustomerPaymentsController {
 @Roles(Role.HOTEL_OWNER, Role.TEAM_MEMBER)
 export class OwnerPaymentsController {
   constructor(private service: PaymentsService) {}
+  @Get('analytics') async analytics(
+    @Req() req: { user: PortalPaymentUser },
+    @Query() query: PaymentQueryDto,
+  ) {
+    if (!query.propertyId)
+      throw new ForbiddenException('A property is required for analytics');
+    return {
+      success: true,
+      data: await this.service.ownerAnalytics(
+        this.ownerId(req.user, query.propertyId, 'VIEW_ANALYTICS'),
+        query.propertyId,
+      ),
+    };
+  }
   @Get() async list(
     @Req() req: { user: PortalPaymentUser },
     @Query() query: PaymentQueryDto,
@@ -125,14 +139,18 @@ export class OwnerPaymentsController {
       data: await this.service.requestWithdrawal(req.user.sub, dto),
     };
   }
-  private ownerId(user: PortalPaymentUser, propertyId?: string) {
+  private ownerId(
+    user: PortalPaymentUser,
+    propertyId?: string,
+    permission = 'VIEW_PAYMENTS',
+  ) {
     if (user.role !== Role.TEAM_MEMBER) return user.sub;
     if (
-      !user.permissions?.includes('VIEW_PAYMENTS') ||
+      !user.permissions?.includes(permission) ||
       !propertyId ||
       !user.propertyIds?.includes(propertyId)
     )
-      throw new ForbiddenException('VIEW_PAYMENTS permission is required');
+      throw new ForbiddenException(`${permission} permission is required`);
     return user.ownerId || '';
   }
 }

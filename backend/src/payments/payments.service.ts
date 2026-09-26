@@ -592,6 +592,107 @@ export class PaymentsService implements OnModuleInit {
     };
   }
 
+  async ownerAnalytics(ownerId: string, propertyId: string) {
+    const property = await this.properties.exists({
+      _id: new Types.ObjectId(propertyId),
+      ownerId: new Types.ObjectId(ownerId),
+    });
+    if (!property) throw new NotFoundException('Property not found');
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now);
+    const start = new Date(`${today}T00:00:00+05:30`);
+    const weekStart = new Date(start.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const tomorrow = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    const bookings = await this.bookings
+      .find({
+        ownerId: new Types.ObjectId(ownerId),
+        propertyId: new Types.ObjectId(propertyId),
+        $or: [
+          { checkIn: { $gte: weekStart, $lt: tomorrow } },
+          { checkOut: { $gt: weekStart }, checkIn: { $lt: weekStart } },
+          { paidAt: { $gte: weekStart, $lt: tomorrow } },
+        ],
+      })
+      .lean();
+    const paid = bookings.filter(
+      (booking) =>
+        booking.paymentStatus === 'PAID' && booking.status !== 'CANCELLED',
+    );
+    const overlappingNights = (from: Date, to: Date, booking: Booking) =>
+      Math.max(
+        0,
+        Math.round(
+          (Math.min(new Date(booking.checkOut).getTime(), to.getTime()) -
+            Math.max(new Date(booking.checkIn).getTime(), from.getTime())) /
+            86400000,
+        ),
+      ) * booking.rooms;
+    const sum = (items: Booking[], field: 'ownerNetAmount' | 'roomAmount') =>
+      items.reduce((total, booking) => total + booking[field], 0);
+    const todayPaid = paid.filter(
+      (booking) =>
+        booking.paidAt &&
+        new Date(booking.paidAt) >= start &&
+        new Date(booking.paidAt) < tomorrow,
+    );
+    const weekPaid = paid.filter(
+      (booking) =>
+        booking.paidAt &&
+        new Date(booking.paidAt) >= weekStart &&
+        new Date(booking.paidAt) < tomorrow,
+    );
+    const todayNights = paid.reduce(
+      (total, booking) => total + overlappingNights(start, tomorrow, booking),
+      0,
+    );
+    const weekNights = paid.reduce(
+      (total, booking) =>
+        total + overlappingNights(weekStart, tomorrow, booking),
+      0,
+    );
+    return {
+      asOf: now.toISOString(),
+      timeZone: 'Asia/Kolkata',
+      today: {
+        roomNights: todayNights,
+        revenue: sum(todayPaid, 'ownerNetAmount'),
+        checkIns: paid.filter(
+          (booking) =>
+            new Date(booking.checkIn) >= start &&
+            new Date(booking.checkIn) < tomorrow,
+        ).length,
+      },
+      last7Days: {
+        roomNights: weekNights,
+        revenue: sum(weekPaid, 'ownerNetAmount'),
+        checkIns: paid.filter(
+          (booking) =>
+            new Date(booking.checkIn) >= weekStart &&
+            new Date(booking.checkIn) < tomorrow,
+        ).length,
+        averageSellingPrice: weekNights
+          ? Math.round(
+              paid.reduce(
+                (total, booking) =>
+                  total +
+                  (booking.roomAmount /
+                    Math.max(1, booking.nights * booking.rooms)) *
+                    overlappingNights(weekStart, tomorrow, booking),
+                0,
+              ) / weekNights,
+            )
+          : null,
+      },
+      visits: null,
+      conversionRate: null,
+    };
+  }
+
   async saveBank(ownerId: string, dto: SaveBankAccountDto) {
     await this.wallets.findOneAndUpdate(
       { ownerId },
