@@ -2,20 +2,348 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Bath, BedDouble, Check, ChevronRight, MapPin, Ruler, Users } from "lucide-react";
+import {
+  Bath,
+  BedDouble,
+  Check,
+  ChevronRight,
+  MapPin,
+  Ruler,
+  Users,
+} from "lucide-react";
 import { Shell } from "@/components/layout/Shell";
 import { AvailabilityPicker } from "@/components/hotel/AvailabilityPicker";
+import { PropertyReviews } from "@/components/hotel/PropertyReviews";
 import { canonicalUrl, getCurrentSite } from "@/lib/site";
-import { coverFor, getPublicProperty, mediaUrl, startingRate } from "@/lib/public-marketplace";
+import {
+  coverFor,
+  getPublicProperty,
+  mediaUrl,
+  startingRate,
+} from "@/lib/public-marketplace";
 import type { PublicMedia, PublicRoom } from "@/types/public-property";
 
 type Props = { params: Promise<{ slug: string }> };
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const { slug } = await params; const [property, site] = await Promise.all([getPublicProperty(slug), getCurrentSite()]); if (!property) return { title: "Property not found", robots: { index: false } }; const title = property.seo?.title || `${property.displayName || property.name} in ${property.city}`; const description = property.seo?.description || property.description || `View rooms, amenities and stay information for ${property.name}.`; const canonical = new URL(`/hotels/${property.slug}`, canonicalUrl(site)).toString(); const image = coverFor(property); return { title, description, keywords: property.seo?.keywords, alternates: { canonical }, openGraph: { title, description, url: canonical, type: "website", images: image ? [{ url: image }] : undefined }, twitter: { card: "summary_large_image", title, description, images: image ? [image] : undefined } }; }
-function imageMedia(media: PublicMedia[] = []) { return media.filter((item) => item.mediaType !== "video" && mediaUrl(item)); }
-function roomImages(room: PublicRoom, all: PublicMedia[]) { const own = imageMedia(room.media); if (own.length) return own; const name = (room.name || "").toLowerCase(); return imageMedia(all).filter((item) => item.category?.toLowerCase() === "room" || item.tags?.some((tag) => tag.toLowerCase() === name)); }
-const yesNo = (value?: boolean) => value ? "Attached bathroom" : "Shared / no attached bathroom";
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const [property, site] = await Promise.all([
+    getPublicProperty(slug),
+    getCurrentSite(),
+  ]);
+  if (!property)
+    return { title: "Property not found", robots: { index: false } };
+  const title =
+    property.seo?.title ||
+    `${property.displayName || property.name} in ${property.city}`;
+  const description =
+    property.seo?.description ||
+    property.description ||
+    `View rooms, amenities and stay information for ${property.name}.`;
+  const canonical = new URL(
+    `/hotels/${property.slug}`,
+    canonicalUrl(site),
+  ).toString();
+  const image = coverFor(property);
+  return {
+    title,
+    description,
+    keywords: property.seo?.keywords,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
+function imageMedia(media: PublicMedia[] = []) {
+  return media.filter((item) => item.mediaType !== "video" && mediaUrl(item));
+}
+function roomImages(room: PublicRoom, all: PublicMedia[]) {
+  const own = imageMedia(room.media);
+  if (own.length) return own;
+  const name = (room.name || "").toLowerCase();
+  return imageMedia(all).filter(
+    (item) =>
+      item.category?.toLowerCase() === "room" ||
+      item.tags?.some((tag) => tag.toLowerCase() === name),
+  );
+}
+const yesNo = (value?: boolean) =>
+  value ? "Attached bathroom" : "Shared / no attached bathroom";
 export default async function PropertyDetail({ params }: Props) {
-  const { slug } = await params; const [property, site] = await Promise.all([getPublicProperty(slug), getCurrentSite()]); if (!property) notFound(); const images = imageMedia(property.media); const hero = coverFor(property); const rate = startingRate(property); const rooms = property.roomDetails || [];
-  const structured = { "@context": "https://schema.org", "@type": "LodgingBusiness", name: property.displayName || property.name, description: property.description, image: images.map(mediaUrl), address: { "@type": "PostalAddress", streetAddress: property.address, addressLocality: property.city, addressRegion: property.state, addressCountry: property.country }, url: new URL(`/hotels/${property.slug}`, canonicalUrl(site)).toString(), priceRange: rate ? `₹${rate}+` : undefined };
-  return <Shell><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }}/><main className="property-public"><div className="container"><nav className="property-breadcrumb"><span>{site.name}</span><ChevronRight/><span>{property.propertyType}</span><ChevronRight/><b>{property.displayName || property.name}</b></nav><header className="property-hero-heading"><div><p className="market-eyebrow">VERIFIED {property.propertyType.toUpperCase()}</p><h1>{property.displayName || property.name}</h1><span><MapPin/>{[property.address, property.city, property.state].filter(Boolean).join(", ")}</span></div>{rate > 0 && <div><small>Rooms from</small><strong>₹{rate.toLocaleString("en-IN")}</strong><span>per night</span></div>}</header><section className={`property-gallery ${images.length < 3 ? "compact" : ""}`}>{hero ? <div className="property-gallery-main"><Image src={hero} alt={property.displayName || property.name} fill priority sizes="(max-width: 900px) 100vw, 68vw"/></div> : <div className="property-gallery-empty">Photos coming soon</div>}{images.filter((item) => mediaUrl(item) !== hero).slice(0, 4).map((item, index) => <figure key={item.id || mediaUrl(item)}><Image src={mediaUrl(item)} alt={item.caption || `${property.name} view ${index + 2}`} fill sizes="(max-width: 900px) 50vw, 18vw"/><figcaption>{item.caption}</figcaption></figure>)}</section><div className="property-public-layout"><div className="property-public-content"><section className="property-intro"><p className="market-eyebrow">WELCOME TO YOUR STAY</p><h2>A place to slow down and feel at home</h2><p>{property.description || "Thoughtful accommodation, comfortable spaces and warm hospitality await."}</p><div className="property-quick-facts"><span><BedDouble/><b>{rooms.length || property.rooms || 0}</b> room types</span><span><Users/><b>{property.maxGuests || "Flexible"}</b> guest capacity</span><span><MapPin/><b>{property.city}</b> local stay</span></div></section><section className="property-section"><div className="property-section-heading"><p className="market-eyebrow">WHAT YOU'LL LOVE</p><h2>Amenities & highlights</h2></div><div className="property-amenities-public">{(property.amenities || []).map((item) => <span key={item}><Check/>{item}</span>)}</div></section><section className="property-section" id="rooms"><div className="property-section-heading"><p className="market-eyebrow">REST YOUR WAY</p><h2>Rooms & spaces</h2><span>{rooms.length} options</span></div><div className="public-room-list">{rooms.map((room, index) => { const photos = roomImages(room, property.media || []); const roomRate = Number(room.baseRate || room.price || property.price || 0); return <article key={room.id || room._id || index}>{photos[0] ? <div className="public-room-image"><Image src={mediaUrl(photos[0])} alt={room.name || `Room ${index + 1}`} fill sizes="(max-width: 800px) 100vw, 360px"/></div> : <div className="public-room-image empty"><BedDouble/></div>}<div className="public-room-body"><header><div><small>ROOM {String(index + 1).padStart(2, "0")}</small><h3>{room.name || `Room ${index + 1}`}</h3></div>{roomRate > 0 && <p><strong>₹{roomRate.toLocaleString("en-IN")}</strong> / night</p>}</header>{room.description && <p>{room.description}</p>}<div className="public-room-facts"><span><Users/>{room.baseAdults || 2}–{room.maxAdults || room.baseAdults || 2} adults</span><span><BedDouble/>{room.beds?.map((bed) => `${bed.quantity || 1} ${bed.type || "bed"}`).join(", ") || "Bed configured"}</span>{room.size && <span><Ruler/>{room.size} sq. ft.</span>}<span><Bath/>{yesNo(room.attachedBathroom)}</span></div><div className="market-card-tags">{(room.facilities || []).slice(0, 6).map((item) => <span key={item}>{item}</span>)}</div></div></article>; })}</div></section><section className="property-section"><div className="property-section-heading"><p className="market-eyebrow">GOOD TO KNOW</p><h2>Policies & house rules</h2></div><div className="public-policies">{Object.entries(property.policies || {}).filter(([, value]) => value !== "" && value !== undefined).slice(0, 12).map(([key, value]) => <div key={key}><span>{key.replace(/([A-Z])/g, " $1")}</span><b>{typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}</b></div>)}</div></section></div><aside><AvailabilityPicker slug={property.slug} rooms={rooms}/><div className="property-location-card"><MapPin/><div><small>LOCATION</small><h3>{property.city}, {property.state}</h3><p>{property.address}</p></div></div></aside></div></div></main></Shell>;
+  const { slug } = await params;
+  const [property, site] = await Promise.all([
+    getPublicProperty(slug),
+    getCurrentSite(),
+  ]);
+  if (!property) notFound();
+  const images = imageMedia(property.media);
+  const hero = coverFor(property);
+  const rate = startingRate(property);
+  const rooms = property.roomDetails || [];
+  const structured = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    name: property.displayName || property.name,
+    description: property.description,
+    image: images.map(mediaUrl),
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: property.address,
+      addressLocality: property.city,
+      addressRegion: property.state,
+      addressCountry: property.country,
+    },
+    url: new URL(`/hotels/${property.slug}`, canonicalUrl(site)).toString(),
+    priceRange: rate ? `₹${rate}+` : undefined,
+  };
+  return (
+    <Shell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structured).replace(/</g, "\\u003c"),
+        }}
+      />
+      <main className="property-public">
+        <div className="container">
+          <nav className="property-breadcrumb">
+            <span>{site.name}</span>
+            <ChevronRight />
+            <span>{property.propertyType}</span>
+            <ChevronRight />
+            <b>{property.displayName || property.name}</b>
+          </nav>
+          <header className="property-hero-heading">
+            <div>
+              <p className="market-eyebrow">
+                VERIFIED {property.propertyType.toUpperCase()}
+              </p>
+              <h1>{property.displayName || property.name}</h1>
+              <span>
+                <MapPin />
+                {[property.address, property.city, property.state]
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
+            </div>
+            {rate > 0 && (
+              <div>
+                <small>Rooms from</small>
+                <strong>₹{rate.toLocaleString("en-IN")}</strong>
+                <span>per night</span>
+              </div>
+            )}
+          </header>
+          <section
+            className={`property-gallery ${images.length < 3 ? "compact" : ""}`}
+          >
+            {hero ? (
+              <div className="property-gallery-main">
+                <Image
+                  src={hero}
+                  alt={property.displayName || property.name}
+                  fill
+                  priority
+                  sizes="(max-width: 900px) 100vw, 68vw"
+                />
+              </div>
+            ) : (
+              <div className="property-gallery-empty">Photos coming soon</div>
+            )}
+            {images
+              .filter((item) => mediaUrl(item) !== hero)
+              .slice(0, 4)
+              .map((item, index) => (
+                <figure key={item.id || mediaUrl(item)}>
+                  <Image
+                    src={mediaUrl(item)}
+                    alt={item.caption || `${property.name} view ${index + 2}`}
+                    fill
+                    sizes="(max-width: 900px) 50vw, 18vw"
+                  />
+                  <figcaption>{item.caption}</figcaption>
+                </figure>
+              ))}
+          </section>
+          <nav className="property-section-nav" aria-label="Property sections">
+            <a href="#overview">Overview</a>
+            <a href="#rooms">Rooms &amp; rates</a>
+            <a href="#amenities">Amenities</a>
+            <a href="#policies">Policies</a>
+            <a href="#reviews">Guest reviews</a>
+          </nav>
+          <div className="property-public-layout">
+            <div className="property-public-content">
+              <section className="property-intro" id="overview">
+                <p className="market-eyebrow">WELCOME TO YOUR STAY</p>
+                <h2>A place to slow down and feel at home</h2>
+                <p>
+                  {property.description ||
+                    "Thoughtful accommodation, comfortable spaces and warm hospitality await."}
+                </p>
+                <div className="property-quick-facts">
+                  <span>
+                    <BedDouble />
+                    <b>{rooms.length || property.rooms || 0}</b> room types
+                  </span>
+                  <span>
+                    <Users />
+                    <b>{property.maxGuests || "Flexible"}</b> guest capacity
+                  </span>
+                  <span>
+                    <MapPin />
+                    <b>{property.city}</b> local stay
+                  </span>
+                </div>
+              </section>
+              <section className="property-section" id="amenities">
+                <div className="property-section-heading">
+                  <p className="market-eyebrow">WHAT YOU'LL LOVE</p>
+                  <h2>Amenities & highlights</h2>
+                </div>
+                <div className="property-amenities-public">
+                  {(property.amenities || []).map((item) => (
+                    <span key={item}>
+                      <Check />
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </section>
+              <section className="property-section" id="rooms">
+                <div className="property-section-heading">
+                  <p className="market-eyebrow">REST YOUR WAY</p>
+                  <h2>Rooms & spaces</h2>
+                  <span>{rooms.length} options</span>
+                </div>
+                <div className="public-room-list">
+                  {rooms.map((room, index) => {
+                    const photos = roomImages(room, property.media || []);
+                    const roomRate = Number(
+                      room.baseRate || room.price || property.price || 0,
+                    );
+                    return (
+                      <article key={room.id || room._id || index}>
+                        {photos[0] ? (
+                          <div className="public-room-image">
+                            <Image
+                              src={mediaUrl(photos[0])}
+                              alt={room.name || `Room ${index + 1}`}
+                              fill
+                              sizes="(max-width: 800px) 100vw, 360px"
+                            />
+                          </div>
+                        ) : (
+                          <div className="public-room-image empty">
+                            <BedDouble />
+                          </div>
+                        )}
+                        <div className="public-room-body">
+                          <header>
+                            <div>
+                              <small>
+                                ROOM {String(index + 1).padStart(2, "0")}
+                              </small>
+                              <h3>{room.name || `Room ${index + 1}`}</h3>
+                            </div>
+                            {roomRate > 0 && (
+                              <p>
+                                <strong>
+                                  ₹{roomRate.toLocaleString("en-IN")}
+                                </strong>{" "}
+                                / night
+                              </p>
+                            )}
+                          </header>
+                          {room.description && <p>{room.description}</p>}
+                          <div className="public-room-facts">
+                            <span>
+                              <Users />
+                              {room.baseAdults || 2}–
+                              {room.maxAdults || room.baseAdults || 2} adults
+                            </span>
+                            <span>
+                              <BedDouble />
+                              {room.beds
+                                ?.map(
+                                  (bed) =>
+                                    `${bed.quantity || 1} ${bed.type || "bed"}`,
+                                )
+                                .join(", ") || "Bed configured"}
+                            </span>
+                            {room.size && (
+                              <span>
+                                <Ruler />
+                                {room.size} sq. ft.
+                              </span>
+                            )}
+                            <span>
+                              <Bath />
+                              {yesNo(room.attachedBathroom)}
+                            </span>
+                          </div>
+                          <div className="market-card-tags">
+                            {(room.facilities || []).slice(0, 6).map((item) => (
+                              <span key={item}>{item}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+              <section className="property-section" id="policies">
+                <div className="property-section-heading">
+                  <p className="market-eyebrow">GOOD TO KNOW</p>
+                  <h2>Policies & house rules</h2>
+                </div>
+                <div className="public-policies">
+                  {Object.entries(property.policies || {})
+                    .filter(([, value]) => value !== "" && value !== undefined)
+                    .slice(0, 12)
+                    .map(([key, value]) => (
+                      <div key={key}>
+                        <span>{key.replace(/([A-Z])/g, " $1")}</span>
+                        <b>
+                          {typeof value === "boolean"
+                            ? value
+                              ? "Yes"
+                              : "No"
+                            : String(value)}
+                        </b>
+                      </div>
+                    ))}
+                </div>
+              </section>
+              <PropertyReviews propertyId={property._id} slug={property.slug} />
+            </div>
+            <aside>
+              <AvailabilityPicker slug={property.slug} rooms={rooms} />
+              <div className="property-location-card">
+                <MapPin />
+                <div>
+                  <small>LOCATION</small>
+                  <h3>
+                    {property.city}, {property.state}
+                  </h3>
+                  <p>{property.address}</p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </Shell>
+  );
 }
