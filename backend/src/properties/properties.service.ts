@@ -25,6 +25,7 @@ import {
 } from './dto/property.dto';
 import { Property, PropertyDocument } from './schemas/property.schema';
 import { RoomInventory } from './schemas/room-inventory.schema';
+import { Booking } from '../payments/schemas/booking.schema';
 import { SitesService } from '../sites/sites.service';
 import { PropertyTypesService } from '../property-types/property-types.service';
 import {
@@ -82,6 +83,9 @@ export class PropertiesService {
     @Optional()
     @InjectModel(RoomInventory.name)
     private inventory?: Model<RoomInventory>,
+    @Optional()
+    @InjectModel(Booking.name)
+    private bookings?: Model<Booking>,
   ) {}
   async list(q: PropertyQueryDto, allowedSiteIds?: string[]) {
     const filter: {
@@ -349,6 +353,7 @@ export class PropertiesService {
       throw new BadRequestException('Date range cannot exceed 60 nights');
     const property = (await this.getPublicBySlug(siteId, slug)) as {
       _id: Types.ObjectId;
+      price?: number;
       roomDetails?: Record<string, unknown>[];
     };
     const rows = this.inventory
@@ -359,15 +364,20 @@ export class PropertiesService {
           })
           .lean()
       : [];
-    if (!rows.length)
-      return {
-        status: 'NOT_CONFIGURED',
-        message: 'Online availability is not configured for these dates.',
-        checkIn: query.checkIn,
-        checkOut: query.checkOut,
-        guests: query.guests,
-        rooms: [],
-      };
+    const holds = this.bookings
+      ? await this.bookings.find({
+          propertyId: property._id,
+          checkIn: { $lt: checkOut },
+          checkOut: { $gt: checkIn },
+          $or: [
+            { paymentStatus: 'PAID', status: { $ne: 'CANCELLED' } },
+            {
+              paymentStatus: 'PENDING',
+              createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) },
+            },
+          ],
+        }).lean()
+      : [];
     const byRoom = new Map<string, typeof rows>();
     for (const row of rows)
       byRoom.set(row.roomId, [...(byRoom.get(row.roomId) || []), row]);
@@ -378,9 +388,26 @@ export class PropertiesService {
           ? String(rawRoomId)
           : String(index);
       const dates = byRoom.get(roomId) || [];
-      const configured = dates.length === nights;
-      const available =
-        configured && dates.every((day) => day.available - day.blocked > 0);
+      const byDate = new Map(dates.map((day) => [day.date.toISOString().slice(0, 10), day]));
+      const baseRooms = Number(room.totalRooms || 0);
+      const baseRate = Number(room.baseRate || room.price || property.price || 0);
+      const remaining: number[] = [];
+      let totalRate = 0;
+      let configured = true;
+      for (let offset = 0; offset < nights; offset++) {
+        const date = new Date(checkIn.getTime() + offset * 86400000);
+        const day = byDate.get(date.toISOString().slice(0, 10));
+        const capacity = day ? day.available - day.blocked : baseRooms;
+        const rate = day ? day.rate : baseRate;
+        if (!Number.isFinite(capacity) || !Number.isFinite(rate) || capacity < 0 || rate <= 0 || (!day && baseRooms < 1) ||
+          (day?.minimumStay && nights < day.minimumStay) ||
+          (day?.maximumStay && nights > day.maximumStay)) configured = false;
+        const booked = holds.filter((booking) => booking.roomId === roomId && booking.checkIn <= date && booking.checkOut > date)
+          .reduce((total, booking) => total + booking.rooms, 0);
+        remaining.push(Math.max(0, capacity - booked));
+        totalRate += rate;
+      }
+      const available = configured && remaining.every((count) => count > 0);
       return {
         roomId,
         status: configured
@@ -388,16 +415,13 @@ export class PropertiesService {
             ? 'AVAILABLE'
             : 'UNAVAILABLE'
           : 'NOT_CONFIGURED',
-        availableInventory: available
-          ? Math.min(...dates.map((day) => day.available - day.blocked))
-          : 0,
-        totalRate: configured
-          ? dates.reduce((sum, day) => sum + day.rate, 0)
-          : null,
+        availableInventory: available ? Math.min(...remaining) : 0,
+        totalRate: configured ? totalRate : null,
       };
     });
     return {
-      status: 'CONFIGURED',
+      status: rooms.some((room) => room.status !== 'NOT_CONFIGURED') ? 'CONFIGURED' : 'NOT_CONFIGURED',
+      message: rooms.some((room) => room.status !== 'NOT_CONFIGURED') ? undefined : 'This property has not published room counts and rates for the selected dates.',
       checkIn: query.checkIn,
       checkOut: query.checkOut,
       guests: query.guests,

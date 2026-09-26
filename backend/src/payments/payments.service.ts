@@ -20,6 +20,7 @@ import {
 } from 'node:crypto';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { Property } from '../properties/schemas/property.schema';
+import { PropertiesService } from '../properties/properties.service';
 import { PropertyType } from '../property-types/schemas/property-type.schema';
 import { Customer } from '../customers/schemas/customer.schema';
 import { Owner } from '../owners/schemas/owner.schema';
@@ -72,6 +73,7 @@ export class PaymentsService implements OnModuleInit {
     @InjectModel(Owner.name) private owners: Model<Owner>,
     private settings: PlatformSettingsService,
     private config: ConfigService,
+    private propertyAvailability: PropertiesService,
   ) {}
 
   onModuleInit() {
@@ -259,13 +261,21 @@ export class PaymentsService implements OnModuleInit {
       throw new BadRequestException(
         'Choose a valid future stay of 1 to 60 nights',
       );
+    const availability = await this.propertyAvailability.publicAvailability(
+      String(property.siteId),
+      property.slug,
+      { checkIn: dto.checkIn, checkOut: dto.checkOut, guests: dto.adults + dto.children },
+    );
+    const roomAvailability = availability.rooms.find((entry) => entry.roomId === dto.roomId);
+    if (roomAvailability?.status !== 'AVAILABLE' || roomAvailability.availableInventory < dto.rooms)
+      throw new BadRequestException('The selected room is not available for these dates. Please choose another stay.');
     const baseRate = Number(room.baseRate || room.price || property.price || 0);
     if (baseRate <= 0)
       throw new BadRequestException('This room does not have a valid rate');
     const includedAdults =
       Math.max(1, Number(room.baseAdults || 2)) * dto.rooms;
     const extraAdultCount = Math.max(0, dto.adults - includedAdults);
-    const roomAmount = this.money(baseRate * nights * dto.rooms);
+    const roomAmount = this.money((roomAvailability.totalRate || baseRate * nights) * dto.rooms);
     const extraGuestAmount = this.money(
       (extraAdultCount * Number(room.additionalAdultPrice || 0) +
         dto.children * Number(room.additionalChildPrice || 0)) *

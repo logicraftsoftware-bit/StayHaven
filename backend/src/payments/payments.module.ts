@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CustomersModule } from '../customers/customers.module';
 import { OwnersModule } from '../owners/owners.module';
+import { PropertiesModule } from '../properties/properties.module';
 import { PlatformSettingsModule } from '../platform-settings/platform-settings.module';
 import {
   Property,
@@ -43,6 +44,7 @@ import {
     ]),
     PlatformSettingsModule,
     OwnersModule,
+    PropertiesModule,
     CustomersModule,
   ],
   controllers: [

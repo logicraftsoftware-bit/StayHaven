@@ -9,6 +9,7 @@ import { PublicPropertiesController } from './public-properties.controller';
 import { OwnerPropertiesController } from './owner-properties.controller';
 import { OwnersModule } from '../owners/owners.module';
 import { PropertyTypesModule } from '../property-types/property-types.module';
+import { Booking, BookingSchema } from '../payments/schemas/booking.schema';
 import {
   RoomInventory,
   RoomInventorySchema,
@@ -18,6 +19,7 @@ import {
     MongooseModule.forFeature([
       { name: Property.name, schema: PropertySchema },
       { name: RoomInventory.name, schema: RoomInventorySchema },
+      { name: Booking.name, schema: BookingSchema },
     ]),
     AuditLogsModule,
     SitesModule,
