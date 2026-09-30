@@ -144,6 +144,7 @@ export default async function PropertyDetail({ params }: Props) {
               </div>
             )}
           </header>
+          <div className="property-showcase">
           <section
             className={`property-gallery ${images.length < 3 ? "compact" : ""}`}
           >
@@ -175,6 +176,15 @@ export default async function PropertyDetail({ params }: Props) {
                 </figure>
               ))}
           </section>
+          <div className="property-booking-card">
+            <p className="market-eyebrow">YOUR STAY STARTS HERE</p>
+            <h2>{rooms[0]?.name || property.propertyType}</h2>
+            <p>{rooms.length} {rooms.length === 1 ? "room type" : "room types"} to explore</p>
+            {rate > 0 && <div className="property-booking-price"><small>Starting from</small><strong>₹{rate.toLocaleString("en-IN")}</strong><span>per night</span></div>}
+            <a href="#rooms" className="property-booking-action">View rooms &amp; rates</a>
+            <span className="property-booking-caption">Check live prices and inventory below.</span>
+          </div>
+          </div>
           <nav className="property-section-nav" aria-label="Property sections">
             <a href="#overview">Overview</a>
             <a href="#rooms">Rooms &amp; rates</a>
@@ -182,7 +192,7 @@ export default async function PropertyDetail({ params }: Props) {
             <a href="#policies">Policies</a>
             <a href="#reviews">Guest reviews</a>
           </nav>
-          <div className="property-public-layout">
+          <div className="property-public-layout property-public-layout-full">
             <div className="property-public-content">
               <section className="property-intro" id="overview">
                 <p className="market-eyebrow">WELCOME TO YOUR STAY</p>
@@ -222,10 +232,11 @@ export default async function PropertyDetail({ params }: Props) {
               </section>
               <section className="property-section" id="rooms">
                 <div className="property-section-heading">
-                  <p className="market-eyebrow">REST YOUR WAY</p>
-                  <h2>Rooms & spaces</h2>
+                  <p className="market-eyebrow">CHOOSE YOUR STAY</p>
+                  <h2>Rooms &amp; rates</h2>
                   <span>{rooms.length} options</span>
                 </div>
+                <AvailabilityPicker slug={property.slug} rooms={rooms} />
                 <div className="public-room-list">
                   {rooms.map((room, index) => {
                     const photos = roomImages(room, property.media || []);
@@ -303,6 +314,10 @@ export default async function PropertyDetail({ params }: Props) {
                   })}
                 </div>
               </section>
+              <section className="property-section property-location-section" id="location">
+                <div className="property-section-heading"><p className="market-eyebrow">FIND US</p><h2>Location</h2></div>
+                <div className="property-location-card"><MapPin /><div><small>PROPERTY ADDRESS</small><h3>{[property.city, property.state].filter(Boolean).join(", ")}</h3><p>{property.address}</p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([property.address, property.city, property.state].filter(Boolean).join(", "))}`} target="_blank" rel="noopener noreferrer">View on map</a></div></div>
+              </section>
               <section className="property-section" id="policies">
                 <div className="property-section-heading">
                   <p className="market-eyebrow">GOOD TO KNOW</p>
@@ -328,19 +343,6 @@ export default async function PropertyDetail({ params }: Props) {
               </section>
               <PropertyReviews propertyId={property._id} slug={property.slug} />
             </div>
-            <aside>
-              <AvailabilityPicker slug={property.slug} rooms={rooms} />
-              <div className="property-location-card">
-                <MapPin />
-                <div>
-                  <small>LOCATION</small>
-                  <h3>
-                    {property.city}, {property.state}
-                  </h3>
-                  <p>{property.address}</p>
-                </div>
-              </div>
-            </aside>
           </div>
         </div>
       </main>

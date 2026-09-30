@@ -11245,6 +11245,43 @@ button {
 .property-public-layout>aside{position:static;display:flex;flex-direction:column;gap:16px;min-width:0;align-self:start}
 .property-public-layout>aside .availability-panel{position:static;top:auto;width:100%;border-radius:14px;box-shadow:0 8px 28px #1a28380b}
 .property-public-layout>aside .property-location-card{position:static;display:flex;align-items:flex-start;gap:12px;width:100%;min-width:0;margin-top:0;padding:20px;border:1px solid #dfe5ec;border-radius:14px;box-shadow:0 8px 28px #1a28380b}
+
+/* Photo-led property detail and inline live room search. */
+.property-showcase{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;margin-top:18px}
+.property-showcase .property-gallery{height:390px;min-width:0;border-radius:12px}
+.property-showcase .property-gallery.compact{grid-template-columns:2fr 1fr}
+.property-booking-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;min-width:0;padding:25px;border:1px solid #dfe5ec;border-radius:12px;background:#fff}
+.property-booking-card h2{margin:0;font:700 23px var(--font-display);line-height:1.2}
+.property-booking-card>p:not(.market-eyebrow){margin:0;color:#617086;font-size:13px}
+.property-booking-price{display:flex;flex-direction:column;gap:2px;margin:14px 0 4px}
+.property-booking-price small,.property-booking-price span,.property-booking-caption{color:#69778a;font-size:11px}
+.property-booking-price strong{color:#071c39;font-size:31px;line-height:1.1}
+.property-booking-action{display:grid;place-items:center;width:100%;min-height:44px;border-radius:7px;background:#0877e4;color:#fff;font-weight:800;text-align:center}
+.property-booking-action:hover{background:#0666c5;color:#fff}
+.property-public-layout.property-public-layout-full{display:block;margin-top:20px}
+.property-public-layout-full .property-public-content{display:grid;gap:16px}
+.property-public-layout-full .property-intro,.property-public-layout-full .property-section{margin:0;padding:26px;border-radius:12px}
+.property-public-layout-full .property-intro h2{font-size:25px}
+.property-public-layout-full .property-intro{padding-bottom:26px}
+.property-public-layout-full .property-section-heading h2{font-size:26px}
+.property-public-layout-full .availability-panel{position:static;display:grid;grid-template-columns:1fr auto;gap:14px 20px;align-items:end;margin-bottom:16px;padding:18px;border-radius:9px;box-shadow:none;background:#f7f9fc}
+.property-public-layout-full .availability-title{grid-column:1/-1;align-items:center}
+.property-public-layout-full .availability-title h2{font:700 17px var(--font-body)}
+.property-public-layout-full .availability-title>svg{display:none}
+.property-public-layout-full .availability-fields{grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+.property-public-layout-full .availability-fields label:last-child{grid-column:auto}
+.property-public-layout-full .availability-panel>button{width:150px;height:45px;margin:0;border-radius:7px;background:#0877e4}
+.property-public-layout-full .availability-results,.property-public-layout-full .availability-error,.property-public-layout-full .availability-note{grid-column:1/-1}
+.property-public-layout-full .public-room-list{gap:0;border:1px solid #dfe5ec;border-radius:10px;overflow:hidden}
+.property-public-layout-full .public-room-list article{grid-template-columns:225px minmax(0,1fr);min-height:220px;border:0;border-radius:0;border-bottom:1px solid #dfe5ec}
+.property-public-layout-full .public-room-list article:last-child{border-bottom:0}
+.property-public-layout-full .public-room-image{min-height:220px;margin:12px;border-radius:8px;overflow:hidden}
+.property-public-layout-full .public-room-body{padding:20px}
+.property-public-layout-full .property-location-card{position:static;display:flex;gap:16px;margin:0;padding:20px;border:1px solid #e1e6ed;border-radius:10px;box-shadow:none}
+.property-public-layout-full .property-location-card>svg{flex:none;width:24px;color:var(--site-primary)}
+.property-public-layout-full .property-location-card a{display:inline-block;margin-top:12px;color:#0877e4;font-weight:700}
+@media(max-width:850px){.property-showcase{grid-template-columns:1fr}.property-showcase .property-gallery{height:330px}.property-booking-card{display:grid;grid-template-columns:1fr auto;align-items:center}.property-booking-card .market-eyebrow,.property-booking-card h2,.property-booking-card>p:not(.market-eyebrow),.property-booking-caption{grid-column:1}.property-booking-price{grid-column:2;grid-row:1/4;margin:0}.property-booking-action{grid-column:1/-1}}
+@media(max-width:640px){.property-showcase .property-gallery{height:260px}.property-booking-card{display:flex;align-items:stretch;padding:18px}.property-booking-price{margin:0}.property-public-layout-full .property-intro,.property-public-layout-full .property-section{padding:18px}.property-public-layout-full .availability-panel{display:block;padding:14px}.property-public-layout-full .availability-title{margin-bottom:12px}.property-public-layout-full .availability-fields{grid-template-columns:1fr 1fr}.property-public-layout-full .availability-fields label:last-child{grid-column:1/-1}.property-public-layout-full .availability-panel>button{width:100%;margin-top:12px}.property-public-layout-full .public-room-list article{display:block}.property-public-layout-full .public-room-image{min-height:190px;height:190px}.property-public-layout-full .public-room-body{padding:16px}}
 .property-location-card>svg{width:22px;height:22px;flex:none;margin-top:2px}
 .property-location-card>div{min-width:0;overflow-wrap:anywhere}
 .property-location-card small{display:block;margin-bottom:8px;color:#a70d1d;font-size:10px;letter-spacing:.12em}

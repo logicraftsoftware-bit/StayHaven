@@ -37,7 +37,7 @@ export function AvailabilityPicker({ slug, rooms }: { slug: string; rooms: Publi
     finally { setBusy(false); }
   }
 
-  return <div className="availability-panel"><div className="availability-title"><div><p>PLAN YOUR STAY</p><h2>Check availability</h2></div><CalendarDays/></div>
+  return <div className="availability-panel"><div className="availability-title"><div><p>LIVE ROOM SEARCH</p><h2>Change dates and guests</h2></div><CalendarDays/></div>
     <div className="availability-fields"><label>Check-in<input type="date" min={tomorrow} value={checkIn} onChange={(event) => { setCheckIn(event.target.value); setResult(null); }}/></label><label>Check-out<input type="date" min={checkIn || tomorrow} value={checkOut} onChange={(event) => { setCheckOut(event.target.value); setResult(null); }}/></label><label><span><Users/> Guests</span><input type="number" min="1" max="30" value={guests} onChange={(event) => { setGuests(Number(event.target.value)); setResult(null); }}/></label></div>
     <button onClick={() => void check()} disabled={busy}>{busy ? "Checking…" : "Check rooms"}</button>
     {error && <p className="availability-error" role="alert">{error}</p>}
