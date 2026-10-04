@@ -69,3 +69,17 @@ describe('PaymentsService booking cancellation', () => {
     expect(bookings.findOneAndUpdate).not.toHaveBeenCalled();
   });
 });
+
+describe('PaymentsService booking site guard', () => {
+  it.each(['createOrder', 'createPayAtHotelBooking'] as const)('%s restricts the property query to the resolved site', async (method) => {
+    const propertyId = new Types.ObjectId();
+    const siteId = new Types.ObjectId();
+    const propertyQuery = { lean: jest.fn().mockResolvedValue(null) };
+    const findOne = jest.fn().mockReturnValue(propertyQuery);
+    const service = Object.create(PaymentsService.prototype) as PaymentsService;
+    Object.defineProperty(service, 'properties', { value: { findOne } });
+    Object.defineProperty(service, 'customers', { value: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({}) }) } });
+    await expect(service[method]('customer-1', String(siteId), { propertyId: String(propertyId) } as never)).rejects.toThrow('Live property not found');
+    expect(findOne).toHaveBeenCalledWith(expect.objectContaining({ _id: String(propertyId), siteId }));
+  });
+});

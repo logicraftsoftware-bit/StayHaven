@@ -19,6 +19,8 @@ import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { OwnerStatusGuard } from '../owners/owner-status.guard';
+import { SitesService } from '../sites/sites.service';
+import { requestHostname } from '../sites/utils/request-hostname';
 import {
   CreateBookingOrderDto,
   CancelBookingDto,
@@ -36,23 +38,25 @@ import { PaymentsService } from './payments.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.CUSTOMER)
 export class CustomerPaymentsController {
-  constructor(private service: PaymentsService) {}
+  constructor(private service: PaymentsService, private sites: SitesService) {}
   @Post('order') async order(
-    @Req() req: { user: { sub: string } },
+    @Req() req: Request & { user: { sub: string } },
     @Body() dto: CreateBookingOrderDto,
   ) {
+    const site = await this.sites.resolveActiveByDomain(requestHostname(req));
     return {
       success: true,
-      data: await this.service.createOrder(req.user.sub, dto),
+      data: await this.service.createOrder(req.user.sub, String(site._id), dto),
     };
   }
   @Post('pay-at-hotel') async payAtHotel(
-    @Req() req: { user: { sub: string } },
+    @Req() req: Request & { user: { sub: string } },
     @Body() dto: CreateBookingOrderDto,
   ) {
+    const site = await this.sites.resolveActiveByDomain(requestHostname(req));
     return {
       success: true,
-      data: await this.service.createPayAtHotelBooking(req.user.sub, dto),
+      data: await this.service.createPayAtHotelBooking(req.user.sub, String(site._id), dto),
     };
   }
   @Post(':id/pay-now') async payNow(

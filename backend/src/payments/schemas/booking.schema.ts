@@ -58,3 +58,6 @@ export class Booking {
 export type BookingDocument = HydratedDocument<Booking>;
 export const BookingSchema = SchemaFactory.createForClass(Booking);
 BookingSchema.index({ ownerId: 1, propertyId: 1, checkIn: -1 });
+BookingSchema.index({ siteId: 1, status: 1, checkIn: 1 });
+BookingSchema.index({ propertyId: 1, roomId: 1, checkIn: 1, checkOut: 1 });
+BookingSchema.index({ customerId: 1, createdAt: -1 });

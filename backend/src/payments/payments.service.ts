@@ -233,12 +233,14 @@ export class PaymentsService implements OnModuleInit {
 
   async createPayAtHotelBooking(
     customerId: string,
+    siteId: string,
     dto: CreateBookingOrderDto,
   ) {
     const [property, customer] = await Promise.all([
       this.properties
         .findOne({
           _id: dto.propertyId,
+          siteId: new Types.ObjectId(siteId),
           status: PropertyStatus.APPROVED,
           active: { $ne: false },
         })
@@ -390,11 +392,12 @@ export class PaymentsService implements OnModuleInit {
     return { gateway: 'RAZORPAY', bookingId: booking._id, bookingNumber: booking.bookingNumber, razorpayOrderId: gatewayOrderId, keyId: gateway.keyId, amount: booking.grossAmount, currency: 'INR', propertyName: booking.propertyName, customer: { name: booking.guestName, email: booking.guestEmail, contact: booking.guestPhone } };
   }
 
-  async createOrder(customerId: string, dto: CreateBookingOrderDto) {
+  async createOrder(customerId: string, siteId: string, dto: CreateBookingOrderDto) {
     const [property, customer] = await Promise.all([
       this.properties
         .findOne({
           _id: dto.propertyId,
+          siteId: new Types.ObjectId(siteId),
           status: PropertyStatus.APPROVED,
           active: { $ne: false },
         })

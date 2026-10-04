@@ -4,6 +4,7 @@ import { CustomersModule } from '../customers/customers.module';
 import { OwnersModule } from '../owners/owners.module';
 import { PropertiesModule } from '../properties/properties.module';
 import { PlatformSettingsModule } from '../platform-settings/platform-settings.module';
+import { SitesModule } from '../sites/sites.module';
 import {
   Property,
   PropertySchema,
@@ -43,6 +44,7 @@ import {
       { name: Owner.name, schema: OwnerSchema },
     ]),
     PlatformSettingsModule,
+    SitesModule,
     OwnersModule,
     PropertiesModule,
     CustomersModule,
