@@ -54,6 +54,7 @@ type Booking = {
   status: string;
   grossAmount: number;
   roomName: string;
+  paymentStatus: string;
 };
 type View =
   "profile" | "travellers" | "trips" | "wishlist" | "devices" | "security";
@@ -466,8 +467,9 @@ export function CustomerAccount() {
                       <span>
                         {b.roomName} · {b.bookingNumber}
                       </span>
+                      <span>{b.paymentStatus === "PAY_AT_HOTEL" ? "Pay at hotel · payment due" : "Paid online"}</span>
                     </p>
-                    <strong>₹{b.grossAmount.toLocaleString("en-IN")}</strong>
+                    <strong>₹{(b.grossAmount / 100).toLocaleString("en-IN")}</strong>
                   </article>
                 ))}
                 {!filtered.length && (

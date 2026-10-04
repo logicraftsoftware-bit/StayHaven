@@ -365,18 +365,21 @@ export class PropertiesService {
           .lean()
       : [];
     const holds = this.bookings
-      ? await this.bookings.find({
-          propertyId: property._id,
-          checkIn: { $lt: checkOut },
-          checkOut: { $gt: checkIn },
-          $or: [
-            { paymentStatus: 'PAID', status: { $ne: 'CANCELLED' } },
-            {
-              paymentStatus: 'PENDING',
-              createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) },
-            },
-          ],
-        }).lean()
+      ? await this.bookings
+          .find({
+            propertyId: property._id,
+            checkIn: { $lt: checkOut },
+            checkOut: { $gt: checkIn },
+            $or: [
+              { paymentStatus: 'PAID', status: { $ne: 'CANCELLED' } },
+              { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
+              {
+                paymentStatus: 'PENDING',
+                createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) },
+              },
+            ],
+          })
+          .lean()
       : [];
     const byRoom = new Map<string, typeof rows>();
     for (const row of rows)
@@ -388,9 +391,13 @@ export class PropertiesService {
           ? String(rawRoomId)
           : String(index);
       const dates = byRoom.get(roomId) || [];
-      const byDate = new Map(dates.map((day) => [day.date.toISOString().slice(0, 10), day]));
+      const byDate = new Map(
+        dates.map((day) => [day.date.toISOString().slice(0, 10), day]),
+      );
       const baseRooms = Number(room.totalRooms || 0);
-      const baseRate = Number(room.baseRate || room.price || property.price || 0);
+      const baseRate = Number(
+        room.baseRate || room.price || property.price || 0,
+      );
       const remaining: number[] = [];
       let totalRate = 0;
       let configured = true;
@@ -399,10 +406,23 @@ export class PropertiesService {
         const day = byDate.get(date.toISOString().slice(0, 10));
         const capacity = day ? day.available - day.blocked : baseRooms;
         const rate = day ? day.rate : baseRate;
-        if (!Number.isFinite(capacity) || !Number.isFinite(rate) || capacity < 0 || rate <= 0 || (!day && baseRooms < 1) ||
+        if (
+          !Number.isFinite(capacity) ||
+          !Number.isFinite(rate) ||
+          capacity < 0 ||
+          rate <= 0 ||
+          (!day && baseRooms < 1) ||
           (day?.minimumStay && nights < day.minimumStay) ||
-          (day?.maximumStay && nights > day.maximumStay)) configured = false;
-        const booked = holds.filter((booking) => booking.roomId === roomId && booking.checkIn <= date && booking.checkOut > date)
+          (day?.maximumStay && nights > day.maximumStay)
+        )
+          configured = false;
+        const booked = holds
+          .filter(
+            (booking) =>
+              booking.roomId === roomId &&
+              booking.checkIn <= date &&
+              booking.checkOut > date,
+          )
           .reduce((total, booking) => total + booking.rooms, 0);
         remaining.push(Math.max(0, capacity - booked));
         totalRate += rate;
@@ -420,8 +440,12 @@ export class PropertiesService {
       };
     });
     return {
-      status: rooms.some((room) => room.status !== 'NOT_CONFIGURED') ? 'CONFIGURED' : 'NOT_CONFIGURED',
-      message: rooms.some((room) => room.status !== 'NOT_CONFIGURED') ? undefined : 'This property has not published room counts and rates for the selected dates.',
+      status: rooms.some((room) => room.status !== 'NOT_CONFIGURED')
+        ? 'CONFIGURED'
+        : 'NOT_CONFIGURED',
+      message: rooms.some((room) => room.status !== 'NOT_CONFIGURED')
+        ? undefined
+        : 'This property has not published room counts and rates for the selected dates.',
       checkIn: query.checkIn,
       checkOut: query.checkOut,
       guests: query.guests,

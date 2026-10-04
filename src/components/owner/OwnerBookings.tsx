@@ -13,18 +13,24 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "@/lib/api-client";
 
 type BookingPeriod = "past" | "upcoming" | "custom";
 
 const bookingStatuses = ["Acknowledged", "Cancelled", "Pending", "Modified", "Check-in denied"];
 const paymentStatuses = ["Pending", "Processed"];
+type Booking = { _id: string; bookingNumber: string; guestName: string; guestEmail: string; guestPhone: string; roomName: string; checkIn: string; checkOut: string; rooms: number; adults: number; children: number; grossAmount: number; paymentStatus: string; status: string };
 
 export function OwnerBookings({
+  propertyId,
+  token,
   propertyName,
   marketplaceName,
   onManageInventory,
 }: {
+  propertyId: string;
+  token: string;
   propertyName: string;
   marketplaceName?: string;
   onManageInventory: () => void;
@@ -36,6 +42,26 @@ export function OwnerBookings({
   const [showGuide, setShowGuide] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    let active = true;
+    apiRequest<{ data: Booking[] }>(`/api/v1/owner/payments/bookings?propertyId=${encodeURIComponent(propertyId)}`, token)
+      .then((response) => { if (active) setBookings(response.data); })
+      .catch((reason) => { if (active) setLoadError((reason as Error).message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [propertyId, token]);
+  const visible = useMemo(() => bookings.filter((booking) => {
+    const today = new Date();
+    const arrival = new Date(booking.checkIn);
+    const departure = new Date(booking.checkOut);
+    if (period === "past" && (departure >= today || departure < new Date(today.getTime() - 30 * 86400000))) return false;
+    if (period === "upcoming" && (departure < today || arrival > new Date(today.getTime() + 90 * 86400000))) return false;
+    if (period === "custom" && ((from && booking.checkIn.slice(0, 10) < from) || (to && booking.checkIn.slice(0, 10) > to))) return false;
+    return `${booking.bookingNumber} ${booking.guestName}`.toLowerCase().includes(search.toLowerCase());
+  }), [bookings, period, from, to, search]);
 
   const downloadTemplate = () => {
     const header = "Guest Name,Check-in,Check-out,Room & Meal Plan,Booking ID,Guest Contact,Net Amount,Status\n";
@@ -78,7 +104,7 @@ export function OwnerBookings({
 
       <div className="owner-bookings-periods">
         <button className={period === "past" ? "active" : ""} onClick={() => setPeriod("past")}>Past 30 days</button>
-        <button className={period === "upcoming" ? "active" : ""} onClick={() => setPeriod("upcoming")}>Upcoming 90 days <span>0</span></button>
+        <button className={period === "upcoming" ? "active" : ""} onClick={() => setPeriod("upcoming")}>Upcoming 90 days <span>{bookings.filter((booking) => new Date(booking.checkOut) >= new Date()).length}</span></button>
         <button className={period === "custom" ? "active" : ""} onClick={() => setPeriod("custom")}>
           <CalendarRange /> Select date range
         </button>
@@ -119,7 +145,7 @@ export function OwnerBookings({
               <h2>{propertyName}</h2>
               <p>{marketplaceName || "Your marketplace"} · {view === "list" ? "List view" : "Hourly view"}</p>
             </div>
-            <span className="owner-booking-count">0 bookings</span>
+            <span className="owner-booking-count">{visible.length} {visible.length === 1 ? "booking" : "bookings"}</span>
           </div>
           <div className="owner-bookings-table" role="table" aria-label="Property bookings">
             <div className="owner-bookings-table-head" role="row">
@@ -130,17 +156,25 @@ export function OwnerBookings({
               <span>Guest contact</span>
               <span>Net amount</span>
             </div>
-            <div className="owner-bookings-empty">
+            {visible.map((booking) => <div className="owner-booking-real-row" role="row" key={booking._id}>
+              <span><b>{booking.guestName}</b><small>{booking.paymentStatus === "PAY_AT_HOTEL" ? "Pay at hotel · unpaid" : "Paid online"}</small></span>
+              <span>{new Date(booking.checkIn).toLocaleDateString("en-IN")} – {new Date(booking.checkOut).toLocaleDateString("en-IN")}</span>
+              <span>{booking.roomName}<small>{booking.rooms} room · {booking.adults} adults</small></span>
+              <span>{booking.bookingNumber}</span>
+              <span>{booking.guestPhone}<small>{booking.guestEmail}</small></span>
+              <span>₹{(booking.grossAmount / 100).toLocaleString("en-IN")}<small>{booking.paymentStatus === "PAY_AT_HOTEL" ? "Due at property" : "Paid"}</small></span>
+            </div>)}
+            {(loading || loadError || !visible.length) && <div className="owner-bookings-empty">
               <i><Inbox /></i>
-              <span>NO RESERVATIONS FOUND</span>
-              <h3>{search ? "No booking matches your search" : `No ${period === "past" ? "past" : "upcoming"} bookings yet`}</h3>
+              <span>{loading ? "LOADING BOOKINGS" : loadError ? "BOOKINGS UNAVAILABLE" : "NO RESERVATIONS FOUND"}</span>
+              <h3>{loading ? "Loading reservations…" : loadError || (search ? "No booking matches your search" : `No ${period === "past" ? "past" : "upcoming"} bookings yet`)}</h3>
               <p>
                 {search
                   ? "Try another booking ID or guest name."
                   : "New reservations will appear here automatically with guest, stay, payment and settlement details."}
               </p>
               <button onClick={onManageInventory}><CalendarDays /> Manage rates &amp; inventory</button>
-            </div>
+            </div>}
           </div>
         </section>
       </div>

@@ -339,6 +339,8 @@ export function PropertyManager({
         )}
         {activeTab === "bookings" && (
           <OwnerBookings
+            propertyId={property._id || ""}
+            token={token}
             propertyName={property.displayName || property.name}
             marketplaceName={site?.name}
             onManageInventory={() => setTab("rates")}

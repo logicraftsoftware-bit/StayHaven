@@ -45,6 +45,15 @@ export class CustomerPaymentsController {
       data: await this.service.createOrder(req.user.sub, dto),
     };
   }
+  @Post('pay-at-hotel') async payAtHotel(
+    @Req() req: { user: { sub: string } },
+    @Body() dto: CreateBookingOrderDto,
+  ) {
+    return {
+      success: true,
+      data: await this.service.createPayAtHotelBooking(req.user.sub, dto),
+    };
+  }
   @Post('verify') async verify(
     @Req() req: { user: { sub: string } },
     @Body() dto: VerifyPaymentDto,
@@ -89,6 +98,20 @@ export class CustomerPaymentsController {
 @Roles(Role.HOTEL_OWNER, Role.TEAM_MEMBER)
 export class OwnerPaymentsController {
   constructor(private service: PaymentsService) {}
+  @Get('bookings') async bookings(
+    @Req() req: { user: PortalPaymentUser },
+    @Query() query: PaymentQueryDto,
+  ) {
+    if (!query.propertyId)
+      throw new ForbiddenException('A property is required');
+    return {
+      success: true,
+      data: await this.service.ownerBookings(
+        this.ownerId(req.user, query.propertyId, 'VIEW_BOOKINGS'),
+        query.propertyId,
+      ),
+    };
+  }
   @Get('analytics') async analytics(
     @Req() req: { user: PortalPaymentUser },
     @Query() query: PaymentQueryDto,

@@ -11301,6 +11301,53 @@ button {
 .public-room-booking button:disabled{background:#e6e9ee;color:#69778a;cursor:not-allowed}
 @media(max-width:900px){.property-top-search{grid-template-columns:repeat(2,minmax(0,1fr))}.property-top-search label:first-child{grid-column:1/-1}.property-top-search button{grid-column:1/-1}.property-public-layout-full .public-room-list article{grid-template-columns:190px minmax(0,1fr) 170px}}
 @media(max-width:640px){.property-top-search{gap:6px}.property-top-search label{padding:7px}.property-top-search label:nth-child(4){grid-column:1/-1}.property-top-search input{font-size:12px}.property-public-layout-full .public-room-list article{display:grid;grid-template-columns:1fr}.property-public-layout-full .public-room-booking{border-left:0;border-top:1px solid #e1e6ed;padding:16px}.public-room-booking a,.public-room-booking button{max-width:240px}}
+
+/* Booking review follows the reference's compact two-column checkout. */
+.checkout-reference{padding:28px 0 70px;background:#f5f5f5}
+.checkout-reference>.container{max-width:1140px}
+.checkout-reference>.container>header{margin-bottom:20px}
+.checkout-reference header h1{font-size:25px;font-weight:800}
+.checkout-reference header p{font-size:10px}
+.checkout-reference .checkout-layout{grid-template-columns:minmax(0,1fr) 285px;gap:16px}
+.checkout-reference .checkout-layout>form{gap:14px}
+.checkout-reference .checkout-layout>form>section,.checkout-reference .checkout-layout>aside{padding:19px;border-radius:6px;box-shadow:0 2px 8px #1b273712}
+.checkout-reference .checkout-stay-card{padding:0!important;overflow:hidden}
+.checkout-reference .checkout-stay-card .checkout-property{justify-content:space-between;align-items:flex-start;padding:20px}
+.checkout-reference .checkout-stay-card .checkout-property>div{width:86px;height:76px;flex:none;border-radius:4px}
+.checkout-reference .checkout-property h2{font-size:19px;font-weight:800}
+.checkout-reference .checkout-property p{font-size:12px;line-height:1.4}
+.checkout-reference .checkout-stay-dates{margin:0;padding:15px 20px;background:#f7f8fa}
+.checkout-reference .checkout-room-summary{padding:19px 20px}
+.checkout-reference .checkout-room-summary>small{color:#69778a;font-size:10px;font-weight:800}
+.checkout-reference .checkout-step{margin-bottom:17px}
+.checkout-reference .checkout-step h2{font-size:17px;font-weight:800}
+.checkout-reference .checkout-step p{font-size:12px}
+.checkout-reference .checkout-fields{gap:13px}
+.checkout-reference .checkout-fields label{font-size:11px;text-transform:uppercase}
+.checkout-reference .checkout-fields input{height:42px;border-radius:5px;font-size:13px;text-transform:none}
+.checkout-guest-type{display:flex;flex-wrap:wrap;gap:16px;margin:0 0 16px;font-size:13px}
+.checkout-guest-type label{display:flex;align-items:center;gap:6px}
+.checkout-payment-option{display:flex;align-items:center;gap:12px;padding:13px;margin-bottom:10px;border:1px solid #dfe5ed;border-radius:6px;background:#f8fafc}
+.checkout-payment-option>svg:first-child{width:35px;height:35px;flex:none;padding:8px;border-radius:6px;background:#e8f4ff;color:#0877e4}
+.checkout-payment-option>svg:last-child{width:17px;margin-left:auto;color:#088357}
+.checkout-payment-option strong{font-size:13px}
+.checkout-payment-option p{margin:3px 0 0;color:#68788c;font-size:11px;line-height:1.45}
+.checkout-payment-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.checkout-payment-buttons .checkout-pay,.checkout-pay-hotel{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:45px;margin:0;border:0;border-radius:5px;font-size:13px;font-weight:800}
+.checkout-payment-buttons .checkout-pay{background:#0877e4}
+.checkout-pay-hotel{background:#0c693f;color:#fff}
+.checkout-payment-buttons button:disabled{opacity:.6;cursor:not-allowed}
+.checkout-reference .checkout-layout>aside{top:90px}
+.checkout-price-title{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.checkout-price-title h2{margin:0;font-size:16px}
+.checkout-price-title span{color:#69778a;font-size:12px}
+.checkout-reference .checkout-layout aside dl{margin:16px 0}
+.checkout-reference .checkout-estimate strong{font-size:24px}
+.owner-booking-real-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:center;padding:16px 20px;border-top:1px solid #e7ebf1;color:#17243b;font-size:12px;overflow-wrap:anywhere}
+.owner-booking-real-row span{display:grid;gap:4px}
+.owner-booking-real-row small{color:#66758a;font-size:11px}
+@media(max-width:850px){.checkout-reference .checkout-layout{grid-template-columns:1fr}.checkout-reference .checkout-layout>aside{grid-row:1;position:static}.owner-booking-real-row{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.checkout-reference .checkout-layout>form>section,.checkout-reference .checkout-layout>aside{padding:15px}.checkout-reference .checkout-stay-dates{grid-template-columns:1fr 1fr;padding:14px}.checkout-payment-buttons{grid-template-columns:1fr}.owner-booking-real-row{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px}}
 .property-location-card>svg{width:22px;height:22px;flex:none;margin-top:2px}
 .property-location-card>div{min-width:0;overflow-wrap:anywhere}
 .property-location-card small{display:block;margin-bottom:8px;color:#a70d1d;font-size:10px;letter-spacing:.12em}

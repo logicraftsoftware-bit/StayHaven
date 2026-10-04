@@ -145,31 +145,123 @@ describe('PropertiesService', () => {
   });
 
   it('uses published room count and rate when no calendar override exists', async () => {
-    const service = new PropertiesService({} as never, {} as never, {} as never, {} as never);
+    const service = new PropertiesService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     jest.spyOn(service, 'getPublicBySlug').mockResolvedValue({
       _id: new Types.ObjectId('507f1f77bcf86cd799439012'),
       roomDetails: [{ id: 'room-one', totalRooms: 2, baseRate: 3000 }],
     } as never);
-    const result = await service.publicAvailability('507f1f77bcf86cd799439013', 'stay', {
-      checkIn: '2026-10-10', checkOut: '2026-10-12', guests: 2,
-    });
+    const result = await service.publicAvailability(
+      '507f1f77bcf86cd799439013',
+      'stay',
+      {
+        checkIn: '2026-10-10',
+        checkOut: '2026-10-12',
+        guests: 2,
+      },
+    );
     expect(result.status).toBe('CONFIGURED');
-    expect(result.rooms[0]).toMatchObject({ roomId: 'room-one', status: 'AVAILABLE', availableInventory: 2, totalRate: 6000 });
+    expect(result.rooms[0]).toMatchObject({
+      roomId: 'room-one',
+      status: 'AVAILABLE',
+      availableInventory: 2,
+      totalRate: 6000,
+    });
   });
 
   it('subtracts paid reservations from live room availability', async () => {
-    const bookings = { find: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([{
-      roomId: 'room-one', rooms: 2, checkIn: new Date('2026-10-10T00:00:00Z'), checkOut: new Date('2026-10-12T00:00:00Z'),
-    }]) }) };
-    const service = new PropertiesService({} as never, {} as never, {} as never, {} as never, undefined, undefined, bookings as never);
+    const bookings = {
+      find: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          {
+            roomId: 'room-one',
+            rooms: 2,
+            checkIn: new Date('2026-10-10T00:00:00Z'),
+            checkOut: new Date('2026-10-12T00:00:00Z'),
+          },
+        ]),
+      }),
+    };
+    const service = new PropertiesService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      bookings as never,
+    );
     jest.spyOn(service, 'getPublicBySlug').mockResolvedValue({
       _id: new Types.ObjectId('507f1f77bcf86cd799439012'),
       roomDetails: [{ id: 'room-one', totalRooms: 2, baseRate: 3000 }],
     } as never);
-    const result = await service.publicAvailability('507f1f77bcf86cd799439013', 'stay', {
-      checkIn: '2026-10-10', checkOut: '2026-10-12', guests: 2,
+    const result = await service.publicAvailability(
+      '507f1f77bcf86cd799439013',
+      'stay',
+      {
+        checkIn: '2026-10-10',
+        checkOut: '2026-10-12',
+        guests: 2,
+      },
+    );
+    expect(result.rooms[0]).toMatchObject({
+      status: 'UNAVAILABLE',
+      availableInventory: 0,
     });
-    expect(result.rooms[0]).toMatchObject({ status: 'UNAVAILABLE', availableInventory: 0 });
+  });
+
+  it('keeps confirmed pay-at-hotel rooms unavailable until checkout', async () => {
+    const bookings = {
+      find: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          {
+            roomId: 'room-one',
+            rooms: 1,
+            paymentStatus: 'PAY_AT_HOTEL',
+            status: 'CONFIRMED',
+            checkIn: new Date('2026-10-10T00:00:00Z'),
+            checkOut: new Date('2026-10-12T00:00:00Z'),
+          },
+        ]),
+      }),
+    };
+    const service = new PropertiesService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      bookings as never,
+    );
+    jest.spyOn(service, 'getPublicBySlug').mockResolvedValue({
+      _id: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      roomDetails: [{ id: 'room-one', totalRooms: 1, baseRate: 3000 }],
+    } as never);
+    const result = await service.publicAvailability(
+      '507f1f77bcf86cd799439013',
+      'stay',
+      {
+        checkIn: '2026-10-10',
+        checkOut: '2026-10-12',
+        guests: 2,
+      },
+    );
+    expect(bookings.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $or: expect.arrayContaining([
+          { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
+        ]),
+      }),
+    );
+    expect(result.rooms[0]).toMatchObject({
+      status: 'UNAVAILABLE',
+      availableInventory: 0,
+    });
   });
 
   it('persists owner inventory updates for rooms belonging to the property', async () => {

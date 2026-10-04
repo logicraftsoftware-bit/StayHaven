@@ -229,6 +229,123 @@ export class PaymentsService implements OnModuleInit {
     return payload;
   }
 
+  async createPayAtHotelBooking(
+    customerId: string,
+    dto: CreateBookingOrderDto,
+  ) {
+    const [property, customer] = await Promise.all([
+      this.properties
+        .findOne({
+          _id: dto.propertyId,
+          status: PropertyStatus.APPROVED,
+          active: { $ne: false },
+        })
+        .lean(),
+      this.customers.findById(customerId).lean(),
+    ]);
+    if (!property) throw new NotFoundException('Live property not found');
+    if (!customer) throw new NotFoundException('Customer not found');
+    const room = (property.roomDetails || []).find(
+      (entry, index) =>
+        this.text(entry.id, this.text(entry._id, String(index))) === dto.roomId,
+    );
+    if (!room) throw new NotFoundException('Room not found');
+    const checkIn = new Date(`${dto.checkIn}T00:00:00.000Z`);
+    const checkOut = new Date(`${dto.checkOut}T00:00:00.000Z`);
+    const nights = Math.round(
+      (checkOut.valueOf() - checkIn.valueOf()) / 86400000,
+    );
+    if (
+      !Number.isInteger(nights) ||
+      nights < 1 ||
+      nights > 60 ||
+      checkIn < new Date(new Date().toISOString().slice(0, 10))
+    )
+      throw new BadRequestException(
+        'Choose a valid future stay of 1 to 60 nights',
+      );
+    const availability = await this.propertyAvailability.publicAvailability(
+      String(property.siteId),
+      property.slug,
+      {
+        checkIn: dto.checkIn,
+        checkOut: dto.checkOut,
+        guests: dto.adults + dto.children,
+      },
+    );
+    const roomAvailability = availability.rooms.find(
+      (entry) => entry.roomId === dto.roomId,
+    );
+    if (
+      roomAvailability?.status !== 'AVAILABLE' ||
+      roomAvailability.availableInventory < dto.rooms
+    )
+      throw new BadRequestException(
+        'The selected room is not available for these dates. Please choose another stay.',
+      );
+    const baseRate = Number(room.baseRate || room.price || property.price || 0);
+    if (baseRate <= 0)
+      throw new BadRequestException('This room does not have a valid rate');
+    const includedAdults =
+      Math.max(1, Number(room.baseAdults || 2)) * dto.rooms;
+    const extraAdults = Math.max(0, dto.adults - includedAdults);
+    const roomAmount = this.money(
+      (roomAvailability.totalRate || baseRate * nights) * dto.rooms,
+    );
+    const extraGuestAmount = this.money(
+      (extraAdults * Number(room.additionalAdultPrice || 0) +
+        dto.children * Number(room.additionalChildPrice || 0)) *
+        nights,
+    );
+    const taxAmount = this.money(Number(property.taxes || 0));
+    const grossAmount = roomAmount + extraGuestAmount + taxAmount;
+    const type = property.propertyTypeId
+      ? await this.propertyTypes
+          .findById(property.propertyTypeId)
+          .select('+commissionPercent')
+          .lean()
+      : null;
+    const commissionPercent = Number(type?.commissionPercent || 0);
+    const commissionAmount = Math.round(
+      (grossAmount * commissionPercent) / 100,
+    );
+    const booking = await this.bookings.create({
+      customerId,
+      ownerId: property.ownerId,
+      propertyId: property._id,
+      siteId: property.siteId,
+      bookingNumber: this.id('GH'),
+      propertyName: property.displayName || property.name,
+      roomId: dto.roomId,
+      roomName: this.text(room.name, 'Room'),
+      guestName: dto.guestName.trim(),
+      guestEmail: dto.guestEmail.toLowerCase(),
+      guestPhone: dto.guestPhone.trim(),
+      checkIn,
+      checkOut,
+      rooms: dto.rooms,
+      adults: dto.adults,
+      children: dto.children,
+      nights,
+      roomAmount,
+      extraGuestAmount,
+      taxAmount,
+      grossAmount,
+      commissionPercent,
+      commissionAmount,
+      ownerNetAmount: grossAmount - commissionAmount,
+      status: 'CONFIRMED',
+      paymentStatus: 'PAY_AT_HOTEL',
+      settlementStatus: 'NOT_APPLICABLE',
+      paymentGateway: 'PAY_AT_HOTEL',
+    });
+    return {
+      bookingId: booking._id,
+      bookingNumber: booking.bookingNumber,
+      amountDueAtProperty: grossAmount,
+    };
+  }
+
   async createOrder(customerId: string, dto: CreateBookingOrderDto) {
     const [property, customer] = await Promise.all([
       this.properties
@@ -264,18 +381,31 @@ export class PaymentsService implements OnModuleInit {
     const availability = await this.propertyAvailability.publicAvailability(
       String(property.siteId),
       property.slug,
-      { checkIn: dto.checkIn, checkOut: dto.checkOut, guests: dto.adults + dto.children },
+      {
+        checkIn: dto.checkIn,
+        checkOut: dto.checkOut,
+        guests: dto.adults + dto.children,
+      },
     );
-    const roomAvailability = availability.rooms.find((entry) => entry.roomId === dto.roomId);
-    if (roomAvailability?.status !== 'AVAILABLE' || roomAvailability.availableInventory < dto.rooms)
-      throw new BadRequestException('The selected room is not available for these dates. Please choose another stay.');
+    const roomAvailability = availability.rooms.find(
+      (entry) => entry.roomId === dto.roomId,
+    );
+    if (
+      roomAvailability?.status !== 'AVAILABLE' ||
+      roomAvailability.availableInventory < dto.rooms
+    )
+      throw new BadRequestException(
+        'The selected room is not available for these dates. Please choose another stay.',
+      );
     const baseRate = Number(room.baseRate || room.price || property.price || 0);
     if (baseRate <= 0)
       throw new BadRequestException('This room does not have a valid rate');
     const includedAdults =
       Math.max(1, Number(room.baseAdults || 2)) * dto.rooms;
     const extraAdultCount = Math.max(0, dto.adults - includedAdults);
-    const roomAmount = this.money((roomAvailability.totalRate || baseRate * nights) * dto.rooms);
+    const roomAmount = this.money(
+      (roomAvailability.totalRate || baseRate * nights) * dto.rooms,
+    );
     const extraGuestAmount = this.money(
       (extraAdultCount * Number(room.additionalAdultPrice || 0) +
         dto.children * Number(room.additionalChildPrice || 0)) *
@@ -457,8 +587,32 @@ export class PaymentsService implements OnModuleInit {
   }
   customerBookings(customerId: string) {
     return this.bookings
-      .find({ customerId, paymentStatus: 'PAID' })
+      .find({
+        customerId,
+        $or: [
+          { paymentStatus: 'PAID' },
+          { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
+        ],
+      })
       .sort({ createdAt: -1 })
+      .lean();
+  }
+  async ownerBookings(ownerId: string, propertyId: string) {
+    const property = await this.properties.exists({
+      _id: new Types.ObjectId(propertyId),
+      ownerId: new Types.ObjectId(ownerId),
+    });
+    if (!property) throw new NotFoundException('Property not found');
+    return this.bookings
+      .find({
+        ownerId: new Types.ObjectId(ownerId),
+        propertyId: new Types.ObjectId(propertyId),
+        $or: [
+          { paymentStatus: 'PAID' },
+          { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
+        ],
+      })
+      .sort({ checkIn: -1 })
       .lean();
   }
   async customerBooking(customerId: string, id: string) {

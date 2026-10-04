@@ -34,7 +34,11 @@ export class Booking {
   @Prop({ default: 'PAYMENT_PENDING', index: true }) status: string;
   @Prop({ default: 'PENDING', index: true }) paymentStatus: string;
   @Prop({ default: 'PENDING', index: true }) settlementStatus: string;
-  @Prop({ default: 'RAZORPAY', enum: ['RAZORPAY', 'CASHFREE'], index: true })
+  @Prop({
+    default: 'RAZORPAY',
+    enum: ['RAZORPAY', 'CASHFREE', 'PAY_AT_HOTEL'],
+    index: true,
+  })
   paymentGateway: string;
   @Prop({ sparse: true, unique: true, index: true }) gatewayOrderId?: string;
   @Prop({ sparse: true, unique: true }) gatewayPaymentId?: string;
