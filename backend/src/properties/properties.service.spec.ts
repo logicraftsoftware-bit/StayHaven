@@ -254,7 +254,7 @@ describe('PropertiesService', () => {
     expect(bookings.find).toHaveBeenCalledWith(
       expect.objectContaining({
         $or: expect.arrayContaining([
-          { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
+          { paymentStatus: { $in: ['PAY_AT_HOTEL', 'PAYMENT_PENDING'] }, status: 'CONFIRMED' },
         ]),
       }),
     );

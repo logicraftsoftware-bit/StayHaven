@@ -68,7 +68,7 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, gue
     } catch (reason) { setError((reason as Error).message); setBusy(false); }
   }
 
-  if (confirmed) return <div className="booking-success"><i><CheckCircle2 /></i><p>{confirmed.payAtHotel ? "PAY AT HOTEL" : "PAYMENT RECEIVED"}</p><h1>Your stay is confirmed.</h1><span>Booking ID <b>{confirmed.number}</b></span><p>{confirmed.payAtHotel ? "No online payment was collected. Pay the property directly at check-in. This reservation is visible to the property owner." : "A secure payment record has been created. The property receives its settlement after checkout."}</p><Link href="/account">View my bookings</Link></div>;
+  if (confirmed) return <div className="booking-success"><i><CheckCircle2 /></i><p>{confirmed.payAtHotel ? "PAY AT HOTEL" : "PAYMENT RECEIVED"}</p><h1>Your stay is confirmed.</h1><span>Booking ID <b>{confirmed.number}</b></span><p>{confirmed.payAtHotel ? "No online payment was collected. Pay the property directly at check-in. This reservation is visible to the property owner." : "A secure payment record has been created. The property receives its settlement after checkout."}</p><Link href="/account#trips">View my booking in My trips</Link></div>;
 
   return <main className="secure-checkout checkout-reference"><div className="container">
     <header><div><p>REVIEW YOUR BOOKING</p><h1>Review your booking</h1></div><Link href={`/hotels/${property.slug}`}>Back to property</Link></header>

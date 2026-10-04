@@ -21,6 +21,7 @@ import {
 import { apiRequest } from "@/lib/api-client";
 import { CUSTOMER_PROFILE_EVENT, CUSTOMER_TOKEN } from "./CustomerAuth";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { BookingPayNowButton } from "@/components/booking/BookingPayNowButton";
 type Traveller = {
   id: string;
   name: string;
@@ -55,6 +56,12 @@ type Booking = {
   grossAmount: number;
   roomName: string;
   paymentStatus: string;
+  propertySlug?: string;
+  propertyAddress?: string;
+  propertyPhone?: string;
+  propertyMapUrl?: string;
+  cancelReason?: string;
+  refundStatus?: string;
 };
 type View =
   "profile" | "travellers" | "trips" | "wishlist" | "devices" | "security";
@@ -76,6 +83,7 @@ export function CustomerAccount() {
     apiRequest<{ data: Customer }>("/api/v1/customer/me", token).then((r) =>
       setCustomer(r.data),
     );
+  const reloadBookings = () => apiRequest<{ data: Booking[] }>("/api/v1/customer/bookings", token).then((response) => setBookings(response.data));
   useEffect(() => {
     const current = localStorage.getItem(CUSTOMER_TOKEN) || "";
     if (!current) {
@@ -467,9 +475,16 @@ export function CustomerAccount() {
                       <span>
                         {b.roomName} · {b.bookingNumber}
                       </span>
-                      <span>{b.paymentStatus === "PAY_AT_HOTEL" ? "Pay at hotel · payment due" : "Paid online"}</span>
+                      <span>{b.status === "CANCELLED" ? `Cancelled${b.cancelReason ? ` · ${b.cancelReason}` : ""}` : b.status === "REFUND_REQUESTING" ? "Cancellation and refund being requested" : b.paymentStatus === "PAY_AT_HOTEL" ? "Pay at hotel · payment due" : b.paymentStatus === "PAYMENT_PENDING" ? "Online payment pending" : "Paid online"}</span>
+                      {b.status === "CANCELLED" && b.refundStatus && <span>Refund: {b.paymentStatus === "REFUNDED" ? "processed" : b.paymentStatus === "REFUND_FAILED" ? "failed — contact support" : "in progress"}</span>}
+                      {b.propertyAddress && <span>{b.propertyAddress}</span>}
                     </p>
-                    <strong>₹{(b.grossAmount / 100).toLocaleString("en-IN")}</strong>
+                    <div className="trip-booking-actions"><strong>₹{(b.grossAmount / 100).toLocaleString("en-IN")}</strong>
+                      {b.status !== "CANCELLED" && ["PAY_AT_HOTEL", "PAYMENT_PENDING"].includes(b.paymentStatus) && <BookingPayNowButton bookingId={b._id} token={token} onPaid={() => void reloadBookings()} />}
+                      {b.propertySlug && <Link href={`/hotels/${b.propertySlug}`}>Hotel details</Link>}
+                      {b.propertyAddress && <a href={b.propertyMapUrl?.startsWith("https://") ? b.propertyMapUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.propertyAddress)}`} target="_blank" rel="noopener noreferrer">Location</a>}
+                      {b.propertyPhone && <a href={`tel:${b.propertyPhone.replace(/[^+\d]/g, "")}`}>Call hotel</a>}
+                    </div>
                   </article>
                 ))}
                 {!filtered.length && (

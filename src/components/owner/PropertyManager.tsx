@@ -341,6 +341,7 @@ export function PropertyManager({
           <OwnerBookings
             propertyId={property._id || ""}
             token={token}
+            canCancel={!permissions}
             propertyName={property.displayName || property.name}
             marketplaceName={site?.name}
             onManageInventory={() => setTab("rates")}

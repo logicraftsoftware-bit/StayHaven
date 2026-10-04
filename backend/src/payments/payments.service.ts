@@ -6,6 +6,7 @@ import {
   NotFoundException,
   OnModuleInit,
   ServiceUnavailableException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -25,6 +26,7 @@ import { PropertyType } from '../property-types/schemas/property-type.schema';
 import { Customer } from '../customers/schemas/customer.schema';
 import { Owner } from '../owners/schemas/owner.schema';
 import { PropertyStatus } from '../common/enums/status.enum';
+import { Role } from '../common/enums/role.enum';
 import {
   CreateBookingOrderDto,
   PaymentQueryDto,
@@ -346,6 +348,48 @@ export class PaymentsService implements OnModuleInit {
     };
   }
 
+  async payExistingBooking(customerId: string, id: string) {
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid booking');
+    const booking = await this.bookings.findOne({ _id: id, customerId, status: 'CONFIRMED' });
+    if (!booking) throw new NotFoundException('Confirmed booking not found');
+    if (booking.checkIn <= new Date()) throw new BadRequestException('Online payment is unavailable after check-in');
+    if (booking.paymentStatus === 'PAID') throw new BadRequestException('This booking is already paid');
+    if (!['PAY_AT_HOTEL', 'PAYMENT_PENDING'].includes(booking.paymentStatus))
+      throw new BadRequestException('This booking cannot be paid online');
+    if (booking.paymentStatus === 'PAYMENT_PENDING' && booking.gatewayOrderId) {
+      if (booking.paymentGateway === 'CASHFREE') {
+        const cashfree = await this.cashfreeGateway();
+        return { gateway: 'CASHFREE', bookingId: booking._id, bookingNumber: booking.bookingNumber, orderId: booking.gatewayOrderId, paymentSessionId: booking.paymentSessionId, mode: cashfree.liveMode ? 'production' : 'sandbox', amount: booking.grossAmount, currency: 'INR', propertyName: booking.propertyName };
+      }
+      const gateway = await this.gateway();
+      return { gateway: 'RAZORPAY', bookingId: booking._id, bookingNumber: booking.bookingNumber, razorpayOrderId: booking.gatewayOrderId, keyId: gateway.keyId, amount: booking.grossAmount, currency: 'INR', propertyName: booking.propertyName, customer: { name: booking.guestName, email: booking.guestEmail, contact: booking.guestPhone } };
+    }
+    const activeGateway = await this.settings.activePaymentGateway();
+    const order = activeGateway === 'CASHFREE'
+      ? await this.cashfree('/orders', { method: 'POST', body: JSON.stringify({
+          order_id: booking.bookingNumber, order_amount: booking.grossAmount / 100, order_currency: 'INR',
+          customer_details: { customer_id: customerId, customer_name: booking.guestName, customer_email: booking.guestEmail, customer_phone: booking.guestPhone },
+          order_meta: { notify_url: 'https://guwahatihomestay.com/api/v1/payments/cashfree/webhook' },
+          order_note: `${booking.propertyName} booking`,
+        }) })
+      : await this.razorpay('/orders', { amount: booking.grossAmount, currency: 'INR', receipt: booking.bookingNumber, notes: { bookingId: String(booking._id), customerId } });
+    const gatewayOrderId = String(activeGateway === 'CASHFREE' ? order.order_id : order.id);
+    const updated = await this.bookings.findOneAndUpdate(
+      { _id: booking._id, status: 'CONFIRMED', paymentStatus: 'PAY_AT_HOTEL' },
+      { $set: { paymentStatus: 'PAYMENT_PENDING', paymentGateway: activeGateway, gatewayOrderId,
+        paymentSessionId: activeGateway === 'CASHFREE' ? String(order.payment_session_id || '') : undefined,
+        ...(activeGateway === 'RAZORPAY' ? { razorpayOrderId: gatewayOrderId } : {}) } },
+      { new: true },
+    );
+    if (!updated) throw new BadRequestException('The booking payment state changed. Refresh My trips.');
+    if (activeGateway === 'CASHFREE') {
+      const cashfree = await this.cashfreeGateway();
+      return { gateway: 'CASHFREE', bookingId: booking._id, bookingNumber: booking.bookingNumber, orderId: gatewayOrderId, paymentSessionId: order.payment_session_id, mode: cashfree.liveMode ? 'production' : 'sandbox', amount: booking.grossAmount, currency: 'INR', propertyName: booking.propertyName };
+    }
+    const gateway = await this.gateway();
+    return { gateway: 'RAZORPAY', bookingId: booking._id, bookingNumber: booking.bookingNumber, razorpayOrderId: gatewayOrderId, keyId: gateway.keyId, amount: booking.grossAmount, currency: 'INR', propertyName: booking.propertyName, customer: { name: booking.guestName, email: booking.guestEmail, contact: booking.guestPhone } };
+  }
+
   async createOrder(customerId: string, dto: CreateBookingOrderDto) {
     const [property, customer] = await Promise.all([
       this.properties
@@ -565,11 +609,12 @@ export class PaymentsService implements OnModuleInit {
   private async captureBooking(orderId: string, paymentId: string) {
     const booking = await this.bookings.findOne({
       $or: [{ gatewayOrderId: orderId }, { razorpayOrderId: orderId }],
-      paymentStatus: { $ne: 'PAID' },
+      status: { $in: ['PAYMENT_PENDING', 'CONFIRMED'] },
+      paymentStatus: { $in: ['PENDING', 'PAYMENT_PENDING'] },
     });
     if (!booking) return null;
     return this.bookings.findOneAndUpdate(
-      { _id: booking._id, paymentStatus: { $ne: 'PAID' } },
+      { _id: booking._id, status: { $in: ['PAYMENT_PENDING', 'CONFIRMED'] }, paymentStatus: { $in: ['PENDING', 'PAYMENT_PENDING'] } },
       {
         $set: {
           gatewayPaymentId: paymentId,
@@ -585,17 +630,20 @@ export class PaymentsService implements OnModuleInit {
       { new: true },
     );
   }
-  customerBookings(customerId: string) {
-    return this.bookings
-      .find({
-        customerId,
-        $or: [
-          { paymentStatus: 'PAID' },
-          { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
-        ],
-      })
-      .sort({ createdAt: -1 })
-      .lean();
+  async customerBookings(customerId: string) {
+    const bookings = await this.bookings.find({ customerId, status: { $ne: 'PAYMENT_PENDING' } }).sort({ createdAt: -1 }).lean();
+    const ids = [...new Set(bookings.map((booking) => String(booking.propertyId)))];
+    const properties = ids.length ? await this.properties.find({ _id: { $in: ids } }).select('slug address city state basicInfo locationDetails').lean() : [];
+    const byId = new Map(properties.map((property) => [String(property._id), property]));
+    return bookings.map((booking) => {
+      const property = byId.get(String(booking.propertyId));
+      return { ...booking,
+        propertySlug: property?.slug || '',
+        propertyAddress: [property?.address, property?.city, property?.state].filter(Boolean).join(', '),
+        propertyPhone: this.text(property?.basicInfo?.phone),
+        propertyMapUrl: this.text(property?.locationDetails?.mapUrl),
+      };
+    });
   }
   async ownerBookings(ownerId: string, propertyId: string) {
     const property = await this.properties.exists({
@@ -607,13 +655,83 @@ export class PaymentsService implements OnModuleInit {
       .find({
         ownerId: new Types.ObjectId(ownerId),
         propertyId: new Types.ObjectId(propertyId),
-        $or: [
-          { paymentStatus: 'PAID' },
-          { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
-        ],
+        status: { $ne: 'PAYMENT_PENDING' },
       })
       .sort({ checkIn: -1 })
       .lean();
+  }
+  async cancelOwnerBooking(
+    actor: { sub: string; role: Role; ownerId?: string; propertyIds?: string[]; permissions?: string[] },
+    id: string,
+    reason: string,
+  ) {
+    if (actor.role !== Role.HOTEL_OWNER) throw new ForbiddenException('Only the property owner can cancel reservations');
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid booking');
+    const booking = await this.bookings.findById(id);
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (String(booking.ownerId) !== actor.sub)
+      throw new ForbiddenException('Booking access denied');
+    if (booking.status === 'CANCELLED') throw new BadRequestException('This booking is already cancelled');
+    if (!['CONFIRMED', 'REFUND_REQUESTING'].includes(booking.status)) throw new BadRequestException('This booking cannot be cancelled now');
+    if (booking.checkIn <= new Date()) throw new BadRequestException('Contact support to cancel a stay after check-in');
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < 5) throw new BadRequestException('Enter a cancellation reason of at least 5 characters');
+    if (booking.paymentStatus === 'PAYMENT_PENDING') throw new BadRequestException('A guest payment is in progress. Cancel after it completes or contact support.');
+    if (booking.paymentStatus === 'PAY_AT_HOTEL') {
+      const cancelled = await this.bookings.findOneAndUpdate(
+        { _id: booking._id, status: 'CONFIRMED', paymentStatus: 'PAY_AT_HOTEL' },
+        { $set: { status: 'CANCELLED', cancelReason: trimmedReason, cancelledAt: new Date() } },
+        { new: true },
+      );
+      if (!cancelled) throw new BadRequestException('The booking changed. Refresh and try again.');
+      return cancelled;
+    }
+    if (booking.paymentStatus !== 'PAID' || booking.settlementStatus !== 'ON_HOLD')
+      throw new BadRequestException('This payment requires support-assisted cancellation');
+    const claimed = booking.status === 'REFUND_REQUESTING' ? booking : await this.bookings.findOneAndUpdate(
+      { _id: booking._id, status: 'CONFIRMED', paymentStatus: 'PAID', settlementStatus: 'ON_HOLD' },
+      { $set: { status: 'REFUND_REQUESTING', cancelReason: trimmedReason, refundStatus: 'REQUESTING', refundRequestedAt: new Date() } },
+      { new: true },
+    );
+    if (!claimed) throw new BadRequestException('The booking changed. Refresh and try again.');
+    let accepted = false;
+    try {
+      let refund: Record<string, unknown>;
+      const stableRefundId = `REFUND_${String(booking._id)}`;
+      if (booking.paymentGateway === 'CASHFREE') {
+        if (!booking.gatewayOrderId) throw new BadRequestException('Cashfree order reference is missing');
+        refund = await this.cashfree(`/orders/${encodeURIComponent(booking.gatewayOrderId)}/refunds`, {
+          method: 'POST',
+          headers: { 'x-idempotency-key': stableRefundId },
+          body: JSON.stringify({ refund_amount: booking.grossAmount / 100, refund_id: stableRefundId, refund_note: claimed.cancelReason || trimmedReason, refund_speed: 'STANDARD' }),
+        });
+      } else if (booking.paymentGateway === 'RAZORPAY') {
+        const paymentId = booking.razorpayPaymentId || booking.gatewayPaymentId;
+        if (!paymentId) throw new BadRequestException('Razorpay payment reference is missing');
+        const gateway = await this.gateway();
+        const response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Basic ${Buffer.from(`${gateway.keyId}:${gateway.keySecret}`).toString('base64')}`, 'X-Refund-Idempotency': stableRefundId },
+          body: JSON.stringify({ amount: booking.grossAmount, speed: 'normal', notes: { bookingNumber: booking.bookingNumber, reason: claimed.cancelReason || trimmedReason } }),
+        });
+        refund = await response.json() as Record<string, unknown>;
+        if (!response.ok) throw new BadGatewayException(this.text((refund.error as { description?: string } | undefined)?.description, 'Razorpay refund failed'));
+      } else throw new BadRequestException('Unsupported payment gateway');
+      accepted = true;
+      const providerStatus = this.text(refund.refund_status || refund.status, 'PENDING').toUpperCase();
+      const processed = ['SUCCESS', 'PROCESSED'].includes(providerStatus);
+      const failed = ['FAILED', 'CANCELLED'].includes(providerStatus);
+      const cancelled = await this.bookings.findOneAndUpdate(
+        { _id: booking._id, status: 'REFUND_REQUESTING' },
+        { $set: { status: 'CANCELLED', paymentStatus: processed ? 'REFUNDED' : failed ? 'REFUND_FAILED' : 'REFUND_PENDING', settlementStatus: 'NOT_APPLICABLE', refundId: this.text(refund.refund_id || refund.id, stableRefundId), refundStatus: providerStatus, cancelledAt: new Date() } },
+        { new: true },
+      );
+      if (!cancelled) throw new BadGatewayException('Refund requested, but the booking status could not be updated. Contact support with the booking ID.');
+      return cancelled;
+    } catch (error) {
+      if (!accepted) await this.bookings.updateOne({ _id: booking._id, status: 'REFUND_REQUESTING' }, { $set: { status: 'CONFIRMED', refundStatus: 'REQUEST_FAILED' } });
+      throw error;
+    }
   }
   async customerBooking(customerId: string, id: string) {
     const value = await this.bookings.findOne({ _id: id, customerId }).lean();
@@ -1092,6 +1210,16 @@ export class PaymentsService implements OnModuleInit {
       if (entity)
         await this.captureBooking(String(entity.order_id), String(entity.id));
     }
+    if (event.event?.startsWith('refund.')) {
+      const refund = event.payload?.refund?.entity;
+      if (refund?.id) {
+        const status = this.text(refund.status).toUpperCase();
+        await this.bookings.updateOne(
+          { refundId: String(refund.id), status: 'CANCELLED', paymentStatus: { $in: ['REFUND_PENDING', 'REFUND_FAILED'] } },
+          { $set: { refundStatus: status, paymentStatus: status === 'PROCESSED' ? 'REFUNDED' : status === 'FAILED' ? 'REFUND_FAILED' : 'REFUND_PENDING' } },
+        );
+      }
+    }
     if (event.event?.startsWith('payout.')) {
       const entity = event.payload?.payout?.entity;
       if (entity?.id)
@@ -1123,6 +1251,7 @@ export class PaymentsService implements OnModuleInit {
       data?: {
         order?: { order_id?: string };
         payment?: { cf_payment_id?: string | number; payment_status?: string };
+        refund?: { refund_id?: string; refund_status?: string };
       };
     };
     if (
@@ -1134,6 +1263,13 @@ export class PaymentsService implements OnModuleInit {
         event.data.order.order_id,
         String(event.data.payment.cf_payment_id || ''),
       );
+    if (event.type === 'REFUND_STATUS_WEBHOOK' && event.data?.refund?.refund_id) {
+      const status = this.text(event.data.refund.refund_status).toUpperCase();
+      await this.bookings.updateOne(
+        { refundId: event.data.refund.refund_id, status: 'CANCELLED', paymentStatus: { $in: ['REFUND_PENDING', 'REFUND_FAILED'] } },
+        { $set: { refundStatus: status, paymentStatus: status === 'SUCCESS' ? 'REFUNDED' : ['FAILED', 'CANCELLED'].includes(status) ? 'REFUND_FAILED' : 'REFUND_PENDING' } },
+      );
+    }
     return { received: true };
   }
   private async updatePayout(

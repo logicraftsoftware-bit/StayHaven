@@ -10,6 +10,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 
 export class CreateBookingOrderDto {
@@ -31,6 +32,9 @@ export class VerifyPaymentDto {
 }
 export class VerifyCashfreePaymentDto {
   @IsString() @MaxLength(80) orderId: string;
+}
+export class CancelBookingDto {
+  @IsString() @MinLength(5) @MaxLength(500) reason: string;
 }
 export class SaveBankAccountDto {
   @IsString() @MaxLength(120) beneficiaryName: string;

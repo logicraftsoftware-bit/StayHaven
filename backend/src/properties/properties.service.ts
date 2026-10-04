@@ -372,7 +372,7 @@ export class PropertiesService {
             checkOut: { $gt: checkIn },
             $or: [
               { paymentStatus: 'PAID', status: { $ne: 'CANCELLED' } },
-              { paymentStatus: 'PAY_AT_HOTEL', status: 'CONFIRMED' },
+              { paymentStatus: { $in: ['PAY_AT_HOTEL', 'PAYMENT_PENDING'] }, status: 'CONFIRMED' },
               {
                 paymentStatus: 'PENDING',
                 createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) },

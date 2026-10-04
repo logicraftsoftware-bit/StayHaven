@@ -21,6 +21,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { OwnerStatusGuard } from '../owners/owner-status.guard';
 import {
   CreateBookingOrderDto,
+  CancelBookingDto,
   PaymentQueryDto,
   RequestWithdrawalDto,
   SaveBankAccountDto,
@@ -53,6 +54,12 @@ export class CustomerPaymentsController {
       success: true,
       data: await this.service.createPayAtHotelBooking(req.user.sub, dto),
     };
+  }
+  @Post(':id/pay-now') async payNow(
+    @Req() req: { user: { sub: string } },
+    @Param('id') id: string,
+  ) {
+    return { success: true, data: await this.service.payExistingBooking(req.user.sub, id) };
   }
   @Post('verify') async verify(
     @Req() req: { user: { sub: string } },
@@ -111,6 +118,13 @@ export class OwnerPaymentsController {
         query.propertyId,
       ),
     };
+  }
+  @Post('bookings/:id/cancel') async cancelBooking(
+    @Req() req: { user: PortalPaymentUser },
+    @Param('id') id: string,
+    @Body() dto: CancelBookingDto,
+  ) {
+    return { success: true, data: await this.service.cancelOwnerBooking(req.user, id, dto.reason) };
   }
   @Get('analytics') async analytics(
     @Req() req: { user: PortalPaymentUser },

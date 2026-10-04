@@ -20,17 +20,19 @@ type BookingPeriod = "past" | "upcoming" | "custom";
 
 const bookingStatuses = ["Acknowledged", "Cancelled", "Pending", "Modified", "Check-in denied"];
 const paymentStatuses = ["Pending", "Processed"];
-type Booking = { _id: string; bookingNumber: string; guestName: string; guestEmail: string; guestPhone: string; roomName: string; checkIn: string; checkOut: string; rooms: number; adults: number; children: number; grossAmount: number; paymentStatus: string; status: string };
+type Booking = { _id: string; bookingNumber: string; guestName: string; guestEmail: string; guestPhone: string; roomName: string; checkIn: string; checkOut: string; rooms: number; adults: number; children: number; grossAmount: number; paymentStatus: string; status: string; settlementStatus: string; cancelReason?: string; refundStatus?: string };
 
 export function OwnerBookings({
   propertyId,
   token,
+  canCancel,
   propertyName,
   marketplaceName,
   onManageInventory,
 }: {
   propertyId: string;
   token: string;
+  canCancel: boolean;
   propertyName: string;
   marketplaceName?: string;
   onManageInventory: () => void;
@@ -45,6 +47,22 @@ export function OwnerBookings({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [actionNotice, setActionNotice] = useState("");
+  const refreshBookings = () => apiRequest<{ data: Booking[] }>(`/api/v1/owner/payments/bookings?propertyId=${encodeURIComponent(propertyId)}`, token).then((response) => setBookings(response.data));
+  async function cancelBooking() {
+    if (!cancelTarget) return;
+    setCancelling(true); setLoadError("");
+    try {
+      await apiRequest(`/api/v1/owner/payments/bookings/${cancelTarget._id}/cancel`, token, { method: "POST", body: JSON.stringify({ reason: cancelReason.trim() }) });
+      await refreshBookings();
+      setActionNotice(cancelTarget.paymentStatus === "PAID" ? "Booking cancelled. The refund has been requested from the payment gateway." : "Booking cancelled. No payment was collected.");
+      setCancelTarget(null); setCancelReason("");
+    } catch (reason) { setLoadError((reason as Error).message); }
+    finally { setCancelling(false); }
+  }
   useEffect(() => {
     let active = true;
     apiRequest<{ data: Booking[] }>(`/api/v1/owner/payments/bookings?propertyId=${encodeURIComponent(propertyId)}`, token)
@@ -76,6 +94,8 @@ export function OwnerBookings({
 
   return (
     <div className="owner-bookings-workspace">
+      {actionNotice && <p className="owner-booking-notice" role="status">{actionNotice}</p>}
+      {loadError && <p className="owner-booking-notice error" role="alert">{loadError}</p>}
       <div className="owner-bookings-actions">
         <div className="owner-bookings-view" aria-label="Booking view">
           <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>
@@ -154,15 +174,15 @@ export function OwnerBookings({
               <span>Room &amp; meal plan</span>
               <span>Booking ID</span>
               <span>Guest contact</span>
-              <span>Net amount</span>
+              <span>Booking amount</span>
             </div>
             {visible.map((booking) => <div className="owner-booking-real-row" role="row" key={booking._id}>
-              <span><b>{booking.guestName}</b><small>{booking.paymentStatus === "PAY_AT_HOTEL" ? "Pay at hotel · unpaid" : "Paid online"}</small></span>
+              <span><b>{booking.guestName}</b><small>{booking.status === "CANCELLED" ? `Cancelled · ${booking.cancelReason || "Owner cancelled"}` : booking.status === "REFUND_REQUESTING" ? "Refund request needs retry" : booking.paymentStatus === "PAY_AT_HOTEL" ? "Accepted · pay at hotel" : booking.paymentStatus === "PAYMENT_PENDING" ? "Accepted · online payment pending" : "Accepted · paid online"}</small></span>
               <span>{new Date(booking.checkIn).toLocaleDateString("en-IN")} – {new Date(booking.checkOut).toLocaleDateString("en-IN")}</span>
               <span>{booking.roomName}<small>{booking.rooms} room · {booking.adults} adults</small></span>
               <span>{booking.bookingNumber}</span>
-              <span>{booking.guestPhone}<small>{booking.guestEmail}</small></span>
-              <span>₹{(booking.grossAmount / 100).toLocaleString("en-IN")}<small>{booking.paymentStatus === "PAY_AT_HOTEL" ? "Due at property" : "Paid"}</small></span>
+              <span><a href={`tel:${booking.guestPhone.replace(/[^+\d]/g, "")}`}>{booking.guestPhone}</a><small>{booking.guestEmail}</small></span>
+              <span>₹{(booking.grossAmount / 100).toLocaleString("en-IN")}<small>{booking.paymentStatus === "PAY_AT_HOTEL" ? "Due at property" : booking.paymentStatus === "REFUND_PENDING" ? "Refund in progress" : booking.paymentStatus === "REFUNDED" ? "Refund processed" : booking.paymentStatus === "REFUND_FAILED" ? "Refund failed" : "Paid"}</small>{canCancel && ["CONFIRMED", "REFUND_REQUESTING"].includes(booking.status) && booking.paymentStatus !== "PAYMENT_PENDING" && new Date(booking.checkIn) > new Date() && (booking.paymentStatus !== "PAID" || booking.settlementStatus === "ON_HOLD") && <button className="owner-booking-cancel" onClick={() => { setCancelTarget(booking); setCancelReason(booking.cancelReason || ""); }}>{booking.status === "REFUND_REQUESTING" ? "Retry refund request" : "Cancel booking"}</button>}</span>
             </div>)}
             {(loading || loadError || !visible.length) && <div className="owner-bookings-empty">
               <i><Inbox /></i>
@@ -196,6 +216,7 @@ export function OwnerBookings({
           </section>
         </div>
       )}
+      {cancelTarget && <div className="owner-booking-guide-backdrop" role="presentation" onMouseDown={() => setCancelTarget(null)}><section className="owner-booking-cancel-dialog" role="dialog" aria-modal="true" aria-label="Cancel booking" onMouseDown={(event) => event.stopPropagation()}><h2>Cancel {cancelTarget.bookingNumber}?</h2><p>{cancelTarget.paymentStatus === "PAID" ? "A full refund will be requested from the payment provider. The guest will see the refund status in My trips." : "This pay-at-hotel booking will be released. No refund is needed because no online payment was collected."}</p><label>Reason for cancellation<textarea minLength={5} maxLength={500} required value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Explain the reason to the guest"/></label><div><button type="button" onClick={() => setCancelTarget(null)}>Keep booking</button><button type="button" disabled={cancelling || cancelReason.trim().length < 5} onClick={() => void cancelBooking()}>{cancelling ? "Processing…" : "Confirm cancellation"}</button></div>{loadError && <p role="alert">{loadError}</p>}</section></div>}
     </div>
   );
 }

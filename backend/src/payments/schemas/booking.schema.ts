@@ -41,12 +41,17 @@ export class Booking {
   })
   paymentGateway: string;
   @Prop({ sparse: true, unique: true, index: true }) gatewayOrderId?: string;
+  @Prop() paymentSessionId?: string;
   @Prop({ sparse: true, unique: true }) gatewayPaymentId?: string;
   @Prop({ sparse: true, unique: true, index: true }) razorpayOrderId?: string;
   @Prop({ sparse: true, unique: true }) razorpayPaymentId?: string;
   @Prop() paidAt?: Date;
   @Prop() settledAt?: Date;
   @Prop() cancelledAt?: Date;
+  @Prop() cancelReason?: string;
+  @Prop() refundId?: string;
+  @Prop() refundStatus?: string;
+  @Prop() refundRequestedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
