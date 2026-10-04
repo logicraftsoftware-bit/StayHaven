@@ -61,6 +61,13 @@ export class CustomerPaymentsController {
   ) {
     return { success: true, data: await this.service.payExistingBooking(req.user.sub, id) };
   }
+  @Post(':id/cancel') async cancel(
+    @Req() req: { user: { sub: string } },
+    @Param('id') id: string,
+    @Body() dto: CancelBookingDto,
+  ) {
+    return { success: true, data: await this.service.cancelCustomerBooking(req.user.sub, id, dto.reason) };
+  }
   @Post('verify') async verify(
     @Req() req: { user: { sub: string } },
     @Body() dto: VerifyPaymentDto,

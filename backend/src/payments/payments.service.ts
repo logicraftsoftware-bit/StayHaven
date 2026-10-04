@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-import { Model, Types } from 'mongoose';
+import { HydratedDocument, Model, Types } from 'mongoose';
 import {
   createCipheriv,
   createDecipheriv,
@@ -671,6 +671,15 @@ export class PaymentsService implements OnModuleInit {
     if (!booking) throw new NotFoundException('Booking not found');
     if (String(booking.ownerId) !== actor.sub)
       throw new ForbiddenException('Booking access denied');
+    return this.cancelReservation(booking, reason);
+  }
+  async cancelCustomerBooking(customerId: string, id: string, reason: string) {
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid booking');
+    const booking = await this.bookings.findOne({ _id: id, customerId });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return this.cancelReservation(booking, reason);
+  }
+  private async cancelReservation(booking: HydratedDocument<Booking>, reason: string) {
     if (booking.status === 'CANCELLED') throw new BadRequestException('This booking is already cancelled');
     if (!['CONFIRMED', 'REFUND_REQUESTING'].includes(booking.status)) throw new BadRequestException('This booking cannot be cancelled now');
     if (booking.checkIn <= new Date()) throw new BadRequestException('Contact support to cancel a stay after check-in');

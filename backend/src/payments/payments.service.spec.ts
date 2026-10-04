@@ -54,4 +54,18 @@ describe('PaymentsService booking cancellation', () => {
     await expect(serviceWith(bookings).cancelOwnerBooking(actor, String(bookingId), 'Property unavailable')).rejects.toThrow('support-assisted cancellation');
     expect(bookings.findOneAndUpdate).not.toHaveBeenCalled();
   });
+
+  it('lets the booking customer cancel a future pay-at-hotel stay', async () => {
+    const booking = { _id: bookingId, customerId: 'guest-1', status: 'CONFIRMED', paymentStatus: 'PAY_AT_HOTEL', checkIn: new Date('2099-01-10') };
+    const bookings = { findOne: jest.fn().mockResolvedValue(booking), findOneAndUpdate: jest.fn().mockResolvedValue({ ...booking, status: 'CANCELLED' }) };
+    const result = await serviceWith(bookings).cancelCustomerBooking('guest-1', String(bookingId), 'Plans changed');
+    expect(result.status).toBe('CANCELLED');
+    expect(bookings.findOne).toHaveBeenCalledWith({ _id: String(bookingId), customerId: 'guest-1' });
+  });
+
+  it('does not let another customer cancel the stay', async () => {
+    const bookings = { findOne: jest.fn().mockResolvedValue(null), findOneAndUpdate: jest.fn() };
+    await expect(serviceWith(bookings).cancelCustomerBooking('stranger', String(bookingId), 'Plans changed')).rejects.toThrow('Booking not found');
+    expect(bookings.findOneAndUpdate).not.toHaveBeenCalled();
+  });
 });

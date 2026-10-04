@@ -11352,9 +11352,13 @@ button {
 .trip-list article{grid-template-columns:130px minmax(0,1fr) minmax(150px,auto);gap:14px;align-items:start}
 .trip-list article>.trip-booking-actions{display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0}
 .trip-booking-actions strong{font-size:17px}
-.trip-booking-actions a,.trip-pay-now button{border:0;background:none;color:#0877e4;font-size:12px;font-weight:750;text-decoration:none;cursor:pointer}
+.trip-booking-actions a,.trip-booking-actions .trip-cancel-button,.trip-pay-now button{display:inline-flex;align-items:center;justify-content:center;width:142px;min-height:34px;padding:7px 10px;border:1px solid #cbd8e8;border-radius:7px;background:#fff;color:#1265b4;font-size:12px;font-weight:750;text-decoration:none;text-align:center;cursor:pointer}
 .trip-pay-now{display:grid;gap:4px;text-align:right}
-.trip-pay-now button{padding:7px 13px;border-radius:6px;background:#0877e4;color:#fff}
+.trip-pay-now button{border-color:#0877e4;background:#0877e4;color:#fff}
+.trip-booking-actions .trip-cancel-button{border-color:#e6bdc3;color:#a70d1d}
+.trip-booking-actions a:hover,.trip-booking-actions .trip-cancel-button:hover{background:#f3f7fc}
+.trip-action-notice{margin:14px 0 0;color:#116a3f;font-size:13px}
+.trip-action-notice.error{color:#a70d1d}
 .trip-pay-now button:disabled{opacity:.6;cursor:not-allowed}
 .trip-pay-now small{max-width:230px;color:#a70d1d;font-size:11px}
 .owner-booking-cancel{margin-top:5px;padding:5px 8px;border:1px solid #b20c1d;border-radius:5px;background:#fff;color:#a70d1d;font-size:11px;font-weight:800}

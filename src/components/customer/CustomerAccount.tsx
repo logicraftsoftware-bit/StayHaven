@@ -74,6 +74,9 @@ export function CustomerAccount() {
     [tripTab, setTripTab] = useState("upcoming"),
     [notice, setNotice] = useState(""),
     [error, setError] = useState(""),
+    [cancelTrip, setCancelTrip] = useState<Booking | null>(null),
+    [cancelReason, setCancelReason] = useState(""),
+    [cancellingTrip, setCancellingTrip] = useState(false),
     [logoutOpen, setLogoutOpen] = useState(false);
   const token =
     typeof window !== "undefined"
@@ -84,6 +87,20 @@ export function CustomerAccount() {
       setCustomer(r.data),
     );
   const reloadBookings = () => apiRequest<{ data: Booking[] }>("/api/v1/customer/bookings", token).then((response) => setBookings(response.data));
+  async function confirmTripCancellation() {
+    if (!cancelTrip || cancelReason.trim().length < 5) return;
+    setCancellingTrip(true);
+    setError("");
+    try {
+      await apiRequest(`/api/v1/customer/bookings/${cancelTrip._id}/cancel`, token, { method: "POST", body: JSON.stringify({ reason: cancelReason.trim() }) });
+      await reloadBookings();
+      setTripTab("cancelled");
+      setNotice(cancelTrip.paymentStatus === "PAID" ? "Booking cancelled. Your full refund has been requested; track its status here." : "Booking cancelled. No online payment was collected.");
+      setCancelTrip(null);
+      setCancelReason("");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setCancellingTrip(false); }
+  }
   useEffect(() => {
     const current = localStorage.getItem(CUSTOMER_TOKEN) || "";
     if (!current) {
@@ -484,6 +501,7 @@ export function CustomerAccount() {
                       {b.propertySlug && <Link href={`/hotels/${b.propertySlug}`}>Hotel details</Link>}
                       {b.propertyAddress && <a href={b.propertyMapUrl?.startsWith("https://") ? b.propertyMapUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.propertyAddress)}`} target="_blank" rel="noopener noreferrer">Location</a>}
                       {b.propertyPhone && <a href={`tel:${b.propertyPhone.replace(/[^+\d]/g, "")}`}>Call hotel</a>}
+                      {b.status === "CONFIRMED" && b.paymentStatus !== "PAYMENT_PENDING" && new Date(b.checkIn) > new Date() && <button type="button" className="trip-cancel-button" onClick={() => { setCancelTrip(b); setCancelReason(""); setError(""); }}>Cancel booking</button>}
                     </div>
                   </article>
                 ))}
@@ -496,6 +514,9 @@ export function CustomerAccount() {
                   </div>
                 )}
               </div>
+              {notice && <p className="trip-action-notice" role="status">{notice}</p>}
+              {error && <p className="trip-action-notice error" role="alert">{error}</p>}
+              {cancelTrip && <div className="owner-booking-guide-backdrop" role="presentation" onMouseDown={() => !cancellingTrip && setCancelTrip(null)}><section className="owner-booking-cancel-dialog" role="dialog" aria-modal="true" aria-label="Cancel booking" onMouseDown={(event) => event.stopPropagation()}><h2>Cancel {cancelTrip.bookingNumber}?</h2><p>{cancelTrip.paymentStatus === "PAID" ? "A full refund will be requested to your original payment method. The refund status will appear in My trips." : "Your room reservation will be cancelled. No online payment was collected."}</p><label>Reason for cancellation<textarea minLength={5} maxLength={500} required value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Tell us why you are cancelling" /></label><div><button type="button" disabled={cancellingTrip} onClick={() => setCancelTrip(null)}>Keep booking</button><button type="button" disabled={cancellingTrip || cancelReason.trim().length < 5} onClick={() => void confirmTripCancellation()}>{cancellingTrip ? "Processing..." : "Confirm cancellation"}</button></div>{error && <p role="alert">{error}</p>}</section></div>}
             </section>
           )}
           {view === "wishlist" && (
