@@ -14,6 +14,14 @@ export async function getPublicProperty(slug: string): Promise<PublicProperty | 
   if (!response?.ok) return null;
   const payload = await response.json() as { data?: PublicProperty }; return payload.data || null;
 }
+export type PublicAvailability = { status: "CONFIGURED" | "NOT_CONFIGURED"; message?: string; nights?: number; rooms: Array<{ roomId: string; status: "AVAILABLE" | "UNAVAILABLE" | "NOT_CONFIGURED"; availableInventory: number; totalRate: number | null }> };
+export async function getPublicAvailability(slug: string, checkIn: string, checkOut: string, guests: number): Promise<PublicAvailability | null> {
+  const query = new URLSearchParams({ checkIn, checkOut, guests: String(guests) });
+  const response = await fetch(`${base()}/api/v1/properties/${encodeURIComponent(slug)}/availability?${query}`, { headers: await siteHeaders(), cache: "no-store" }).catch(() => null);
+  if (!response?.ok) return null;
+  const payload = await response.json() as { data?: PublicAvailability };
+  return payload.data || null;
+}
 export async function getPublicPropertyTypes(): Promise<Array<{ _id: string; name: string; slug: string }>> {
   const response = await fetch(`${base()}/api/v1/property-types`, { headers: await siteHeaders(), next: { revalidate: 300 } }).catch(() => null);
   if (!response?.ok) return []; const payload = await response.json() as { data?: Array<{ _id: string; name: string; slug: string }> }; return payload.data || [];
