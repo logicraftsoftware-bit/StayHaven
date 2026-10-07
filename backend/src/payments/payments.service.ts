@@ -103,6 +103,22 @@ export class PaymentsService implements OnModuleInit {
   private id(prefix: string) {
     return `${prefix}-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
   }
+  private validateBookingGuests(dto: CreateBookingOrderDto, room: { maxAdults?: number; maxChildren?: number }) {
+    if (dto.adults + dto.children < dto.rooms)
+      throw new BadRequestException('At least one guest is required for each room');
+    if (room.maxAdults && dto.adults > room.maxAdults * dto.rooms)
+      throw new BadRequestException('Too many adults for the selected rooms');
+    if (room.maxChildren !== undefined && dto.children > room.maxChildren * dto.rooms)
+      throw new BadRequestException('Too many children for the selected rooms');
+    if (dto.guestDetails) {
+      if (dto.guestDetails.length !== dto.adults + dto.children - 1)
+        throw new BadRequestException('Enter the name and age of every additional guest');
+      dto.guestDetails.forEach((guest, index) => {
+        if (!guest.name?.trim() || !Number.isInteger(guest.age) || (index < dto.adults - 1 ? guest.age < 18 : guest.age > 17))
+          throw new BadRequestException('Additional guest names and ages do not match the adult and child counts');
+      });
+    }
+  }
   private secure(value: string, decode = false) {
     if (!value) return '';
     const key = createHash('sha256')
@@ -254,6 +270,7 @@ export class PaymentsService implements OnModuleInit {
         this.text(entry.id, this.text(entry._id, String(index))) === dto.roomId,
     );
     if (!room) throw new NotFoundException('Room not found');
+    this.validateBookingGuests(dto, room);
     const checkIn = new Date(`${dto.checkIn}T00:00:00.000Z`);
     const checkOut = new Date(`${dto.checkOut}T00:00:00.000Z`);
     const nights = Math.round(
@@ -325,6 +342,7 @@ export class PaymentsService implements OnModuleInit {
       guestName: dto.guestName.trim(),
       guestEmail: dto.guestEmail.toLowerCase(),
       guestPhone: dto.guestPhone.trim(),
+      guestDetails: dto.guestDetails || [],
       checkIn,
       checkOut,
       rooms: dto.rooms,
@@ -411,6 +429,7 @@ export class PaymentsService implements OnModuleInit {
         this.text(entry.id, this.text(entry._id, String(index))) === dto.roomId,
     );
     if (!room) throw new NotFoundException('Room not found');
+    this.validateBookingGuests(dto, room);
     const checkIn = new Date(`${dto.checkIn}T00:00:00.000Z`);
     const checkOut = new Date(`${dto.checkOut}T00:00:00.000Z`);
     const nights = Math.round(
@@ -514,6 +533,7 @@ export class PaymentsService implements OnModuleInit {
       guestName: dto.guestName.trim(),
       guestEmail: dto.guestEmail.toLowerCase(),
       guestPhone: dto.guestPhone.trim(),
+      guestDetails: dto.guestDetails || [],
       checkIn,
       checkOut,
       rooms: dto.rooms,

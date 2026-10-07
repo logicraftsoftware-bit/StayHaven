@@ -326,7 +326,7 @@ export class PropertiesService {
         active: { $ne: false },
       })
       .select(
-        'name displayName slug propertyType propertyTypeId description address city state country location price rooms maxGuests amenities media roomDetails policies mealPlans seo basicInfo locationDetails',
+        'name displayName slug propertyType propertyTypeId description address city state country location price taxes rooms maxGuests amenities media roomDetails policies mealPlans seo basicInfo locationDetails',
       )
       .lean();
     if (!property) throw new NotFoundException('Property not found');

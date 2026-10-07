@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Shell } from "@/components/layout/Shell";
 import { PropertyReviews } from "@/components/hotel/PropertyReviews";
+import { StaySearchBar } from "@/components/booking/StaySearchBar";
 import { canonicalUrl, getCurrentSite } from "@/lib/site";
 import {
   coverFor,
@@ -23,7 +24,7 @@ import {
 } from "@/lib/public-marketplace";
 import type { PublicMedia, PublicRoom } from "@/types/public-property";
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string; rooms?: string; adults?: string; children?: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const [property, site] = await Promise.all([
@@ -97,7 +98,10 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
   const tomorrow = dateAfter(today, 1);
   const checkIn = /^\d{4}-\d{2}-\d{2}$/.test(search.checkIn || "") && (search.checkIn || "") >= tomorrow ? search.checkIn! : tomorrow;
   const checkOut = /^\d{4}-\d{2}-\d{2}$/.test(search.checkOut || "") && (search.checkOut || "") > checkIn ? search.checkOut! : dateAfter(checkIn, 1);
-  const guests = Math.min(30, Math.max(1, Number.parseInt(search.guests || "2", 10) || 2));
+  const adults = Math.min(30, Math.max(1, Number.parseInt(search.adults || search.guests || "2", 10) || 2));
+  const children = Math.min(30, Math.max(0, Number.parseInt(search.children || "0", 10) || 0));
+  const selectedRooms = Math.min(20, Math.max(1, Number.parseInt(search.rooms || "1", 10) || 1));
+  const guests = adults + children;
   const availability = await getPublicAvailability(property.slug, checkIn, checkOut, guests);
   const structured = {
     "@context": "https://schema.org",
@@ -125,13 +129,7 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
       />
       <main className="property-public">
         <div className="container">
-          <form className="property-top-search" method="GET" action={`/hotels/${encodeURIComponent(property.slug)}`}>
-            <label><span>Property</span><strong>{property.displayName || property.name}</strong></label>
-            <label><span>Check-in</span><input aria-label="Check-in" type="date" name="checkIn" min={tomorrow} defaultValue={checkIn} required /></label>
-            <label><span>Check-out</span><input aria-label="Check-out" type="date" name="checkOut" min={checkIn} defaultValue={checkOut} required /></label>
-            <label><span>Guests</span><input aria-label="Guests" type="number" name="guests" min={1} max={30} defaultValue={guests} required /></label>
-            <button type="submit">Search rooms</button>
-          </form>
+          <StaySearchBar propertyName={property.displayName || property.name} action={`/hotels/${encodeURIComponent(property.slug)}`} initial={{ checkIn, checkOut, rooms: selectedRooms, adults, children }} />
           <nav className="property-breadcrumb">
             <span>{site.name}</span>
             <ChevronRight />
@@ -247,6 +245,7 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
                 </div>
               </section>
               <section className="property-section" id="rooms">
+                <StaySearchBar action={`/hotels/${encodeURIComponent(property.slug)}`} initial={{ checkIn, checkOut, rooms: selectedRooms, adults, children }} compact />
                 <div className="property-section-heading">
                   <p className="market-eyebrow">CHOOSE YOUR STAY</p>
                   <h2>Rooms &amp; rates</h2>
@@ -262,7 +261,10 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
                     );
                     const roomId = String(room.id || room._id || index);
                     const liveRoom = availability?.rooms.find((item) => item.roomId === roomId);
-                    const bookable = availability?.status === "CONFIGURED" && liveRoom?.status === "AVAILABLE";
+                    const fitsGuests = (!room.maxAdults || adults <= room.maxAdults * selectedRooms) && (room.maxChildren === undefined || children <= room.maxChildren * selectedRooms);
+                    const bookable = availability?.status === "CONFIGURED" && liveRoom?.status === "AVAILABLE" && liveRoom.availableInventory >= selectedRooms && fitsGuests;
+                    const includedAdults = Math.max(1, Number(room.baseAdults || 2)) * selectedRooms;
+                    const estimatedTotal = Number(liveRoom?.totalRate || 0) * selectedRooms + Math.max(0, adults - includedAdults) * Number(room.additionalAdultPrice || 0) * Number(availability?.nights || 1) + children * Number(room.additionalChildPrice || 0) * Number(availability?.nights || 1) + Number(property.taxes || 0);
                     return (
                       <article key={room.id || room._id || index}>
                         {photos[0] ? (
@@ -330,10 +332,10 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
                           </div>
                         </div>
                         <div className="public-room-booking">
-                          <small>{bookable ? `${liveRoom.availableInventory} available for your dates` : liveRoom?.status === "UNAVAILABLE" ? "Sold out for your dates" : "Live rate unavailable"}</small>
+                          <small>{bookable ? `${liveRoom.availableInventory} available for your dates` : !fitsGuests ? "Select more rooms for your guests" : liveRoom?.status === "UNAVAILABLE" || (liveRoom?.availableInventory || 0) < selectedRooms ? "Not enough rooms for your dates" : "Live rate unavailable"}</small>
                           {roomRate > 0 && <strong>₹{roomRate.toLocaleString("en-IN")}</strong>}
                           {roomRate > 0 && <span>per night</span>}
-                          {bookable && <><p>₹{Number(liveRoom.totalRate || 0).toLocaleString("en-IN")} total · {availability.nights} {availability.nights === 1 ? "night" : "nights"}</p><a href={`/booking/${encodeURIComponent(property.slug)}?roomId=${encodeURIComponent(roomId)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`}>Book now</a></>}
+                          {bookable && <><p>₹{estimatedTotal.toLocaleString("en-IN")} estimated total · {selectedRooms} {selectedRooms === 1 ? "room" : "rooms"} · {availability.nights} {availability.nights === 1 ? "night" : "nights"}</p><a href={`/booking/${encodeURIComponent(property.slug)}?roomId=${encodeURIComponent(roomId)}&checkIn=${checkIn}&checkOut=${checkOut}&rooms=${selectedRooms}&adults=${adults}&children=${children}&guests=${guests}`}>Book now</a></>}
                           {!bookable && <button type="button" disabled>{liveRoom?.status === "UNAVAILABLE" ? "Sold out" : "Booking unavailable"}</button>}
                         </div>
                       </article>

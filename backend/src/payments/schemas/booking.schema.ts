@@ -18,6 +18,8 @@ export class Booking {
   @Prop({ required: true }) guestName: string;
   @Prop({ required: true }) guestEmail: string;
   @Prop({ required: true }) guestPhone: string;
+  @Prop({ type: [{ name: String, age: Number }], default: [] })
+  guestDetails: Array<{ name: string; age: number }>;
   @Prop({ required: true, index: true }) checkIn: Date;
   @Prop({ required: true, index: true }) checkOut: Date;
   @Prop({ default: 1, min: 1 }) rooms: number;

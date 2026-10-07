@@ -83,3 +83,15 @@ describe('PaymentsService booking site guard', () => {
     expect(findOne).toHaveBeenCalledWith(expect.objectContaining({ _id: String(propertyId), siteId }));
   });
 });
+
+describe('PaymentsService additional guest validation', () => {
+  it.each(['createOrder', 'createPayAtHotelBooking'] as const)('%s rejects incomplete guest names before charging or reserving', async (method) => {
+    const siteId = new Types.ObjectId();
+    const propertyId = new Types.ObjectId();
+    const service = Object.create(PaymentsService.prototype) as PaymentsService;
+    Object.defineProperty(service, 'properties', { value: { findOne: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ _id: propertyId, siteId, roomDetails: [{ id: 'room-1', maxAdults: 3 }] }) }) } });
+    Object.defineProperty(service, 'customers', { value: { findById: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }) }) } });
+    const dto = { propertyId: String(propertyId), roomId: 'room-1', rooms: 1, adults: 3, children: 0, guestDetails: [{ name: 'Guest Two', age: 25 }] };
+    await expect(service[method]('customer-1', String(siteId), dto as never)).rejects.toThrow('every additional guest');
+  });
+});
