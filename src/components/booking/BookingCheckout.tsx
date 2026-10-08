@@ -2,11 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { CalendarDays, CheckCircle2, CreditCard, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
-import { CUSTOMER_TOKEN } from "@/components/customer/CustomerAuth";
+import { CUSTOMER_TOKEN, CustomerAuthModal } from "@/components/customer/CustomerAuth";
 import type { PublicProperty, PublicRoom } from "@/types/public-property";
 import { StaySearchBar } from "./StaySearchBar";
 import { publicApiBase } from "@/lib/api-client";
@@ -30,8 +29,8 @@ const loadScript = (id: string, src: string, ready: () => boolean) => new Promis
 
 
 export function BookingCheckout({ property, room, roomId, checkIn, checkOut, rooms, adults, childrenCount, cover }: { property: PublicProperty; room: PublicRoom; roomId: string; checkIn: string; checkOut: string; rooms: number; adults: number; childrenCount: number; cover: string }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState<{ number: string; payAtHotel: boolean } | null>(null);
   const [live, setLive] = useState<{ totalRate: number | null; availableInventory: number; status: string } | null>(null);
@@ -84,7 +83,7 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
     event.preventDefault();
     if (!available || !quote) { setError("The final price is not ready. Please update your search or coupon."); return; }
     const token = localStorage.getItem(CUSTOMER_TOKEN) || "";
-    if (!token) { router.push(`/login?next=${encodeURIComponent(location.pathname + location.search)}`); return; }
+    if (!token) { setAuthOpen(true); return; }
     const form = new FormData(event.currentTarget);
     const payAtHotel = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "hotel";
     const guestDetails = Array.from({ length: Math.max(0, guests - 1) }, (_, index) => ({ name: String(form.get(`additionalName-${index}`) || "").trim(), age: Number(form.get(`additionalAge-${index}`)) }));
@@ -125,5 +124,6 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
       <section><div className="checkout-step"><span><h2>Guest details</h2><p>Enter the lead guest and every additional traveller.</p></span></div><div className="checkout-guest-type"><label><input type="radio" name="guestType" defaultChecked/> Booking for myself</label><label><input type="radio" name="guestType"/> Booking for someone else</label></div><div className="checkout-fields"><label>First name<input name="firstName" required minLength={1} placeholder="First name" autoComplete="given-name"/></label><label>Last name<input name="lastName" required minLength={1} placeholder="Last name" autoComplete="family-name"/></label><label>Email address<input name="guestEmail" type="email" required placeholder="you@example.com" autoComplete="email"/></label><label>Mobile number<input name="guestPhone" required minLength={8} placeholder="+91 98765 43210" autoComplete="tel"/></label></div>{guests > 1 && <div className="checkout-extra-guests"><h3>Other guests ({guests - 1})</h3>{Array.from({ length: guests - 1 }, (_, index) => { const child = index >= adults - 1; return <div className="checkout-extra-guest" key={index}><strong>Guest {index + 2} · {child ? "Child" : "Adult"}</strong><label>Full name<input name={`additionalName-${index}`} required minLength={2} maxLength={120} placeholder="Name as on ID" /></label><label>Age<input name={`additionalAge-${index}`} type="number" min={child ? 0 : 18} max={child ? 17 : 120} required placeholder="Age" /></label></div>; })}</div>}</section>
       <section className="checkout-payment-choice"><div className="checkout-step"><span><h2>Choose how to pay</h2><p>Both options use the live room rate. No payment is collected for pay at hotel.</p></span></div><div className="checkout-payment-option"><CreditCard/><div><strong>Pay online</strong><p>Open the active secure payment gateway.</p></div><ShieldCheck/></div><div className="checkout-payment-option"><CalendarDays/><div><strong>Pay at hotel</strong><p>Temporary booking option while online payments are unavailable. Reserve now and pay the property at check-in.</p></div></div>{(error || availabilityError || (live && !available ? "Not enough rooms are available for your selected stay." : "")) && <p className="checkout-error" role="alert">{error || availabilityError || "Not enough rooms are available for your selected stay."}</p>}<div className="checkout-payment-buttons"><button type="submit" value="online" disabled={busy || !available} className="checkout-pay">{busy ? <LoaderCircle className="spin"/> : <LockKeyhole/>} Pay online</button><button type="submit" value="hotel" disabled={busy || !available} className="checkout-pay-hotel">{busy ? "Confirming…" : "Book now · Pay at hotel"}</button></div><p className="checkout-terms">By booking, you agree to the property’s listed policies. The final charge is calculated from live rates by the booking service.</p></section>
     </form><BookingPriceSidebar roomName={room.name || "Room"} rooms={rooms} nights={nights} quote={quote} couponInput={couponInput} setCouponInput={setCouponInput} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} couponError={couponError} coupons={coupons} /></div>
+    {authOpen && <CustomerAuthModal open onClose={() => setAuthOpen(false)} />}
   </div></main>;
 }
