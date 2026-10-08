@@ -50,4 +50,12 @@ describe('booking pricing master', () => {
   it('rejects inactive or unknown coupons', () => {
     expect(() => calculateBookingPrice({ ...input, couponCode: 'MISSING' })).toThrow(BadRequestException);
   });
+
+  it('enforces coupon minimum on the pre-tax, pre-discount room bill', () => {
+    const masterWithMinimum = { ...master, coupons: [{ code: 'SAVE15', percent: 15, minBillAmount: 6000, active: true }] };
+    expect(() => calculateBookingPrice({ ...input, master: masterWithMinimum, couponCode: 'SAVE15' })).toThrow('at least ₹6,000');
+    const eligible = calculateBookingPrice({ ...input, roomRateTotal: 3000, rooms: 2, master: masterWithMinimum, couponCode: 'SAVE15' });
+    expect(eligible.couponDiscountAmount).toBe(90000);
+    expect(eligible.grossAmount).toBe(535500);
+  });
 });

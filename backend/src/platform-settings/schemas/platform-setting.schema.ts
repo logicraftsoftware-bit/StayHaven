@@ -23,7 +23,7 @@ export class PlatformSetting {
   @Prop({ default: '', select: false }) aiSensyApiKey: string;
   @Prop({ default: 'Homestay OTP Verification' }) aiSensyOtpCampaign: string;
   @Prop({ type: [Object], default: [] }) gstSlabs: Array<{ maxNightlyRate: number | null; ratePercent: number }>;
-  @Prop({ type: [Object], default: [] }) coupons: Array<{ code: string; percent: number; active: boolean; startsAt?: string; endsAt?: string }>;
+  @Prop({ type: [Object], default: [] }) coupons: Array<{ code: string; percent: number; minBillAmount?: number; active: boolean; startsAt?: string; endsAt?: string }>;
 }
 export const PlatformSettingSchema =
   SchemaFactory.createForClass(PlatformSetting);

@@ -64,6 +64,7 @@ export class PlatformSettingsService {
     const coupons = dto.coupons.map((coupon) => ({
       code: coupon.code.trim().toUpperCase(),
       percent: coupon.percent,
+      minBillAmount: coupon.minBillAmount ?? 0,
       active: coupon.active,
       startsAt: coupon.startsAt || undefined,
       endsAt: coupon.endsAt || undefined,

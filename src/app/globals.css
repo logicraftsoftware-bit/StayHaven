@@ -11351,6 +11351,52 @@ button {
 .checkout-coupon-option{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:1px solid #d9e1ea;background:#fff;border-radius:8px;padding:11px;text-align:left;color:#14233b;cursor:pointer}
 .checkout-coupon-option span{color:#147be7;font-size:12px}
 .checkout-coupons .checkout-error{margin:0;font-size:12px}
+.checkout-reference .checkout-layout{grid-template-columns:minmax(0,1fr) 330px}
+.checkout-reference .checkout-layout>aside.checkout-side-stack{display:grid;align-content:start;gap:16px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.checkout-price-card,.checkout-coupon-card{padding:20px;background:#fff;border:1px solid #e3e6eb;border-radius:7px;box-shadow:0 3px 10px #17263c10}
+.checkout-side-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:16px;border-bottom:1px solid #e7e9ed}
+.checkout-side-heading h2{margin:0;color:#131d2c;font-size:17px;font-weight:800}
+.checkout-side-heading small{display:block;margin-top:3px;color:#768397;font-size:11px}
+.checkout-side-heading button{display:flex;align-items:center;gap:3px;padding:0;border:0;background:transparent;color:#0879e4;font-size:12px;font-weight:750;white-space:nowrap;cursor:pointer}
+.checkout-side-heading button svg{transition:transform .2s}
+.checkout-side-heading button svg.is-open{transform:rotate(180deg)}
+.checkout-price-compact,.checkout-breakup-rows>div,.checkout-price-total{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.checkout-price-compact{padding:18px 0 11px;color:#3a4557;font-size:13px}
+.checkout-price-compact b{color:#17243c;white-space:nowrap;font-weight:700}
+.checkout-price-total{padding-top:13px;border-top:2px solid #e3e5e8;color:#101923;font-size:14px;font-weight:850}
+.checkout-price-total strong{font-size:18px;white-space:nowrap}
+.checkout-price-loading{color:#718097;font-size:13px}
+.checkout-breakup-rows{display:grid;gap:0}
+.checkout-breakup-rows>div{padding:13px 0;border-bottom:1px solid #e9ebee;font-size:13px;color:#27364b}
+.checkout-breakup-rows>div b{font-weight:700;white-space:nowrap}
+.checkout-breakup-rows>div small{display:block;margin-top:2px;font-size:11px;color:#7b8697}
+.checkout-breakup-rows>div.discount{color:#008c80}
+.checkout-breakup-rows>div.checkout-breakup-subtotal{font-weight:800;color:#121f32}
+.checkout-price-fineprint{margin:13px 0 0;color:#748198;font-size:11px;line-height:1.4}
+.checkout-coupon-card .checkout-side-heading{margin-bottom:15px}
+.checkout-coupon-card .checkout-coupon-entry{display:flex;gap:0;margin:0 0 13px;border:1px solid #d8dce2;border-radius:8px;background:#f8f9fb;overflow:hidden}
+.checkout-coupon-card .checkout-coupon-entry input{height:44px;min-width:0;flex:1;border:0;outline:0;background:transparent;font-size:13px}
+.checkout-coupon-card .checkout-coupon-entry button{border:0;background:transparent;color:#0879e4;font-size:12px;font-weight:800;text-transform:uppercase}
+.checkout-coupon-card .checkout-coupon-entry button:disabled{color:#b8bdc6;cursor:not-allowed}
+.checkout-coupon-list{display:grid;gap:10px}
+.checkout-coupon-option{display:flex;align-items:flex-start;gap:9px;padding:13px 11px;background:#fff;border:1px solid #dce2e8;border-radius:11px}
+.checkout-coupon-option.is-applied{border-color:#67b7ff;background:#f5fbff}
+.checkout-coupon-option>div{flex:1;min-width:0}
+.checkout-coupon-option strong{color:#27374d;font-size:13px;overflow-wrap:anywhere}
+.checkout-coupon-option p{margin:3px 0 0;color:#778397;font-size:11px;line-height:1.35}
+.checkout-coupon-option small{display:block;margin-top:4px;color:#a56d2b;font-size:10px}
+.checkout-coupon-option button{align-self:center;border:0;background:transparent;color:#0678e0;font-size:12px;font-weight:800;cursor:pointer}
+.checkout-coupon-option button:disabled{color:#aab4c1;cursor:not-allowed}
+.checkout-coupon-option.is-applied button{color:#07815b}
+.checkout-coupon-icon{display:grid;place-items:center;flex:none;width:27px;height:27px;border-radius:7px;background:#eaf5ff;color:#0879e4}
+.checkout-coupon-applied{display:flex;justify-content:space-between;gap:8px;margin-bottom:12px;padding:11px;border-radius:8px;background:#eaf9f5;color:#087e59;font-size:11px}
+.checkout-coupon-applied span{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.checkout-coupon-applied button{border:0;background:transparent;color:#0879e4;font-size:11px;font-weight:750;cursor:pointer}
+.checkout-coupon-error{margin:0 0 12px;padding:8px 10px;border-radius:7px;background:#fff0f0;color:#a40d24;font-size:11px}
+.checkout-coupon-empty{margin:0;color:#758196;font-size:12px}
+.checkout-side-trust{display:flex;align-items:flex-start;gap:7px;margin:0;padding:10px 3px;color:#648073;font-size:11px;line-height:1.4}
+.checkout-side-trust svg{flex:none;color:#0b925f}
+@media(max-width:850px){.checkout-reference .checkout-layout{grid-template-columns:1fr}.checkout-reference .checkout-layout>aside.checkout-side-stack{grid-row:1;position:static}}
 .pricing-master{display:grid;gap:14px}
 .pricing-master h3{margin:6px 0 0}
 .pricing-master-warning{background:#fff7eb;color:#805018;border-radius:8px;padding:12px}
@@ -11360,6 +11406,46 @@ button {
 .pricing-master-row label{display:grid;gap:5px;font-size:12px}
 .pricing-master-row input{width:100%;min-width:0;border:1px solid #d6dfeb;border-radius:6px;padding:9px}
 .pricing-master-row button,.pricing-master>button[type=button]{border:1px solid #d6dfeb;border-radius:6px;background:#fff;padding:9px 12px;cursor:pointer}
+.pricing-editor{display:grid;gap:0;padding:0!important;overflow:hidden}
+.pricing-editor-header{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:28px 32px;background:linear-gradient(110deg,#fff 60%,#fff8f8);border-bottom:1px solid #e9edf2}
+.pricing-editor-kicker{font-size:11px;font-weight:800;letter-spacing:.13em;color:#a90e20}
+.pricing-editor-header h2{margin:5px 0 4px;font-size:25px;color:#14243c}
+.pricing-editor-header p,.pricing-editor-section-head p{margin:0;color:#6c7890;font-size:13px}
+.pricing-editor-count{white-space:nowrap;background:#fff0f1;color:#a20c1d;font-size:12px;font-weight:800;border-radius:999px;padding:8px 13px}
+.pricing-editor-section{padding:28px 32px;border-bottom:1px solid #e9edf2}
+.pricing-editor-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.pricing-editor-section-head h3{margin:0 0 4px;font-size:18px;color:#17253a}
+.pricing-editor-add{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#0969c8;border:1px solid #b9d8fb;background:#f4f9ff;padding:9px 13px;border-radius:8px;font-weight:750;cursor:pointer}
+.pricing-editor-slabs,.pricing-editor-coupons{display:grid;gap:12px}
+.pricing-editor-slab{display:grid;grid-template-columns:34px minmax(150px,1.2fr) minmax(120px,.8fr) minmax(120px,1fr) 34px;gap:14px;align-items:end;padding:15px 18px;background:#fafbfd;border:1px solid #e5ebf2;border-radius:10px}
+.pricing-editor-slab-number{font-size:14px;font-weight:800;color:#a60f21;align-self:center}
+.pricing-editor-slab-label{align-self:center;color:#718098;font-size:12px}
+.pricing-editor label{display:grid;gap:7px;color:#33415a;font-size:12px;font-weight:750}
+.pricing-editor input:not([type=checkbox]){width:100%;min-width:0;height:42px;border:1px solid #d7e0eb;border-radius:7px;padding:9px 11px;background:#fff;color:#14243c;font-size:14px;font-weight:500}
+.pricing-editor input:disabled{background:#f3f5f8;color:#75849a}
+.pricing-editor input:focus{outline:2px solid #b5d5fa;outline-offset:1px}
+.pricing-editor-delete{display:grid;place-items:center;width:34px;height:34px;border:0;background:transparent;color:#a75b64;border-radius:7px;cursor:pointer}
+.pricing-editor-delete:hover{background:#fff0f1;color:#a60f21}
+.pricing-editor-delete:disabled{opacity:.3;cursor:not-allowed}
+.pricing-editor-note{margin:12px 0 0;color:#936727;font-size:12px}
+.pricing-editor-coupon{padding:18px;border:1px solid #e1e8f1;border-radius:11px;background:#fff;box-shadow:0 2px 8px #182c4a08}
+.pricing-editor-coupon-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.pricing-editor-coupon-head>div{display:grid;gap:3px;flex:1;min-width:0}
+.pricing-editor-coupon-head strong{font-size:16px;color:#15253e;overflow-wrap:anywhere}
+.pricing-editor-coupon-head small{font-size:12px;color:#687894}
+.pricing-editor-coupon-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:9px;background:#ebf5ff;color:#0875d6}
+.pricing-editor-switch{display:flex!important;align-items:center;gap:6px!important;white-space:nowrap}
+.pricing-editor-switch input{accent-color:#098953}
+.pricing-editor-coupon-fields{display:grid;grid-template-columns:1.1fr .7fr .95fr .95fr .95fr;gap:13px}
+.pricing-editor-input-icon{display:flex;align-items:center;gap:4px;padding-left:10px;border:1px solid #d7e0eb;border-radius:7px;color:#798ba4}
+.pricing-editor-input-icon input{border:0!important;padding-left:2px!important}
+.pricing-editor-coupon-help{margin:12px 0 0;color:#718098;font-size:12px}
+.pricing-editor-empty{display:grid;justify-items:center;gap:6px;padding:27px;border:1px dashed #cfd9e5;border-radius:11px;color:#75849a}
+.pricing-editor-empty strong{color:#17253a}
+.pricing-editor-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 32px;background:#fafbfd}
+.pricing-editor-footer span{font-size:12px;color:#6d7a91}
+@media(max-width:1000px){.pricing-editor-coupon-fields{grid-template-columns:repeat(3,minmax(0,1fr))}.pricing-editor-slab{grid-template-columns:28px repeat(2,minmax(0,1fr)) 34px}.pricing-editor-slab-label{grid-column:2/4;grid-row:2}}
+@media(max-width:650px){.pricing-editor-header,.pricing-editor-section,.pricing-editor-footer{padding:19px}.pricing-editor-section-head,.pricing-editor-footer{align-items:flex-start;flex-direction:column}.pricing-editor-slab{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 30px;gap:8px;padding:11px}.pricing-editor-coupon-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.pricing-editor-coupon-fields label:first-child,.pricing-editor-coupon-fields label:nth-child(3){grid-column:1/-1}.pricing-editor-count{display:none}}
 @media(max-width:850px){.pricing-master-row,.pricing-master-row.coupon{grid-template-columns:repeat(2,minmax(0,1fr))}.pricing-master-row button{grid-column:1/-1}}
 .owner-booking-real-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:center;padding:16px 20px;border-top:1px solid #e7ebf1;color:#17243b;font-size:12px;overflow-wrap:anywhere}
 .owner-booking-real-row span{display:grid;gap:4px}

@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 
 export type PricingMaster = {
   gstSlabs: Array<{ maxNightlyRate: number | null; ratePercent: number }>;
-  coupons: Array<{ code: string; percent: number; active: boolean; startsAt?: string; endsAt?: string }>;
+  coupons: Array<{ code: string; percent: number; minBillAmount?: number; active: boolean; startsAt?: string; endsAt?: string }>;
 };
 
 export function calculateBookingPrice(input: {
@@ -36,6 +36,8 @@ export function calculateBookingPrice(input: {
   const today = (input.now || new Date()).toISOString().slice(0, 10);
   if (code && (!coupon?.active || (coupon.startsAt && today < coupon.startsAt.slice(0, 10)) || (coupon.endsAt && today > coupon.endsAt.slice(0, 10))))
     throw new BadRequestException('Coupon is unavailable or expired');
+  if (coupon && listedSubtotal < cents(coupon.minBillAmount || 0))
+    throw new BadRequestException(`This coupon needs a room bill of at least ₹${Number(coupon.minBillAmount).toLocaleString('en-IN')} before GST and discount`);
   const couponDiscountAmount = coupon ? Math.min(listedSubtotal, Math.round(listedSubtotal * coupon.percent / 100)) : 0;
   const afterDiscount = listedSubtotal - couponDiscountAmount;
   const discountedNightlyUnit = nightlyRates.map((rate) =>
@@ -52,6 +54,7 @@ export function calculateBookingPrice(input: {
     extraGuestAmount,
     couponCode: coupon?.code || '',
     couponPercent: coupon?.percent || 0,
+    couponMinBillAmount: coupon?.minBillAmount || 0,
     couponDiscountAmount,
     gstRatePercent,
     gstIncluded: input.gstIncluded,

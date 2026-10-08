@@ -66,6 +66,7 @@ export class GstSlabDto {
 export class CouponDto {
   @IsString() @MaxLength(32) code: string;
   @IsNumber() @Min(0.01) @Max(99) percent: number;
+  @IsOptional() @IsNumber() @Min(0) minBillAmount?: number;
   @IsBoolean() active: boolean;
   @IsOptional() @IsDateString() startsAt?: string;
   @IsOptional() @IsDateString() endsAt?: string;
