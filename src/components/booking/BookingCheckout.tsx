@@ -19,6 +19,8 @@ declare global { interface Window {
 type RazorpayOrder = { gateway: "RAZORPAY"; bookingId: string; bookingNumber: string; razorpayOrderId: string; keyId: string; amount: number; currency: string; propertyName: string; customer: { name: string; email: string; contact: string } };
 type CashfreeOrder = { gateway: "CASHFREE"; bookingId: string; bookingNumber: string; orderId: string; paymentSessionId: string; mode: "sandbox" | "production"; amount: number; currency: string; propertyName: string };
 type Order = RazorpayOrder | CashfreeOrder;
+type Quote = { roomAmount: number; extraGuestAmount: number; couponCode: string; couponPercent: number; couponDiscountAmount: number; gstRatePercent: number | null; gstIncluded: boolean; gstAmount: number; propertyTaxAmount: number; grossAmount: number };
+type AvailableCoupon = { code: string; percent: number; active: boolean };
 
 const loadScript = (id: string, src: string, ready: () => boolean) => new Promise<void>((resolve, reject) => {
   if (ready()) return resolve();
@@ -26,6 +28,35 @@ const loadScript = (id: string, src: string, ready: () => boolean) => new Promis
   if (current) { current.addEventListener("load", () => resolve(), { once: true }); current.addEventListener("error", () => reject(new Error("Secure payment window could not be loaded")), { once: true }); return; }
   const script = document.createElement("script"); script.id = id; script.src = src; script.onload = () => resolve(); script.onerror = () => reject(new Error("Secure payment window could not be loaded")); document.head.appendChild(script);
 });
+
+const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+function PriceSidebar({ roomName, checkIn, checkOut, adults, childrenCount, rooms, nights, quote, couponInput, setCouponInput, appliedCoupon, setAppliedCoupon, couponError, coupons }: {
+  roomName: string; checkIn: string; checkOut: string; adults: number; childrenCount: number; rooms: number; nights: number;
+  quote: Quote | null; couponInput: string; setCouponInput: (value: string) => void; appliedCoupon: string; setAppliedCoupon: (value: string) => void;
+  couponError: string; coupons: AvailableCoupon[];
+}) {
+  const dateLabel = (value: string) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+  return <aside>
+    <div className="checkout-price-title"><h2>Price breakup</h2><span>{roomName}</span></div>
+    <dl><div><dt><CalendarDays/> Check-in</dt><dd>{dateLabel(checkIn)}</dd></div><div><dt><CalendarDays/> Check-out</dt><dd>{dateLabel(checkOut)}</dd></div><div><dt><Users/> Guests</dt><dd>{adults} adults{childrenCount ? `, ${childrenCount} children` : ""}</dd></div><div><dt>Rooms</dt><dd>{rooms}</dd></div><div><dt>Nights</dt><dd>{nights}</dd></div></dl>
+    <div className="checkout-estimate">{quote ? <>
+      <span>Room rate · {rupees(quote.roomAmount)}</span>
+      {quote.extraGuestAmount > 0 && <span>Extra guests · {rupees(quote.extraGuestAmount)}</span>}
+      {quote.couponDiscountAmount > 0 && <span>Coupon {quote.couponCode} ({quote.couponPercent}% off) · −{rupees(quote.couponDiscountAmount)}</span>}
+      <span>GST ({quote.gstRatePercent === null ? "mixed nightly rates" : `${quote.gstRatePercent}%`}{quote.gstIncluded ? ", included" : ""}) · {rupees(quote.gstAmount)}</span>
+      {quote.propertyTaxAmount > 0 && <span>Property tax / fee · {rupees(quote.propertyTaxAmount)}</span>}
+      <strong>Total {rupees(quote.grossAmount)}</strong>
+      <small>{quote.gstIncluded ? "GST is included in the listed room rate." : "GST is added to the discounted room price."} Final price is recalculated when booking.</small>
+    </> : <small>Checking live price…</small>}</div>
+    <div className="checkout-coupons"><h3>Coupon codes</h3><div className="checkout-coupon-entry"><input aria-label="Coupon code" placeholder="Enter coupon code" value={couponInput} onChange={(event) => setCouponInput(event.target.value.toUpperCase())}/><button type="button" onClick={() => setAppliedCoupon(couponInput.trim())}>Apply</button></div>
+      {appliedCoupon && <button type="button" className="checkout-coupon-remove" onClick={() => { setAppliedCoupon(""); setCouponInput(""); }}>Remove {appliedCoupon}</button>}
+      {couponError && <p role="alert" className="checkout-error">{couponError}</p>}
+      {coupons.map((coupon) => <button type="button" className="checkout-coupon-option" key={coupon.code} onClick={() => { setCouponInput(coupon.code); setAppliedCoupon(coupon.code); }}><b>{coupon.code}</b><span>{coupon.percent}% off · Apply</span></button>)}
+    </div>
+    <div className="checkout-trust"><ShieldCheck/> Pay at hotel does not charge your card or credit the owner wallet.</div>
+  </aside>;
+}
 
 export function BookingCheckout({ property, room, roomId, checkIn, checkOut, rooms, adults, childrenCount, cover }: { property: PublicProperty; room: PublicRoom; roomId: string; checkIn: string; checkOut: string; rooms: number; adults: number; childrenCount: number; cover: string }) {
   const router = useRouter();
@@ -35,14 +66,16 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
   const [live, setLive] = useState<{ totalRate: number | null; availableInventory: number; status: string } | null>(null);
   const [availabilityError, setAvailabilityError] = useState("");
   const [policiesOpen, setPoliciesOpen] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [quoted, setQuoted] = useState<{ key: string; value: Quote } | null>(null);
+  const [coupons, setCoupons] = useState<AvailableCoupon[]>([]);
   const children = childrenCount;
+  const quoteKey = [property._id, roomId, checkIn, checkOut, rooms, adults, children, appliedCoupon].join("|");
+  const quote = quoted?.key === quoteKey ? quoted.value : null;
   const guests = adults + children;
   const nights = Math.max(1, Math.round((new Date(checkOut).valueOf() - new Date(checkIn).valueOf()) / 86400000));
-  const rate = Number(room.baseRate || room.price || property.price || 0);
-  const includedAdults = Math.max(1, Number(room.baseAdults || 2)) * rooms;
-  const roomTotal = Number(live?.totalRate || 0) * rooms;
-  const extraTotal = (Math.max(0, adults - includedAdults) * Number(room.additionalAdultPrice || 0) + children * Number(room.additionalChildPrice || 0)) * nights;
-  const estimate = roomTotal + extraTotal + Number(property.taxes || 0);
   const available = live?.status === "AVAILABLE" && live.availableInventory >= rooms;
   const dateLabel = (value: string) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${value}T12:00:00`));
   const name = property.displayName || property.name;
@@ -56,16 +89,35 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
       .catch((reason) => { if (active) setAvailabilityError((reason as Error).message); });
     return () => { active = false; };
   }, [property.slug, roomId, checkIn, checkOut, guests]);
+  useEffect(() => {
+    fetch(`${publicApiBase}/api/v1/pricing/coupons`, { cache: "no-store" })
+      .then((response) => response.json())
+      .then((result) => setCoupons(result.data || []))
+      .catch(() => setCoupons([]));
+  }, []);
+  useEffect(() => {
+    let active = true;
+    fetch(`${publicApiBase}/api/v1/pricing/quote`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+      body: JSON.stringify({ propertyId: property._id, roomId, checkIn, checkOut, rooms, adults, children, couponCode: appliedCoupon || undefined }),
+    }).then(async (response) => {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Price could not be confirmed");
+      return result.data as Quote;
+    }).then((result) => { if (active) { setQuoted({ key: quoteKey, value: result }); setCouponError(""); } })
+      .catch((reason) => { if (active) setCouponError((reason as Error).message); });
+    return () => { active = false; };
+  }, [property._id, roomId, checkIn, checkOut, rooms, adults, children, appliedCoupon, quoteKey]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!available) { setError("These rooms are no longer available. Update your search."); return; }
+    if (!available || !quote) { setError("The final price is not ready. Please update your search or coupon."); return; }
     const token = localStorage.getItem(CUSTOMER_TOKEN) || "";
     if (!token) { router.push(`/login?next=${encodeURIComponent(location.pathname + location.search)}`); return; }
     const form = new FormData(event.currentTarget);
     const payAtHotel = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "hotel";
     const guestDetails = Array.from({ length: Math.max(0, guests - 1) }, (_, index) => ({ name: String(form.get(`additionalName-${index}`) || "").trim(), age: Number(form.get(`additionalAge-${index}`)) }));
-    const details = { propertyId: property._id, roomId, checkIn, checkOut, rooms, adults, children, guestName: `${String(form.get("firstName") || "").trim()} ${String(form.get("lastName") || "").trim()}`.trim(), guestEmail: form.get("guestEmail"), guestPhone: form.get("guestPhone"), guestDetails };
+    const details = { propertyId: property._id, roomId, checkIn, checkOut, rooms, adults, children, couponCode: appliedCoupon || undefined, guestName: `${String(form.get("firstName") || "").trim()} ${String(form.get("lastName") || "").trim()}`.trim(), guestEmail: form.get("guestEmail"), guestPhone: form.get("guestPhone"), guestDetails };
     setBusy(true); setError("");
     try {
       if (payAtHotel) {
@@ -101,6 +153,6 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
       <section><div className="checkout-step"><span><h2>Important information</h2><p>Please review the property policies before confirming.</p></span></div><div className="checkout-policy-list">{policies.slice(0, policiesOpen ? undefined : 2).map(([key, value]) => <div key={key}><CheckCircle2/><span><b>{key.replace(/([A-Z])/g, " $1")}</b> · {typeof value === "boolean" ? value ? "Allowed" : "Not allowed" : String(value)}</span></div>)}{!policies.length && <p>Contact the property for specific house rules and cancellation terms.</p>}</div>{policies.length > 2 && <button className="checkout-view-more" type="button" aria-expanded={policiesOpen} onClick={() => setPoliciesOpen((value) => !value)}>{policiesOpen ? "View less" : `View more (${policies.length - 2})`}</button>}</section>
       <section><div className="checkout-step"><span><h2>Guest details</h2><p>Enter the lead guest and every additional traveller.</p></span></div><div className="checkout-guest-type"><label><input type="radio" name="guestType" defaultChecked/> Booking for myself</label><label><input type="radio" name="guestType"/> Booking for someone else</label></div><div className="checkout-fields"><label>First name<input name="firstName" required minLength={1} placeholder="First name" autoComplete="given-name"/></label><label>Last name<input name="lastName" required minLength={1} placeholder="Last name" autoComplete="family-name"/></label><label>Email address<input name="guestEmail" type="email" required placeholder="you@example.com" autoComplete="email"/></label><label>Mobile number<input name="guestPhone" required minLength={8} placeholder="+91 98765 43210" autoComplete="tel"/></label></div>{guests > 1 && <div className="checkout-extra-guests"><h3>Other guests ({guests - 1})</h3>{Array.from({ length: guests - 1 }, (_, index) => { const child = index >= adults - 1; return <div className="checkout-extra-guest" key={index}><strong>Guest {index + 2} · {child ? "Child" : "Adult"}</strong><label>Full name<input name={`additionalName-${index}`} required minLength={2} maxLength={120} placeholder="Name as on ID" /></label><label>Age<input name={`additionalAge-${index}`} type="number" min={child ? 0 : 18} max={child ? 17 : 120} required placeholder="Age" /></label></div>; })}</div>}</section>
       <section className="checkout-payment-choice"><div className="checkout-step"><span><h2>Choose how to pay</h2><p>Both options use the live room rate. No payment is collected for pay at hotel.</p></span></div><div className="checkout-payment-option"><CreditCard/><div><strong>Pay online</strong><p>Open the active secure payment gateway.</p></div><ShieldCheck/></div><div className="checkout-payment-option"><CalendarDays/><div><strong>Pay at hotel</strong><p>Temporary booking option while online payments are unavailable. Reserve now and pay the property at check-in.</p></div></div>{(error || availabilityError || (live && !available ? "Not enough rooms are available for your selected stay." : "")) && <p className="checkout-error" role="alert">{error || availabilityError || "Not enough rooms are available for your selected stay."}</p>}<div className="checkout-payment-buttons"><button type="submit" value="online" disabled={busy || !available} className="checkout-pay">{busy ? <LoaderCircle className="spin"/> : <LockKeyhole/>} Pay online</button><button type="submit" value="hotel" disabled={busy || !available} className="checkout-pay-hotel">{busy ? "Confirming…" : "Book now · Pay at hotel"}</button></div><p className="checkout-terms">By booking, you agree to the property’s listed policies. The final charge is calculated from live rates by the booking service.</p></section>
-    </form><aside><div className="checkout-price-title"><h2>Price summary</h2><span>{room.name || "Room"}</span></div><dl><div><dt><CalendarDays/> Check-in</dt><dd>{dateLabel(checkIn)}</dd></div><div><dt><CalendarDays/> Check-out</dt><dd>{dateLabel(checkOut)}</dd></div><div><dt><Users/> Guests</dt><dd>{adults} adults{children ? `, ${children} children` : ""}</dd></div><div><dt>Rooms</dt><dd>{rooms}</dd></div><div><dt>Nights</dt><dd>{nights}</dd></div></dl><div className="checkout-estimate"><span>Rooms · ₹{live?.totalRate?.toLocaleString("en-IN") || rate.toLocaleString("en-IN")} × {rooms}</span>{extraTotal > 0 && <span>Extra guests · ₹{extraTotal.toLocaleString("en-IN")}</span>}{Number(property.taxes || 0) > 0 && <span>Property tax · ₹{Number(property.taxes).toLocaleString("en-IN")}</span>}<strong>{available ? `₹${estimate.toLocaleString("en-IN")}` : "Checking live price…"}</strong><small>Estimated total from current room availability. The booking service recalculates the final amount before confirmation.</small></div><div className="checkout-trust"><ShieldCheck/> Pay at hotel does not charge your card or credit the owner wallet.</div></aside></div>
+    </form><PriceSidebar roomName={room.name || "Room"} checkIn={checkIn} checkOut={checkOut} adults={adults} childrenCount={children} rooms={rooms} nights={nights} quote={quote} couponInput={couponInput} setCouponInput={setCouponInput} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} couponError={couponError} coupons={coupons} /></div>
   </div></main>;
 }

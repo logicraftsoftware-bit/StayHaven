@@ -57,6 +57,7 @@ type Room = {
   floor: string;
   smoking: boolean;
   baseRate: number;
+  gstIncluded?: boolean;
   additionalSpaces: string;
   bathroomSize: string;
   bathroomAmenities: string[];
@@ -167,6 +168,7 @@ const room = (): Room => ({
   floor: "",
   smoking: false,
   baseRate: 0,
+  gstIncluded: false,
   additionalSpaces: "",
   bathroomSize: "",
   bathroomAmenities: [],
@@ -1123,6 +1125,16 @@ function Rooms({
               value={String(r.baseRate)}
               onChange={(v) => update(index, { baseRate: Number(v) })}
             />
+            <label>
+              GST in base rate
+              <select
+                value={r.gstIncluded ? "included" : "excluded"}
+                onChange={(event) => update(index, { gstIncluded: event.target.value === "included" })}
+              >
+                <option value="excluded">GST added at checkout</option>
+                <option value="included">GST included in room rate</option>
+              </select>
+            </label>
             <Field
               label="Base adults"
               type="number"

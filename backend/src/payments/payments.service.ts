@@ -29,6 +29,7 @@ import { PropertyStatus } from '../common/enums/status.enum';
 import { Role } from '../common/enums/role.enum';
 import {
   CreateBookingOrderDto,
+  BookingQuoteDto,
   PaymentQueryDto,
   RequestWithdrawalDto,
   SaveBankAccountDto,
@@ -36,6 +37,7 @@ import {
   VerifyCashfreePaymentDto,
 } from './dto/payment.dto';
 import { Booking } from './schemas/booking.schema';
+import { calculateBookingPrice } from './booking-pricing';
 import {
   OwnerWallet,
   WalletTransaction,
@@ -102,6 +104,65 @@ export class PaymentsService implements OnModuleInit {
   }
   private id(prefix: string) {
     return `${prefix}-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
+  }
+  private async bookingPrice(
+    room: Record<string, unknown>,
+    totalRate: number,
+    nightlyRates: number[],
+    nights: number,
+    dto: BookingQuoteDto,
+  ) {
+    const includedAdults = Math.max(1, Number(room.baseAdults || 2)) * dto.rooms;
+    const extraAdults = Math.max(0, dto.adults - includedAdults);
+    return calculateBookingPrice({
+      roomRateTotal: totalRate,
+      nightlyRates,
+      extraGuestTotal: (extraAdults * Number(room.additionalAdultPrice || 0) +
+        dto.children * Number(room.additionalChildPrice || 0)) * nights,
+      rooms: dto.rooms,
+      nights,
+      // The legacy property.taxes field represented a flat tax. Do not stack it
+      // on top of the admin-managed GST master for new bookings.
+      propertyTax: 0,
+      gstIncluded: room.gstIncluded === true,
+      couponCode: dto.couponCode,
+      master: await this.settings.pricing(),
+    });
+  }
+
+  async quote(siteId: string, dto: BookingQuoteDto) {
+    const property = await this.properties.findOne({
+      _id: dto.propertyId,
+      siteId: new Types.ObjectId(siteId),
+      status: PropertyStatus.APPROVED,
+      active: { $ne: false },
+    }).lean();
+    if (!property) throw new NotFoundException('Live property not found');
+    const room = (property.roomDetails || []).find((entry, index) =>
+      this.text(entry.id, this.text(entry._id, String(index))) === dto.roomId);
+    if (!room) throw new NotFoundException('Room not found');
+    if (dto.adults + dto.children < dto.rooms ||
+      (Number(room.maxAdults || 0) > 0 && dto.adults > Number(room.maxAdults) * dto.rooms) ||
+      (room.maxChildren !== undefined && dto.children > Number(room.maxChildren) * dto.rooms))
+      throw new BadRequestException('Guest count exceeds room capacity');
+    const nights = Math.round((Date.parse(`${dto.checkOut}T00:00:00.000Z`) - Date.parse(`${dto.checkIn}T00:00:00.000Z`)) / 86400000);
+    if (!Number.isInteger(nights) || nights < 1 || nights > 60)
+      throw new BadRequestException('Choose a valid stay of 1 to 60 nights');
+    const availability = await this.propertyAvailability.publicAvailability(siteId, property.slug, {
+      checkIn: dto.checkIn, checkOut: dto.checkOut, guests: dto.adults + dto.children,
+    });
+    const available = availability.rooms.find((entry) => entry.roomId === dto.roomId);
+    if (available?.status !== 'AVAILABLE' || available.availableInventory < dto.rooms || !available.totalRate)
+      throw new BadRequestException('The selected room is not available for these dates');
+    return this.bookingPrice(room, available.totalRate, available.nightlyRates, nights, dto);
+  }
+
+  async availableCoupons() {
+    const { coupons } = await this.settings.pricing();
+    const today = new Date().toISOString().slice(0, 10);
+    return coupons.filter((coupon) => coupon.active &&
+      (!coupon.startsAt || coupon.startsAt.slice(0, 10) <= today) &&
+      (!coupon.endsAt || coupon.endsAt.slice(0, 10) >= today));
   }
   private validateBookingGuests(dto: CreateBookingOrderDto, room: { maxAdults?: number; maxChildren?: number }) {
     if (dto.adults + dto.children < dto.rooms)
@@ -307,19 +368,8 @@ export class PaymentsService implements OnModuleInit {
     const baseRate = Number(room.baseRate || room.price || property.price || 0);
     if (baseRate <= 0)
       throw new BadRequestException('This room does not have a valid rate');
-    const includedAdults =
-      Math.max(1, Number(room.baseAdults || 2)) * dto.rooms;
-    const extraAdults = Math.max(0, dto.adults - includedAdults);
-    const roomAmount = this.money(
-      (roomAvailability.totalRate || baseRate * nights) * dto.rooms,
-    );
-    const extraGuestAmount = this.money(
-      (extraAdults * Number(room.additionalAdultPrice || 0) +
-        dto.children * Number(room.additionalChildPrice || 0)) *
-        nights,
-    );
-    const taxAmount = this.money(Number(property.taxes || 0));
-    const grossAmount = roomAmount + extraGuestAmount + taxAmount;
+    const price = await this.bookingPrice(room, roomAvailability.totalRate || baseRate * nights, roomAvailability.nightlyRates, nights, dto);
+    const { roomAmount, extraGuestAmount, taxAmount, grossAmount } = price;
     const type = property.propertyTypeId
       ? await this.propertyTypes
           .findById(property.propertyTypeId)
@@ -352,6 +402,13 @@ export class PaymentsService implements OnModuleInit {
       roomAmount,
       extraGuestAmount,
       taxAmount,
+      gstAmount: price.gstAmount,
+      gstRatePercent: price.gstRatePercent,
+      gstIncluded: price.gstIncluded,
+      propertyTaxAmount: price.propertyTaxAmount,
+      couponCode: price.couponCode,
+      couponPercent: price.couponPercent,
+      couponDiscountAmount: price.couponDiscountAmount,
       grossAmount,
       commissionPercent,
       commissionAmount,
@@ -466,19 +523,8 @@ export class PaymentsService implements OnModuleInit {
     const baseRate = Number(room.baseRate || room.price || property.price || 0);
     if (baseRate <= 0)
       throw new BadRequestException('This room does not have a valid rate');
-    const includedAdults =
-      Math.max(1, Number(room.baseAdults || 2)) * dto.rooms;
-    const extraAdultCount = Math.max(0, dto.adults - includedAdults);
-    const roomAmount = this.money(
-      (roomAvailability.totalRate || baseRate * nights) * dto.rooms,
-    );
-    const extraGuestAmount = this.money(
-      (extraAdultCount * Number(room.additionalAdultPrice || 0) +
-        dto.children * Number(room.additionalChildPrice || 0)) *
-        nights,
-    );
-    const taxAmount = this.money(Number(property.taxes || 0));
-    const grossAmount = roomAmount + extraGuestAmount + taxAmount;
+    const price = await this.bookingPrice(room, roomAvailability.totalRate || baseRate * nights, roomAvailability.nightlyRates, nights, dto);
+    const { roomAmount, extraGuestAmount, taxAmount, grossAmount } = price;
     const type = property.propertyTypeId
       ? await this.propertyTypes
           .findById(property.propertyTypeId)
@@ -543,6 +589,13 @@ export class PaymentsService implements OnModuleInit {
       roomAmount,
       extraGuestAmount,
       taxAmount,
+      gstAmount: price.gstAmount,
+      gstRatePercent: price.gstRatePercent,
+      gstIncluded: price.gstIncluded,
+      propertyTaxAmount: price.propertyTaxAmount,
+      couponCode: price.couponCode,
+      couponPercent: price.couponPercent,
+      couponDiscountAmount: price.couponDiscountAmount,
       grossAmount,
       commissionPercent,
       commissionAmount,

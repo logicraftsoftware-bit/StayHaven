@@ -46,6 +46,7 @@ import {
 } from "react";
 import { apiRequest as api, publicApiBase } from "@/lib/api-client";
 import { PageRenderer } from "@/components/page-builder/PageRenderer";
+import { PricingSettings } from "@/components/admin/PricingSettings";
 import { SiteProvider as PublicSiteProvider } from "@/components/site/SiteProvider";
 import type {
   PublishedPageConfig,
@@ -4505,7 +4506,7 @@ function ApiSettingsView({ token }: { token: string }) {
           <LoaderCircle className="spin" /> Loading API settings…
         </div>
       ) : (
-        <div className="api-settings-stack"><form className="admin-card api-settings-card" onSubmit={save}>
+        <div className="api-settings-stack"><PricingSettings token={token} /><form className="admin-card api-settings-card" onSubmit={save}>
           <div className="api-settings-card-heading">
             <i>
               <MapPinned />

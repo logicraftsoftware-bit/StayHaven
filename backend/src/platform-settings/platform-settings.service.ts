@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -16,6 +16,7 @@ import {
   UpdateRazorpaySettingsDto,
   UpdateCashfreeSettingsDto,
   UpdateAiSensySettingsDto,
+  UpdatePricingSettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSetting } from './schemas/platform-setting.schema';
 
@@ -28,6 +29,56 @@ export class PlatformSettingsService {
     private readonly admins: Model<Admin>,
     private readonly config: ConfigService,
   ) {}
+
+  async pricing() {
+    const value = await this.settings.findOneAndUpdate(
+      { key: 'pricing' },
+      { $setOnInsert: { key: 'pricing', gstSlabs: [
+        { maxNightlyRate: 1000, ratePercent: 0 },
+        { maxNightlyRate: 7500, ratePercent: 5 },
+        { maxNightlyRate: null, ratePercent: 18 },
+      ], coupons: [] } },
+      { upsert: true, new: true, runValidators: true },
+    ).lean();
+    return {
+      gstSlabs: value?.gstSlabs || [],
+      coupons: value?.coupons || [],
+    };
+  }
+
+  async updatePricing(dto: UpdatePricingSettingsDto) {
+    if (!dto.gstSlabs.length || dto.gstSlabs.length > 20 || dto.coupons.length > 100)
+      throw new BadRequestException('Add at least one GST slab, with a maximum of 20 slabs and 100 coupons');
+    const slabs = dto.gstSlabs.map((slab) => ({
+      maxNightlyRate: slab.maxNightlyRate ?? null,
+      ratePercent: slab.ratePercent,
+    }));
+    const finite = slabs.filter((slab) => slab.maxNightlyRate !== null);
+    if (
+      slabs.length &&
+      (slabs.at(-1)?.maxNightlyRate !== null ||
+        finite.some((slab, index) => index > 0 && slab.maxNightlyRate! <= finite[index - 1].maxNightlyRate!) ||
+        finite.some((slab) => slab.maxNightlyRate! <= 0) ||
+        slabs.slice(0, -1).some((slab) => slab.maxNightlyRate === null))
+    ) throw new BadRequestException('GST slabs must have ascending nightly limits and one final unlimited slab');
+    const coupons = dto.coupons.map((coupon) => ({
+      code: coupon.code.trim().toUpperCase(),
+      percent: coupon.percent,
+      active: coupon.active,
+      startsAt: coupon.startsAt || undefined,
+      endsAt: coupon.endsAt || undefined,
+    }));
+    if (coupons.some((coupon) => !/^[A-Z0-9_-]{3,32}$/.test(coupon.code)) ||
+      new Set(coupons.map((coupon) => coupon.code)).size !== coupons.length ||
+      coupons.some((coupon) => coupon.startsAt && coupon.endsAt && coupon.startsAt > coupon.endsAt))
+      throw new BadRequestException('Coupon codes must be unique, valid, and have a valid date range');
+    await this.settings.findOneAndUpdate(
+      { key: 'pricing' },
+      { $set: { gstSlabs: slabs, coupons }, $setOnInsert: { key: 'pricing' } },
+      { upsert: true, runValidators: true },
+    );
+    return this.pricing();
+  }
 
   async adminBranding() {
     const value = await this.settings.findOne({ key: 'admin-branding' }).lean();

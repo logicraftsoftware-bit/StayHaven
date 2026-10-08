@@ -264,7 +264,7 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
                     const fitsGuests = (!room.maxAdults || adults <= room.maxAdults * selectedRooms) && (room.maxChildren === undefined || children <= room.maxChildren * selectedRooms);
                     const bookable = availability?.status === "CONFIGURED" && liveRoom?.status === "AVAILABLE" && liveRoom.availableInventory >= selectedRooms && fitsGuests;
                     const includedAdults = Math.max(1, Number(room.baseAdults || 2)) * selectedRooms;
-                    const estimatedTotal = Number(liveRoom?.totalRate || 0) * selectedRooms + Math.max(0, adults - includedAdults) * Number(room.additionalAdultPrice || 0) * Number(availability?.nights || 1) + children * Number(room.additionalChildPrice || 0) * Number(availability?.nights || 1) + Number(property.taxes || 0);
+                    const estimatedTotal = Number(liveRoom?.totalRate || 0) * selectedRooms + Math.max(0, adults - includedAdults) * Number(room.additionalAdultPrice || 0) * Number(availability?.nights || 1) + children * Number(room.additionalChildPrice || 0) * Number(availability?.nights || 1);
                     return (
                       <article key={room.id || room._id || index}>
                         {photos[0] ? (
@@ -335,7 +335,7 @@ export default async function PropertyDetail({ params, searchParams }: Props) {
                           <small>{bookable ? `${liveRoom.availableInventory} available for your dates` : !fitsGuests ? "Select more rooms for your guests" : liveRoom?.status === "UNAVAILABLE" || (liveRoom?.availableInventory || 0) < selectedRooms ? "Not enough rooms for your dates" : "Live rate unavailable"}</small>
                           {roomRate > 0 && <strong>₹{roomRate.toLocaleString("en-IN")}</strong>}
                           {roomRate > 0 && <span>per night</span>}
-                          {bookable && <><p>₹{estimatedTotal.toLocaleString("en-IN")} estimated total · {selectedRooms} {selectedRooms === 1 ? "room" : "rooms"} · {availability.nights} {availability.nights === 1 ? "night" : "nights"}</p><a href={`/booking/${encodeURIComponent(property.slug)}?roomId=${encodeURIComponent(roomId)}&checkIn=${checkIn}&checkOut=${checkOut}&rooms=${selectedRooms}&adults=${adults}&children=${children}&guests=${guests}`}>Book now</a></>}
+                          {bookable && <><p>₹{estimatedTotal.toLocaleString("en-IN")} {room.gstIncluded ? "including GST" : "before applicable GST"} · {selectedRooms} {selectedRooms === 1 ? "room" : "rooms"} · {availability.nights} {availability.nights === 1 ? "night" : "nights"}</p><a href={`/booking/${encodeURIComponent(property.slug)}?roomId=${encodeURIComponent(roomId)}&checkIn=${checkIn}&checkOut=${checkOut}&rooms=${selectedRooms}&adults=${adults}&children=${children}&guests=${guests}`}>Book now</a></>}
                           {!bookable && <button type="button" disabled>{liveRoom?.status === "UNAVAILABLE" ? "Sold out" : "Booking unavailable"}</button>}
                         </div>
                       </article>

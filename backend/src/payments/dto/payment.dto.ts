@@ -33,6 +33,18 @@ export class CreateBookingOrderDto {
   @IsString() @MaxLength(30) guestPhone: string;
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => BookingAdditionalGuestDto)
   guestDetails?: BookingAdditionalGuestDto[];
+  @IsOptional() @IsString() @MaxLength(32) couponCode?: string;
+}
+
+export class BookingQuoteDto {
+  @IsMongoId() propertyId: string;
+  @IsString() @MaxLength(100) roomId: string;
+  @IsDateString() checkIn: string;
+  @IsDateString() checkOut: string;
+  @Type(() => Number) @IsInt() @Min(1) @Max(20) rooms: number;
+  @Type(() => Number) @IsInt() @Min(1) @Max(50) adults: number;
+  @Type(() => Number) @IsInt() @Min(0) @Max(30) children: number;
+  @IsOptional() @IsString() @MaxLength(32) couponCode?: string;
 }
 export class VerifyPaymentDto {
   @IsString() razorpayOrderId: string;

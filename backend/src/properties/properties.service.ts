@@ -400,6 +400,7 @@ export class PropertiesService {
       );
       const remaining: number[] = [];
       let totalRate = 0;
+      const nightlyRates: number[] = [];
       let configured = true;
       for (let offset = 0; offset < nights; offset++) {
         const date = new Date(checkIn.getTime() + offset * 86400000);
@@ -426,6 +427,7 @@ export class PropertiesService {
           .reduce((total, booking) => total + booking.rooms, 0);
         remaining.push(Math.max(0, capacity - booked));
         totalRate += rate;
+        nightlyRates.push(rate);
       }
       const available = configured && remaining.every((count) => count > 0);
       return {
@@ -437,6 +439,7 @@ export class PropertiesService {
           : 'NOT_CONFIGURED',
         availableInventory: available ? Math.min(...remaining) : 0,
         totalRate: configured ? totalRate : null,
+        nightlyRates: configured ? nightlyRates : [],
       };
     });
     return {

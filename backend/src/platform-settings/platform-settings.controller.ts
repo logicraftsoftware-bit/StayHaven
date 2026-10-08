@@ -19,6 +19,7 @@ import {
   UpdateRazorpaySettingsDto,
   UpdateCashfreeSettingsDto,
   UpdateAiSensySettingsDto,
+  UpdatePricingSettingsDto,
 } from './dto/platform-setting.dto';
 import { PlatformSettingsService } from './platform-settings.service';
 
@@ -26,6 +27,22 @@ import { PlatformSettingsService } from './platform-settings.service';
 @Controller()
 export class PlatformSettingsController {
   constructor(private readonly service: PlatformSettingsService) {}
+
+  @Get('admin/settings/pricing')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async adminPricing() {
+    return { success: true, data: await this.service.pricing() };
+  }
+
+  @Patch('admin/settings/pricing')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async updatePricing(@Body() dto: UpdatePricingSettingsDto) {
+    return { success: true, data: await this.service.updatePricing(dto) };
+  }
 
   @Get('settings/maps')
   async publicMaps() {

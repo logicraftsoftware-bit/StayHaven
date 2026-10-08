@@ -17,6 +17,7 @@ import { Customer, CustomerSchema } from '../customers/schemas/customer.schema';
 import { Owner, OwnerSchema } from '../owners/schemas/owner.schema';
 import {
   CustomerPaymentsController,
+  BookingPricingController,
   OwnerPaymentsController,
   RazorpayWebhookController,
 } from './payments.controller';
@@ -50,6 +51,7 @@ import {
     CustomersModule,
   ],
   controllers: [
+    BookingPricingController,
     CustomerPaymentsController,
     OwnerPaymentsController,
     RazorpayWebhookController,

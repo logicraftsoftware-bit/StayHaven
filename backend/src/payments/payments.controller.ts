@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -23,6 +23,7 @@ import { SitesService } from '../sites/sites.service';
 import { requestHostname } from '../sites/utils/request-hostname';
 import {
   CreateBookingOrderDto,
+  BookingQuoteDto,
   CancelBookingDto,
   PaymentQueryDto,
   RequestWithdrawalDto,
@@ -31,6 +32,24 @@ import {
   VerifyCashfreePaymentDto,
 } from './dto/payment.dto';
 import { PaymentsService } from './payments.service';
+
+@ApiTags('Booking pricing')
+@Controller('pricing')
+export class BookingPricingController {
+  constructor(private service: PaymentsService, private sites: SitesService) {}
+
+  @Get('coupons') async coupons() {
+    return { success: true, data: await this.service.availableCoupons() };
+  }
+
+  @Post('quote') async quote(
+    @Req() req: Request,
+    @Body() dto: BookingQuoteDto,
+  ) {
+    const site = await this.sites.resolveActiveByDomain(requestHostname(req));
+    return { success: true, data: await this.service.quote(String(site._id), dto) };
+  }
+}
 
 @ApiTags('Customer bookings and payments')
 @ApiBearerAuth()

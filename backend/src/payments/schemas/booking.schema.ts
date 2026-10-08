@@ -29,6 +29,13 @@ export class Booking {
   @Prop({ required: true, min: 0 }) roomAmount: number;
   @Prop({ default: 0, min: 0 }) extraGuestAmount: number;
   @Prop({ default: 0, min: 0 }) taxAmount: number;
+  @Prop({ default: 0, min: 0 }) gstAmount: number;
+  @Prop({ type: Number, default: 0, min: 0 }) gstRatePercent: number | null;
+  @Prop({ default: false }) gstIncluded: boolean;
+  @Prop({ default: 0, min: 0 }) propertyTaxAmount: number;
+  @Prop({ default: '' }) couponCode: string;
+  @Prop({ default: 0, min: 0 }) couponPercent: number;
+  @Prop({ default: 0, min: 0 }) couponDiscountAmount: number;
   @Prop({ required: true, min: 100 }) grossAmount: number;
   @Prop({ required: true, min: 0, max: 100 }) commissionPercent: number;
   @Prop({ required: true, min: 0 }) commissionAmount: number;

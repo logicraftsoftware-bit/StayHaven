@@ -1,4 +1,6 @@
 import {
+  IsArray,
+  IsDateString,
   IsBoolean,
   IsNumber,
   IsOptional,
@@ -7,7 +9,10 @@ import {
   IsUrl,
   MaxLength,
   Min,
+  Max,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateMapSettingsDto {
   @IsOptional()
@@ -51,4 +56,24 @@ export class UpdateAiSensySettingsDto {
   apiUrl?: string;
   @IsOptional() @IsString() @MaxLength(500) apiKey?: string;
   @IsOptional() @IsString() @MaxLength(160) otpCampaign?: string;
+}
+
+export class GstSlabDto {
+  @IsOptional() @IsNumber() @Min(0) maxNightlyRate?: number | null;
+  @IsNumber() @Min(0) @Max(100) ratePercent: number;
+}
+
+export class CouponDto {
+  @IsString() @MaxLength(32) code: string;
+  @IsNumber() @Min(0.01) @Max(99) percent: number;
+  @IsBoolean() active: boolean;
+  @IsOptional() @IsDateString() startsAt?: string;
+  @IsOptional() @IsDateString() endsAt?: string;
+}
+
+export class UpdatePricingSettingsDto {
+  @IsArray() @ValidateNested({ each: true }) @Type(() => GstSlabDto)
+  gstSlabs: GstSlabDto[];
+  @IsArray() @ValidateNested({ each: true }) @Type(() => CouponDto)
+  coupons: CouponDto[];
 }
