@@ -1,0 +1,31 @@
+name: Temporary booking error diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/guwahati_deploy
+          chmod 600 ~/.ssh/guwahati_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Inspect recent backend exceptions
+        env:
+          VPS_SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/guwahati_deploy -p "${VPS_SSH_PORT:-22}" "$VPS_SSH_USER@$VPS_SSH_HOST" \
+            'tail -n 120 "$HOME/.pm2/logs/guwahati-backend-error.log" | sed -E "s/[[:alnum:]_.%+-]+@[[:alnum:].-]+/[redacted-email]/g; s/[0-9]{10,}/[redacted-number]/g" | tail -n 45'
