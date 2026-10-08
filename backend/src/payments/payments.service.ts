@@ -38,6 +38,7 @@ import {
 } from './dto/payment.dto';
 import { Booking } from './schemas/booking.schema';
 import { calculateBookingPrice } from './booking-pricing';
+import { renderBookingDocument } from './booking-document';
 import {
   OwnerWallet,
   WalletTransaction,
@@ -819,9 +820,27 @@ export class PaymentsService implements OnModuleInit {
     }
   }
   async customerBooking(customerId: string, id: string) {
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid booking');
     const value = await this.bookings.findOne({ _id: id, customerId }).lean();
     if (!value) throw new NotFoundException('Booking not found');
     return value;
+  }
+
+  async customerBookingDocument(customerId: string, id: string, siteName: string) {
+    const booking = await this.customerBooking(customerId, id);
+    if (booking.status === 'PAYMENT_PENDING')
+      throw new BadRequestException('A booking document is available after confirmation');
+    const property = await this.properties.findById(booking.propertyId)
+      .select('address city state basicInfo').lean();
+    const propertyAddress = [property?.address, property?.city, property?.state]
+      .filter(Boolean).join(', ');
+    return renderBookingDocument({
+      ...booking,
+      siteName,
+      propertyAddress,
+      propertyPhone: this.text(property?.basicInfo?.phone),
+      guestDetails: booking.guestDetails || [],
+    });
   }
 
   async settleEligible(ownerId?: string) {

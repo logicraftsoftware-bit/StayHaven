@@ -9,11 +9,13 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
+import type { Response } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -36,7 +38,10 @@ import { PaymentsService } from './payments.service';
 @ApiTags('Booking pricing')
 @Controller('pricing')
 export class BookingPricingController {
-  constructor(private service: PaymentsService, private sites: SitesService) {}
+  constructor(
+    private service: PaymentsService,
+    private sites: SitesService,
+  ) {}
 
   @Get('coupons') async coupons() {
     return { success: true, data: await this.service.availableCoupons() };
@@ -47,7 +52,10 @@ export class BookingPricingController {
     @Body() dto: BookingQuoteDto,
   ) {
     const site = await this.sites.resolveActiveByDomain(requestHostname(req));
-    return { success: true, data: await this.service.quote(String(site._id), dto) };
+    return {
+      success: true,
+      data: await this.service.quote(String(site._id), dto),
+    };
   }
 }
 
@@ -57,7 +65,10 @@ export class BookingPricingController {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.CUSTOMER)
 export class CustomerPaymentsController {
-  constructor(private service: PaymentsService, private sites: SitesService) {}
+  constructor(
+    private service: PaymentsService,
+    private sites: SitesService,
+  ) {}
   @Post('order') async order(
     @Req() req: Request & { user: { sub: string } },
     @Body() dto: CreateBookingOrderDto,
@@ -75,21 +86,35 @@ export class CustomerPaymentsController {
     const site = await this.sites.resolveActiveByDomain(requestHostname(req));
     return {
       success: true,
-      data: await this.service.createPayAtHotelBooking(req.user.sub, String(site._id), dto),
+      data: await this.service.createPayAtHotelBooking(
+        req.user.sub,
+        String(site._id),
+        dto,
+      ),
     };
   }
   @Post(':id/pay-now') async payNow(
     @Req() req: { user: { sub: string } },
     @Param('id') id: string,
   ) {
-    return { success: true, data: await this.service.payExistingBooking(req.user.sub, id) };
+    return {
+      success: true,
+      data: await this.service.payExistingBooking(req.user.sub, id),
+    };
   }
   @Post(':id/cancel') async cancel(
     @Req() req: { user: { sub: string } },
     @Param('id') id: string,
     @Body() dto: CancelBookingDto,
   ) {
-    return { success: true, data: await this.service.cancelCustomerBooking(req.user.sub, id, dto.reason) };
+    return {
+      success: true,
+      data: await this.service.cancelCustomerBooking(
+        req.user.sub,
+        id,
+        dto.reason,
+      ),
+    };
   }
   @Post('verify') async verify(
     @Req() req: { user: { sub: string } },
@@ -126,6 +151,27 @@ export class CustomerPaymentsController {
       data: await this.service.customerBooking(req.user.sub, id),
     };
   }
+
+  @Get(':id/invoice') async invoice(
+    @Req() req: { user: { sub: string } },
+    @Param('id') id: string,
+    @Res() response: Response,
+  ) {
+    const booking = await this.service.customerBooking(req.user.sub, id);
+    const site = await this.sites.get(String(booking.siteId));
+    const pdf = await this.service.customerBookingDocument(
+      req.user.sub,
+      id,
+      site.name,
+    );
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="booking-${booking.bookingNumber.replace(/[^A-Za-z0-9-]/g, '')}.pdf"`,
+    );
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.end(pdf);
+  }
 }
 
 @ApiTags('Owner wallet and settlements')
@@ -154,7 +200,10 @@ export class OwnerPaymentsController {
     @Param('id') id: string,
     @Body() dto: CancelBookingDto,
   ) {
-    return { success: true, data: await this.service.cancelOwnerBooking(req.user, id, dto.reason) };
+    return {
+      success: true,
+      data: await this.service.cancelOwnerBooking(req.user, id, dto.reason),
+    };
   }
   @Get('analytics') async analytics(
     @Req() req: { user: PortalPaymentUser },

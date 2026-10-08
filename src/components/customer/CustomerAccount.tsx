@@ -22,6 +22,7 @@ import { apiRequest } from "@/lib/api-client";
 import { CUSTOMER_PROFILE_EVENT, CUSTOMER_TOKEN } from "./CustomerAuth";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { BookingPayNowButton } from "@/components/booking/BookingPayNowButton";
+import { BookingInvoiceButton } from "@/components/booking/BookingInvoiceButton";
 type Traveller = {
   id: string;
   name: string;
@@ -499,6 +500,7 @@ export function CustomerAccount() {
                     <strong className="trip-booking-price">₹{(b.grossAmount / 100).toLocaleString("en-IN")}</strong>
                     <div className="trip-booking-actions">
                       {b.status !== "CANCELLED" && ["PAY_AT_HOTEL", "PAYMENT_PENDING"].includes(b.paymentStatus) && <BookingPayNowButton bookingId={b._id} token={token} onPaid={() => void reloadBookings()} />}
+                      <BookingInvoiceButton bookingId={b._id} bookingNumber={b.bookingNumber} token={token} />
                       {b.propertySlug && <Link href={`/hotels/${b.propertySlug}`}>Hotel details</Link>}
                       {b.propertyAddress && <a href={b.propertyMapUrl?.startsWith("https://") ? b.propertyMapUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.propertyAddress)}`} target="_blank" rel="noopener noreferrer">Location</a>}
                       {b.propertyPhone && <a href={`tel:${b.propertyPhone.replace(/[^+\d]/g, "")}`}>Call hotel</a>}

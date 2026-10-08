@@ -26,4 +26,20 @@ describe('CustomerPaymentsController marketplace isolation', () => {
     await controller.payAtHotel(request as never, dto);
     expect(payments.createPayAtHotelBooking).toHaveBeenCalledWith('customer-1', String(siteId), dto);
   });
+
+  it('downloads only a booking resolved for the authenticated customer', async () => {
+    const pdf = Buffer.from('%PDF-test');
+    const payments = {
+      customerBooking: jest.fn().mockResolvedValue({ bookingNumber: 'GH-TEST-123', siteId }),
+      customerBookingDocument: jest.fn().mockResolvedValue(pdf),
+    };
+    const sites = { get: jest.fn().mockResolvedValue({ name: 'Shillong Stays' }) };
+    const response = { setHeader: jest.fn(), end: jest.fn() };
+    const controller = new CustomerPaymentsController(payments as unknown as PaymentsService, sites as unknown as SitesService);
+    await controller.invoice(request as never, 'booking-1', response as never);
+    expect(payments.customerBooking).toHaveBeenCalledWith('customer-1', 'booking-1');
+    expect(payments.customerBookingDocument).toHaveBeenCalledWith('customer-1', 'booking-1', 'Shillong Stays');
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+    expect(response.end).toHaveBeenCalledWith(pdf);
+  });
 });

@@ -10,6 +10,7 @@ import type { PublicProperty, PublicRoom } from "@/types/public-property";
 import { StaySearchBar } from "./StaySearchBar";
 import { publicApiBase } from "@/lib/api-client";
 import { BookingPriceSidebar, type AvailableCoupon, type Quote } from "./BookingPriceSidebar";
+import { BookingInvoiceButton } from "./BookingInvoiceButton";
 
 declare global { interface Window {
   Razorpay?: new (options: Record<string, unknown>) => { open: () => void; on: (name: string, callback: (value: { error?: { description?: string } }) => void) => void };
@@ -32,7 +33,7 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [error, setError] = useState("");
-  const [confirmed, setConfirmed] = useState<{ number: string; payAtHotel: boolean } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ id: string; number: string; payAtHotel: boolean } | null>(null);
   const [live, setLive] = useState<{ totalRate: number | null; availableInventory: number; status: string } | null>(null);
   const [availabilityError, setAvailabilityError] = useState("");
   const [policiesOpen, setPoliciesOpen] = useState(false);
@@ -91,8 +92,8 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
     setBusy(true); setError("");
     try {
       if (payAtHotel) {
-        const booking = (await apiRequest<{ data: { bookingNumber: string } }>("/api/v1/customer/bookings/pay-at-hotel", token, { method: "POST", body: JSON.stringify(details) })).data;
-        setConfirmed({ number: booking.bookingNumber, payAtHotel: true });
+        const booking = (await apiRequest<{ data: { bookingId: string; bookingNumber: string } }>("/api/v1/customer/bookings/pay-at-hotel", token, { method: "POST", body: JSON.stringify(details) })).data;
+        setConfirmed({ id: booking.bookingId, number: booking.bookingNumber, payAtHotel: true });
         setBusy(false);
         return;
       }
@@ -103,17 +104,17 @@ export function BookingCheckout({ property, room, roomId, checkIn, checkOut, roo
         const result = await window.Cashfree({ mode: order.mode }).checkout({ paymentSessionId: order.paymentSessionId, redirectTarget: "_modal" });
         if (result.error) throw new Error(result.error.message || "Cashfree payment was not completed");
         await apiRequest("/api/v1/customer/bookings/verify-cashfree", token, { method: "POST", body: JSON.stringify({ orderId: order.orderId }) });
-        setConfirmed({ number: order.bookingNumber, payAtHotel: false }); setBusy(false); return;
+        setConfirmed({ id: order.bookingId, number: order.bookingNumber, payAtHotel: false }); setBusy(false); return;
       }
       await loadScript("razorpay-checkout", "https://checkout.razorpay.com/v1/checkout.js", () => Boolean(window.Razorpay));
       if (!window.Razorpay) throw new Error("Razorpay Checkout is unavailable");
-      const instance = new window.Razorpay({ key: order.keyId, amount: order.amount, currency: order.currency, name: "Guwahati Homestay", description: `${order.propertyName} · ${nights} night stay`, order_id: order.razorpayOrderId, prefill: order.customer, theme: { color: "#af0d1d" }, modal: { ondismiss: () => setBusy(false) }, handler: async (response: Record<string, string>) => { try { await apiRequest("/api/v1/customer/bookings/verify", token, { method: "POST", body: JSON.stringify({ razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature }) }); setConfirmed({ number: order.bookingNumber, payAtHotel: false }); } catch (reason) { setError((reason as Error).message); } finally { setBusy(false); } } });
+      const instance = new window.Razorpay({ key: order.keyId, amount: order.amount, currency: order.currency, name: "Guwahati Homestay", description: `${order.propertyName} · ${nights} night stay`, order_id: order.razorpayOrderId, prefill: order.customer, theme: { color: "#af0d1d" }, modal: { ondismiss: () => setBusy(false) }, handler: async (response: Record<string, string>) => { try { await apiRequest("/api/v1/customer/bookings/verify", token, { method: "POST", body: JSON.stringify({ razorpayOrderId: response.razorpay_order_id, razorpayPaymentId: response.razorpay_payment_id, razorpaySignature: response.razorpay_signature }) }); setConfirmed({ id: order.bookingId, number: order.bookingNumber, payAtHotel: false }); } catch (reason) { setError((reason as Error).message); } finally { setBusy(false); } } });
       instance.on("payment.failed", (response) => { setError(response.error?.description || "Payment failed. No booking was confirmed."); setBusy(false); });
       instance.open();
     } catch (reason) { setError((reason as Error).message); setBusy(false); }
   }
 
-  if (confirmed) return <div className="booking-success"><i><CheckCircle2 /></i><p>{confirmed.payAtHotel ? "PAY AT HOTEL" : "PAYMENT RECEIVED"}</p><h1>Your stay is confirmed.</h1><span>Booking ID <b>{confirmed.number}</b></span><p>{confirmed.payAtHotel ? "No online payment was collected. Pay the property directly at check-in. This reservation is visible to the property owner." : "A secure payment record has been created. The property receives its settlement after checkout."}</p><Link href="/account#trips">View my booking in My trips</Link></div>;
+  if (confirmed) return <div className="booking-success"><i><CheckCircle2 /></i><p>{confirmed.payAtHotel ? "PAY AT HOTEL" : "PAYMENT RECEIVED"}</p><h1>Your stay is confirmed.</h1><span>Booking ID <b>{confirmed.number}</b></span><p>{confirmed.payAtHotel ? "No online payment was collected. Pay the property directly at check-in. This reservation is visible to the property owner." : "A secure payment record has been created. The property receives its settlement after checkout."}</p><div className="booking-success-actions"><Link href="/account#trips">View my booking in My trips</Link><BookingInvoiceButton bookingId={confirmed.id} bookingNumber={confirmed.number}/></div></div>;
 
   return <main className="secure-checkout checkout-reference"><div className="container">
     <header><div><p>REVIEW YOUR BOOKING</p><h1>Review your booking</h1></div><Link href={`/hotels/${property.slug}`}>Back to property</Link></header>

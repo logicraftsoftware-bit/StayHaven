@@ -95,3 +95,14 @@ describe('PaymentsService additional guest validation', () => {
     await expect(service[method]('customer-1', String(siteId), dto as never)).rejects.toThrow('every additional guest');
   });
 });
+
+describe('PaymentsService booking documents', () => {
+  it('does not expose another customer’s booking document', async () => {
+    const findOne = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    const service = Object.create(PaymentsService.prototype) as PaymentsService;
+    Object.defineProperty(service, 'bookings', { value: { findOne } });
+    await expect(service.customerBookingDocument('customer-1', String(new Types.ObjectId()), 'Guwahati Homestay'))
+      .rejects.toThrow('Booking not found');
+    expect(findOne).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1' }));
+  });
+});
