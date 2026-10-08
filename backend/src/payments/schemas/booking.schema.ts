@@ -49,11 +49,11 @@ export class Booking {
     index: true,
   })
   paymentGateway: string;
-  @Prop({ sparse: true, unique: true, index: true }) gatewayOrderId?: string;
+  @Prop() gatewayOrderId?: string;
   @Prop() paymentSessionId?: string;
-  @Prop({ sparse: true, unique: true }) gatewayPaymentId?: string;
-  @Prop({ sparse: true, unique: true, index: true }) razorpayOrderId?: string;
-  @Prop({ sparse: true, unique: true }) razorpayPaymentId?: string;
+  @Prop() gatewayPaymentId?: string;
+  @Prop() razorpayOrderId?: string;
+  @Prop() razorpayPaymentId?: string;
   @Prop() paidAt?: Date;
   @Prop() settledAt?: Date;
   @Prop() cancelledAt?: Date;
@@ -70,3 +70,18 @@ BookingSchema.index({ ownerId: 1, propertyId: 1, checkIn: -1 });
 BookingSchema.index({ siteId: 1, status: 1, checkIn: 1 });
 BookingSchema.index({ propertyId: 1, roomId: 1, checkIn: 1, checkOut: 1 });
 BookingSchema.index({ customerId: 1, createdAt: -1 });
+for (const field of [
+  'gatewayOrderId',
+  'gatewayPaymentId',
+  'razorpayOrderId',
+  'razorpayPaymentId',
+] as const) {
+  BookingSchema.index(
+    { [field]: 1 },
+    {
+      name: `${field}_unique_string`,
+      unique: true,
+      partialFilterExpression: { [field]: { $type: 'string' } },
+    },
+  );
+}
